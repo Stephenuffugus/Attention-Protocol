@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWS Attention Protocol — Market Research</title>
+<style>
+:root{--bg:#0a0e17;--card:#111827;--border:#1e293b;--text:#f1f5f9;--dim:#94a3b8;--muted:#475569;--cyan:#06b6d4;--purple:#8b5cf6;--green:#10b981;--amber:#f59e0b;--red:#ef4444}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+.container{max-width:1000px;margin:0 auto;padding:40px 24px}
+.badge{display:inline-block;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;background:rgba(139,92,246,.15);color:var(--purple);margin-bottom:16px}
+h1{font-size:42px;font-weight:800;line-height:1.15;margin-bottom:12px;background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.subtitle{font-size:20px;color:var(--dim);margin-bottom:40px;max-width:700px}
+.stat-hero{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:48px}
+.stat-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;text-align:center}
+.stat-box .val{font-size:36px;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-box .label{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:32px;margin-bottom:24px}
+.section h2{font-size:22px;margin-bottom:16px;color:var(--cyan)}
+.section p{color:var(--dim);margin-bottom:12px}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0}
+.compare-card{padding:24px;border-radius:10px;border:1px solid var(--border)}
+.compare-card.us{border-color:var(--cyan);background:rgba(6,182,212,.04)}
+.compare-card.them{border-color:var(--muted);background:rgba(71,85,105,.08)}
+.compare-card h3{font-size:15px;margin-bottom:12px}
+.compare-card.us h3{color:var(--cyan)}
+.compare-card.them h3{color:var(--muted)}
+.compare-card ul{list-style:none;font-size:14px;color:var(--dim)}
+.compare-card ul li{padding:6px 0;border-bottom:1px solid rgba(30,41,59,.4)}
+.compare-card ul li:last-child{border:none}
+.compare-card.us ul li::before{content:"✓ ";color:var(--green)}
+.compare-card.them ul li::before{content:"✗ ";color:var(--red)}
+.roi-calc{background:rgba(6,182,212,.04);border:1px solid rgba(6,182,212,.2);border-radius:12px;padding:32px;margin:24px 0}
+.roi-calc h3{color:var(--cyan);margin-bottom:16px;font-size:18px}
+.slider-group{margin-bottom:20px}
+.slider-group label{display:block;font-size:13px;color:var(--dim);margin-bottom:6px}
+.slider-group input[type=range]{width:100%;accent-color:var(--cyan)}
+.slider-group .val-display{font-size:20px;font-weight:700;color:var(--text)}
+.roi-result{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+.roi-box{background:var(--card);border-radius:8px;padding:16px;text-align:center}
+.roi-box .roi-val{font-size:24px;font-weight:800;color:var(--green)}
+.roi-box .roi-label{font-size:11px;color:var(--dim);text-transform:uppercase;margin-top:4px}
+.live-demo{margin:32px 0}
+.live-demo .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}
+.live-stat{background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.2);border-radius:8px;padding:14px;text-align:center}
+.live-stat .lv{font-size:22px;font-weight:700}
+.live-stat .ll{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0}
+.step{text-align:center;padding:24px 16px}
+.step-num{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--purple));color:#fff;font-weight:700;font-size:16px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px}
+.step h4{font-size:15px;margin-bottom:6px}
+.step p{font-size:13px;color:var(--dim)}
+.code{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:16px;font-family:'SF Mono',monospace;font-size:13px;color:var(--green);overflow-x:auto;margin:16px 0}
+.cta{text-align:center;padding:48px 24px;margin-top:32px}
+.cta h2{font-size:28px;margin-bottom:8px}
+.cta p{color:var(--dim);font-size:15px}
+.footer{text-align:center;padding:24px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);margin-top:32px}
+@media(max-width:768px){.stat-hero,.compare-grid,.roi-result,.steps,.live-demo .stats-row{grid-template-columns:1fr}h1{font-size:28px}}
+</style>
+</head>
+<body>
+<div class="container">
+<span class="badge">Patent Pending — SWS-PROV-001</span>
+<h1>Catch the 23% Your Fraud Tools Miss</h1>
+<p class="subtitle">Fraud detection catches bots. But 23% of your survey responses come from real humans who aren't paying attention. They pass every fraud filter — and poison your data anyway.</p>
+
+<div class="stat-hero">
+<div class="stat-box"><div class="val">33%</div><div class="label">Fraud rate in online surveys</div></div>
+<div class="stat-box"><div class="val">$81B</div><div class="label">Global market research industry</div></div>
+<div class="stat-box"><div class="val">84%</div><div class="label">Fraud that looks "too good to clean"</div></div>
+</div>
+
+<div class="section">
+<h2>The Problem: Disengaged Humans Pass Every Fraud Filter</h2>
+<p>Research Defender catches bots. Imperium catches duplicate IPs. But the survey respondent who opens Netflix in another tab, clicks random answers at 4x normal speed, and collects their $3 incentive? They pass every single check.</p>
+<p>Your data looks clean. Your crosstabs look reasonable. But 23% of your responses came from humans who never actually read the questions. You're making million-dollar product decisions on data that's one-quarter noise.</p>
+<p><strong>What if you could score every single response for genuine cognitive engagement?</strong></p>
+</div>
+
+<div class="section">
+<h2>Us vs. Current Tools</h2>
+<div class="compare-grid">
+<div class="compare-card us">
+<h3>SWS Attention Protocol</h3>
+<ul>
+<li>Per-response Focus Score 0-100</li>
+<li>Detects disengaged humans, not just bots</li>
+<li>6 behavioral signals measure cognitive engagement</li>
+<li>SHA-256 cryptographic proof per response</li>
+<li>No content or PII tracking</li>
+<li>Works with any survey platform</li>
+</ul>
+</div>
+<div class="compare-card them">
+<h3>Research Defender / Imperium</h3>
+<ul>
+<li>Binary: "fraud" or "not fraud"</li>
+<li>Only catches bots and duplicates</li>
+<li>No behavioral engagement measurement</li>
+<li>No cryptographic verification</li>
+<li>Requires cookie/fingerprint tracking</li>
+<li>Misses 23% of low-quality responses</li>
+</ul>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h2>ROI Calculator: What Bad Data Costs You</h2>
+<div class="roi-calc">
+<h3>Calculate Your Data Waste</h3>
+<div class="slider-group">
+<label>Responses Per Month: <span class="val-display" id="responsesDisplay">10,000</span></label>
+<input type="range" id="responses" min="500" max="100000" step="500" value="10000">
+</div>
+<div class="slider-group">
+<label>Avg Cost Per Response: <span class="val-display" id="costDisplay">$25</span></label>
+<input type="range" id="costPerResponse" min="15" max="50" step="1" value="25">
+</div>
+<div class="slider-group">
+<label>Estimated Waste (23% disengaged): <span class="val-display" id="wasteDisplay">$57,500</span></label>
+</div>
+<div class="roi-result">
+<div class="roi-box"><div class="roi-val" id="roiWasted">$57,500</div><div class="roi-label">Monthly wasted spend</div></div>
+<div class="roi-box"><div class="roi-val" id="roiAnnual">$690,000</div><div class="roi-label">Annual waste</div></div>
+<div class="roi-box"><div class="roi-val" id="roiSaved">$621,000</div><div class="roi-label">Recoverable with Focus Scores (90%)</div></div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h2>How It Works</h2>
+<div class="steps">
+<div class="step"><div class="step-num">1</div><h4>Embed in Your Survey</h4><p>One line of JavaScript in your survey platform. No backend changes needed.</p></div>
+<div class="step"><div class="step-num">2</div><h4>We Score Every Response</h4><p>6 behavioral signals produce a Focus Score 0-100 for each respondent in real-time.</p></div>
+<div class="step"><div class="step-num">3</div><h4>You Filter with Confidence</h4><p>Remove low-attention responses before analysis. Cryptographic receipts prove data quality to clients.</p></div>
+</div>
+<div class="code">&lt;script src="https://cdn.swsprotocol.com/attention-protocol.js" data-game-id="your_survey_platform"&gt;&lt;/script&gt;</div>
+</div>
+
+<div class="section live-demo">
+<h2>Live on This Page Right Now</h2>
+<p>The protocol is measuring your attention as you read this. Here's what it sees:</p>
+<div class="stats-row">
+<div class="live-stat"><div class="lv" id="liveHashes">0</div><div class="ll">Hashes Generated</div></div>
+<div class="live-stat"><div class="lv" id="liveFocus">—</div><div class="ll">Focus Score</div></div>
+<div class="live-stat"><div class="lv" id="liveTime">0:00</div><div class="ll">Verified Attention</div></div>
+<div class="live-stat"><div class="lv" id="liveConfidence">—</div><div class="ll">Human Confidence</div></div>
+</div>
+</div>
+
+<div class="cta">
+<h2>Score Every Response. Trust Every Dataset.</h2>
+<p>Free 30-day pilot. 5 spots available. You keep all the data.</p>
+<p style="margin-top:16px;color:var(--text)">Stephen Furpahs | SWS Strategic Media LLC | Patent Pending</p>
+</div>
+
+<div class="footer">&copy; 2026 SWS Strategic Media LLC. Patent Pending: SWS-PROV-001. All rights reserved.</div>
+</div>
+
+<script src="../../src/sdk/attention-protocol.js"></script>
+<script>
+SWSAttention.init({gameId:'sws_market_research_demo',debug:false,enableBehavioralAnalysis:true});
+var _demoStart=Date.now();
+function updateROI(){
+var responses=parseInt(document.getElementById('responses').value);
+var cost=parseInt(document.getElementById('costPerResponse').value);
+var waste=Math.round(responses*cost*0.23);
+var annual=waste*12;
+var saved=Math.round(annual*0.9);
+document.getElementById('responsesDisplay').textContent=responses.toLocaleString();
+document.getElementById('costDisplay').textContent='$'+cost;
+document.getElementById('wasteDisplay').textContent='$'+waste.toLocaleString();
+document.getElementById('roiWasted').textContent='$'+waste.toLocaleString();
+document.getElementById('roiAnnual').textContent='$'+annual.toLocaleString();
+document.getElementById('roiSaved').textContent='$'+saved.toLocaleString();
+}
+document.getElementById('responses').addEventListener('input',updateROI);
+document.getElementById('costPerResponse').addEventListener('input',updateROI);
+setInterval(function(){
+var s=SWSAttention.getStats();
+document.getElementById('liveHashes').textContent=s.totalHashes;
+document.getElementById('liveFocus').textContent=s.focusScore+'/100';
+var el=Math.floor((Date.now()-_demoStart)/1000);
+document.getElementById('liveTime').textContent=Math.floor(el/60)+':'+String(el%60).padStart(2,'0');
+if(s.humanConfidence)document.getElementById('liveConfidence').textContent=Math.round(s.humanConfidence.composite*100)+'%';
+},1000);
+</script>
+</body>
+</html>

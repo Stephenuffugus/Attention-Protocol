@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Vault: each authenticated user (including anonymous) can read/write their own vault
+    match /vaults/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Friend codes: any authenticated user can read/write
+    match /friendCodes/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Store catalog: readable by anyone authenticated, writable by admins only
+    match /store_catalog/{gameId}/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if false; // Admin SDK only
+    }
+  }
+}

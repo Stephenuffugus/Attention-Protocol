@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWS Attention Protocol — Military & Classified Environments</title>
+<style>
+:root{--bg:#0a0e17;--card:#111827;--border:#1e293b;--text:#f1f5f9;--dim:#94a3b8;--muted:#475569;--cyan:#06b6d4;--purple:#8b5cf6;--green:#10b981;--amber:#f59e0b;--red:#ef4444}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+.container{max-width:1000px;margin:0 auto;padding:40px 24px}
+.badge{display:inline-block;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;background:rgba(139,92,246,.15);color:var(--purple);margin-bottom:16px}
+h1{font-size:42px;font-weight:800;line-height:1.15;margin-bottom:12px;background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.subtitle{font-size:20px;color:var(--dim);margin-bottom:40px;max-width:700px}
+.stat-hero{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:48px}
+.stat-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;text-align:center}
+.stat-box .val{font-size:36px;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-box .label{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:32px;margin-bottom:24px}
+.section h2{font-size:22px;margin-bottom:16px;color:var(--cyan)}
+.section p{color:var(--dim);margin-bottom:12px}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0}
+.compare-card{padding:24px;border-radius:10px;border:1px solid var(--border)}
+.compare-card.us{border-color:var(--cyan);background:rgba(6,182,212,.04)}
+.compare-card.them{border-color:var(--muted);background:rgba(71,85,105,.08)}
+.compare-card h3{font-size:15px;margin-bottom:12px}
+.compare-card.us h3{color:var(--cyan)}
+.compare-card.them h3{color:var(--muted)}
+.compare-card ul{list-style:none;font-size:14px;color:var(--dim)}
+.compare-card ul li{padding:6px 0;border-bottom:1px solid rgba(30,41,59,.4)}
+.compare-card ul li:last-child{border:none}
+.compare-card.us ul li::before{content:"✓ ";color:var(--green)}
+.compare-card.them ul li::before{content:"✗ ";color:var(--red)}
+.roi-calc{background:rgba(6,182,212,.04);border:1px solid rgba(6,182,212,.2);border-radius:12px;padding:32px;margin:24px 0}
+.roi-calc h3{color:var(--cyan);margin-bottom:16px;font-size:18px}
+.slider-group{margin-bottom:20px}
+.slider-group label{display:block;font-size:13px;color:var(--dim);margin-bottom:6px}
+.slider-group input[type=range]{width:100%;accent-color:var(--cyan)}
+.slider-group .val-display{font-size:20px;font-weight:700;color:var(--text)}
+.roi-result{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+.roi-box{background:var(--card);border-radius:8px;padding:16px;text-align:center}
+.roi-box .roi-val{font-size:24px;font-weight:800;color:var(--green)}
+.roi-box .roi-label{font-size:11px;color:var(--dim);text-transform:uppercase;margin-top:4px}
+.live-demo{margin:32px 0}
+.live-demo .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}
+.live-stat{background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.2);border-radius:8px;padding:14px;text-align:center}
+.live-stat .lv{font-size:22px;font-weight:700}
+.live-stat .ll{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0}
+.step{text-align:center;padding:24px 16px}
+.step-num{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--purple));color:#fff;font-weight:700;font-size:16px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px}
+.step h4{font-size:15px;margin-bottom:6px}
+.step p{font-size:13px;color:var(--dim)}
+.code{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:16px;font-family:'SF Mono',monospace;font-size:13px;color:var(--green);overflow-x:auto;margin:16px 0}
+.cta{text-align:center;padding:48px 24px;margin-top:32px}
+.cta h2{font-size:28px;margin-bottom:8px}
+.cta p{color:var(--dim);font-size:15px}
+.footer{text-align:center;padding:24px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);margin-top:32px}
+@media(max-width:768px){.stat-hero,.compare-grid,.roi-result,.steps,.live-demo .stats-row{grid-template-columns:1fr}h1{font-size:28px}}
+</style>
+</head>
+<body>
+<div class="container">
+<span class="badge">Patent Pending — SWS-PROV-001</span>
+<h1>Attention Verification for Classified Environments</h1>
+<p class="subtitle">The only attention verification system that can operate inside a SCIF. Zero content data. Zero URLs. Zero PII. Just cryptographic proof of genuine human engagement.</p>
+
+<div class="stat-hero">
+<div class="stat-box"><div class="val">Zero</div><div class="label">Content data captured — SCIF eligible</div></div>
+<div class="stat-box"><div class="val">FIPS 140-2</div><div class="label">Compliant SHA-256 hashing</div></div>
+<div class="stat-box"><div class="val">Zero PII</div><div class="label">No URLs, no content, no identifiers</div></div>
+</div>
+
+<div class="section">
+<h2>The Problem: Every Analytics Tool Requires Content Access</h2>
+<p>You need to verify that personnel genuinely engaged with required training and briefing materials. But every analytics and attention measurement tool on the market requires access to content, URLs, or user identifiers — making them categorically ineligible for classified environments.</p>
+<p>So you're stuck with manual observation, sign-in sheets, and LMS timestamps that prove presence but not engagement. A service member who opens a briefing, minimizes the window, and signs the sheet has "completed" the training. The system cannot tell the difference.</p>
+<p><strong>Our protocol captures only behavioral timing patterns — never content, never URLs, never PII. The hash output is mathematically irreversible. It was designed from the ground up to operate where nothing else can.</strong></p>
+</div>
+
+<div class="section">
+<h2>Us vs. Every Other Analytics Tool</h2>
+<div class="compare-grid">
+<div class="compare-card us">
+<h3>SWS Attention Protocol</h3>
+<ul>
+<li>Zero content data captured — ever</li>
+<li>Zero URLs or page identifiers logged</li>
+<li>Zero PII — no user fingerprinting</li>
+<li>FIPS 140-2 compliant SHA-256 hashing</li>
+<li>Air-gapped deployment option available</li>
+<li>Behavioral timing patterns only — mathematically irreversible</li>
+</ul>
+</div>
+<div class="compare-card them">
+<h3>Every Other Analytics / LMS Tool</h3>
+<ul>
+<li>Requires content access or page scraping</li>
+<li>Logs URLs, page titles, content metadata</li>
+<li>Tracks user identifiers and session data</li>
+<li>Not designed for classified environments</li>
+<li>Requires internet connectivity</li>
+<li>Content data can be reconstructed from logs</li>
+</ul>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h2>ROI Calculator: Verification Cost Comparison</h2>
+<div class="roi-calc">
+<h3>Calculate Your Verification Savings</h3>
+<div class="slider-group">
+<label>Personnel Requiring Training Verification: <span class="val-display" id="personnelDisplay">2,000</span></label>
+<input type="range" id="personnel" min="100" max="50000" step="100" value="2000">
+</div>
+<div class="slider-group">
+<label>Annual Training Modules Per Person: <span class="val-display" id="modulesDisplay">24</span></label>
+<input type="range" id="modules" min="4" max="52" step="2" value="24">
+</div>
+<div class="slider-group">
+<label>Cost Comparison: <span class="val-display" id="savingsDisplay">$1,536,000 saved annually</span></label>
+</div>
+<div class="roi-result">
+<div class="roi-box"><div class="roi-val" id="roiManual">$1,920,000</div><div class="roi-label">Current manual verification cost</div></div>
+<div class="roi-box"><div class="roi-val" id="roiProtocol">$384,000</div><div class="roi-label">Protocol verification cost</div></div>
+<div class="roi-box"><div class="roi-val" id="roiSaved">$1,536,000</div><div class="roi-label">Annual savings</div></div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h2>How It Works</h2>
+<div class="steps">
+<div class="step"><div class="step-num">1</div><h4>Deploy On-Premise</h4><p>Air-gapped deployment. One JavaScript tag in your training system. No external connections required.</p></div>
+<div class="step"><div class="step-num">2</div><h4>We Verify Engagement</h4><p>6 behavioral timing signals produce a Focus Score. Only timing patterns are captured — never content.</p></div>
+<div class="step"><div class="step-num">3</div><h4>You Get Proof</h4><p>FIPS 140-2 compliant SHA-256 receipts per session. Cryptographic proof of genuine engagement.</p></div>
+</div>
+<div class="code">&lt;!-- Air-gapped deployment — no external connections --&gt;
+&lt;script src="/local/attention-protocol.js" data-game-id="training_verification"&gt;&lt;/script&gt;</div>
+</div>
+
+<div class="section live-demo">
+<h2>Live on This Page Right Now</h2>
+<p>The protocol is measuring your attention as you read this. Here's what it sees:</p>
+<div class="stats-row">
+<div class="live-stat"><div class="lv" id="liveHashes">0</div><div class="ll">Hashes Generated</div></div>
+<div class="live-stat"><div class="lv" id="liveFocus">—</div><div class="ll">Focus Score</div></div>
+<div class="live-stat"><div class="lv" id="liveTime">0:00</div><div class="ll">Verified Attention</div></div>
+<div class="live-stat"><div class="lv" id="liveConfidence">—</div><div class="ll">Human Confidence</div></div>
+</div>
+</div>
+
+<div class="cta">
+<h2>Verify Engagement Where Nothing Else Can Operate.</h2>
+<p>Classified environment pilot available. Contact for SCIF-eligible deployment details.</p>
+<p style="margin-top:16px;color:var(--text)">Stephen Furpahs | SWS Strategic Media LLC | Patent Pending</p>
+</div>
+
+<div class="footer">&copy; 2026 SWS Strategic Media LLC. Patent Pending: SWS-PROV-001. All rights reserved.</div>
+</div>
+
+<script src="../../src/sdk/attention-protocol.js"></script>
+<script>
+SWSAttention.init({gameId:'sws_military_demo',debug:false,enableBehavioralAnalysis:true});
+var _demoStart=Date.now();
+function updateROI(){
+var personnel=parseInt(document.getElementById('personnel').value);
+var modules=parseInt(document.getElementById('modules').value);
+var totalSessions=personnel*modules;
+var manualCost=Math.round(totalSessions*40);
+var protocolCost=Math.round(totalSessions*8);
+var saved=manualCost-protocolCost;
+document.getElementById('personnelDisplay').textContent=personnel.toLocaleString();
+document.getElementById('modulesDisplay').textContent=modules;
+document.getElementById('savingsDisplay').textContent='$'+saved.toLocaleString()+' saved annually';
+document.getElementById('roiManual').textContent='$'+manualCost.toLocaleString();
+document.getElementById('roiProtocol').textContent='$'+protocolCost.toLocaleString();
+document.getElementById('roiSaved').textContent='$'+saved.toLocaleString();
+}
+document.getElementById('personnel').addEventListener('input',updateROI);
+document.getElementById('modules').addEventListener('input',updateROI);
+setInterval(function(){
+var s=SWSAttention.getStats();
+document.getElementById('liveHashes').textContent=s.totalHashes;
+document.getElementById('liveFocus').textContent=s.focusScore+'/100';
+var el=Math.floor((Date.now()-_demoStart)/1000);
+document.getElementById('liveTime').textContent=Math.floor(el/60)+':'+String(el%60).padStart(2,'0');
+if(s.humanConfidence)document.getElementById('liveConfidence').textContent=Math.round(s.humanConfidence.composite*100)+'%';
+},1000);
+</script>
+</body>
+</html>

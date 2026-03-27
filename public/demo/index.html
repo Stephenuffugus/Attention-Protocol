@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS Attention Protocol — Live Demo</title>
+  <style>
+    :root {
+      --bg: #0a0e17;
+      --card: #111827;
+      --border: #1e293b;
+      --text: #f1f5f9;
+      --dim: #94a3b8;
+      --cyan: #06b6d4;
+      --purple: #8b5cf6;
+      --green: #10b981;
+      --amber: #f59e0b;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 40px 24px;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; }
+
+    h1 {
+      font-size: 36px;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 8px;
+    }
+
+    .tagline {
+      font-size: 18px;
+      color: var(--dim);
+      margin-bottom: 40px;
+    }
+
+    .section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+
+    .section h2 {
+      font-size: 20px;
+      margin-bottom: 16px;
+      color: var(--cyan);
+    }
+
+    .section p {
+      color: var(--dim);
+      line-height: 1.8;
+      margin-bottom: 12px;
+    }
+
+    .code-block {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+      font-size: 14px;
+      color: var(--green);
+      overflow-x: auto;
+      margin: 16px 0;
+      line-height: 1.6;
+    }
+
+    .live-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .stat-box {
+      background: rgba(6, 182, 212, 0.06);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 4px;
+    }
+
+    .hash-display {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'SF Mono', monospace;
+      font-size: 12px;
+      color: var(--dim);
+      line-height: 2;
+    }
+
+    .hash-line { color: var(--cyan); }
+    .hash-line .tier { color: var(--purple); }
+    .hash-line .event { color: var(--green); }
+
+    .cta {
+      text-align: center;
+      margin-top: 40px;
+      padding: 32px;
+    }
+
+    .cta-text {
+      font-size: 20px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .cta-sub {
+      color: var(--dim);
+      font-size: 14px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(139, 92, 246, 0.15);
+      color: var(--purple);
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SWS Proof of Attention Protocol</h1>
+    <p class="tagline">One JavaScript tag. Cryptographic proof your users are paying attention. <span class="badge">Patent Pending</span></p>
+
+    <div class="section">
+      <h2>Integration: One Line of Code</h2>
+      <p>Drop this on any web page, survey, training portal, or app. Every visitor generates attention hashes automatically.</p>
+      <div class="code-block">&lt;script src="https://cdn.swsprotocol.com/attention-protocol.js"
+       data-game-id="your_site_id"&gt;&lt;/script&gt;</div>
+      <p>That's it. No backend changes. No user authentication required. Privacy-safe by architecture.</p>
+    </div>
+
+    <div class="section">
+      <h2>Live on This Page Right Now</h2>
+      <p>The protocol is running on this page. Every second you spend here generates verifiable attention data. Here's what it sees:</p>
+
+      <div class="live-stats">
+        <div class="stat-box">
+          <div class="stat-value" id="demoHashes">0</div>
+          <div class="stat-label">Hashes Generated</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="demoFocus">—</div>
+          <div class="stat-label">Focus Score</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="demoInteractions">0</div>
+          <div class="stat-label">Interactions</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="demoConfidence">—</div>
+          <div class="stat-label">Human Confidence</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="demoTime">0:00</div>
+          <div class="stat-label">Session Time</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" id="demoTier">—</div>
+          <div class="stat-label">Current Tier</div>
+        </div>
+      </div>
+
+      <div class="hash-display" id="demoFeed"></div>
+    </div>
+
+    <div class="section">
+      <h2>What GA4 Sees vs. What We See</h2>
+      <p><strong>Google Analytics:</strong> "1 session, 2 min 30 sec, 1 page view, bounce rate 100%." That's it. No quality. No proof.</p>
+      <p><strong>SWS Protocol:</strong> "1 session, 2:30 verified engagement, 47 interactions, timing CV 0.82 (confirmed human), Focus Score 71/100, 3 attention hashes generated at active quality tier with cryptographic proof."</p>
+      <p>We see everything analytics can't. And we prove it with SHA-256 cryptographic receipts.</p>
+    </div>
+
+    <div class="section">
+      <h2>Use Cases</h2>
+      <p><strong>Market Research:</strong> Score every survey response 0-100 on attention quality. Catch the 23% of speeders your fraud tools miss.</p>
+      <p><strong>Insurance:</strong> Prove policyholders genuinely engaged with safety training. Cryptographic receipts, not checkboxes.</p>
+      <p><strong>Healthcare Training:</strong> Verify nursing home staff actually paid attention to fall prevention and abuse prevention training.</p>
+      <p><strong>Education:</strong> Measure student engagement quality, not just login time.</p>
+      <p><strong>Advertising:</strong> Sell verified attention-minutes instead of unverifiable impressions.</p>
+    </div>
+
+    <div class="cta">
+      <p class="cta-text">Free 30-day pilot. You keep all the data.</p>
+      <p class="cta-sub">Contact: Stephen Furpahs | SWS Strategic Media LLC | Patent Pending</p>
+    </div>
+  </div>
+
+  <!-- The actual SDK running on this page -->
+  <script src="../../src/sdk/attention-protocol.js"></script>
+  <script>
+    // Initialize the protocol on this demo page
+    SWSAttention.init({
+      gameId: 'sws_demo',
+      debug: true,
+      enableBehavioralAnalysis: true,
+      onHashEarned: function(hash, eventType, tier) {
+        updateDemoStats();
+        addHashToFeed(hash, eventType, tier);
+      }
+    });
+
+    var demoStartTime = Date.now();
+    var interactionCount = 0;
+
+    document.addEventListener('click', function() { interactionCount++; updateDemoStats(); });
+    document.addEventListener('scroll', function() { interactionCount++; });
+    document.addEventListener('mousemove', function() { interactionCount++; });
+    document.addEventListener('keydown', function() { interactionCount++; });
+
+    function updateDemoStats() {
+      var stats = SWSAttention.getStats();
+      document.getElementById('demoHashes').textContent = stats.totalHashes;
+      document.getElementById('demoFocus').textContent = stats.focusScore + '/100';
+      document.getElementById('demoInteractions').textContent = interactionCount;
+
+      if (stats.humanConfidence) {
+        document.getElementById('demoConfidence').textContent =
+          Math.round(stats.humanConfidence.composite * 100) + '%';
+      }
+
+      var elapsed = Math.floor((Date.now() - demoStartTime) / 1000);
+      var min = Math.floor(elapsed / 60);
+      var sec = String(elapsed % 60).padStart(2, '0');
+      document.getElementById('demoTime').textContent = min + ':' + sec;
+
+      var maxTier = stats.humanConfidence ? (
+        stats.humanConfidence.composite > 0.75 ? 'Deep' :
+        stats.humanConfidence.composite > 0.50 ? 'Active' :
+        stats.humanConfidence.composite > 0.25 ? 'Passive' : 'Background'
+      ) : 'Active';
+      document.getElementById('demoTier').textContent = maxTier;
+    }
+
+    function addHashToFeed(hash, eventType, tier) {
+      var feed = document.getElementById('demoFeed');
+      var time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      var line = document.createElement('div');
+      line.className = 'hash-line';
+      line.innerHTML = time + ' <span class="event">' + eventType + '</span> <span class="tier">[' + tier + ']</span> ' + hash.substring(0, 16) + '...';
+      feed.insertBefore(line, feed.firstChild);
+    }
+
+    // Update stats every second
+    setInterval(updateDemoStats, 1000);
+  </script>
+</body>
+</html>

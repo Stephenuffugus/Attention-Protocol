@@ -1,0 +1,14 @@
+{
+  "name": "sws-attention-protocol",
+  "version": "1.0.0",
+  "description": "SWS Proof of Attention Protocol — Cryptographic verification of genuine human attention",
+  "main": "src/sdk/attention-protocol.js",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "serve": "npx http-server public -p 8080 -c-1",
+    "dashboard": "npx http-server src/dashboard -p 3000 -c-1"
+  },
+  "author": "SWS Strategic Media LLC",
+  "license": "UNLICENSED",
+  "private": true
+}

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS Attention Quality Dashboard</title>
+  <link rel="stylesheet" href="css/dashboard.css">
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <div class="dashboard">
+
+    <!-- Header -->
+    <header class="dash-header">
+      <div class="dash-header-left">
+        <h1 class="dash-title">SWS Attention Quality Dashboard</h1>
+        <span class="dash-subtitle">Proof of Attention Protocol &mdash; Real-Time Verification</span>
+      </div>
+      <div class="dash-header-right">
+        <div class="status-indicator" id="statusIndicator">
+          <span class="status-dot"></span>
+          <span class="status-text">Connecting...</span>
+        </div>
+        <select id="timeRange" class="time-select">
+          <option value="1h">Last Hour</option>
+          <option value="24h" selected>Last 24 Hours</option>
+          <option value="7d">Last 7 Days</option>
+          <option value="30d">Last 30 Days</option>
+          <option value="all">All Time</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- KPI Cards Row -->
+    <section class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Hashes</div>
+        <div class="kpi-value" id="totalHashes">—</div>
+        <div class="kpi-delta" id="totalHashesDelta"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Unique Sessions</div>
+        <div class="kpi-value" id="uniqueSessions">—</div>
+        <div class="kpi-delta" id="uniqueSessionsDelta"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Avg Focus Score</div>
+        <div class="kpi-value" id="avgFocusScore">—</div>
+        <div class="kpi-sub" id="focusScoreLabel"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Human Confidence</div>
+        <div class="kpi-value" id="humanConfidence">—</div>
+        <div class="kpi-sub" id="humanConfidenceLabel"></div>
+      </div>
+      <div class="kpi-card highlight">
+        <div class="kpi-label">Verified Attention Minutes</div>
+        <div class="kpi-value" id="attentionMinutes">—</div>
+        <div class="kpi-sub">GA4 can't measure this</div>
+      </div>
+    </section>
+
+    <!-- Comparison Section: Protocol vs GA4 -->
+    <section class="comparison-section">
+      <h2 class="section-title">What We See vs. What GA4 Sees</h2>
+      <div class="comparison-grid">
+        <div class="comparison-card protocol-card">
+          <h3>SWS Attention Protocol</h3>
+          <table class="comparison-table">
+            <tr>
+              <td>Session Duration</td>
+              <td class="value" id="protocolDuration">—</td>
+            </tr>
+            <tr>
+              <td>Engagement Quality</td>
+              <td class="value" id="protocolQuality">—</td>
+            </tr>
+            <tr>
+              <td>Interactions Measured</td>
+              <td class="value" id="protocolInteractions">—</td>
+            </tr>
+            <tr>
+              <td>Timing Entropy (CV)</td>
+              <td class="value" id="protocolCV">—</td>
+            </tr>
+            <tr>
+              <td>Cognitive Processing</td>
+              <td class="value" id="protocolCognitive">—</td>
+            </tr>
+            <tr>
+              <td>Motor Pattern (Fitts')</td>
+              <td class="value" id="protocolFitts">—</td>
+            </tr>
+            <tr>
+              <td>Verdict</td>
+              <td class="value verdict" id="protocolVerdict">—</td>
+            </tr>
+          </table>
+        </div>
+        <div class="comparison-card ga4-card">
+          <h3>Google Analytics 4</h3>
+          <table class="comparison-table">
+            <tr>
+              <td>Session Duration</td>
+              <td class="value">"3 min 12 sec"</td>
+            </tr>
+            <tr>
+              <td>Engagement Quality</td>
+              <td class="value dim">Not available</td>
+            </tr>
+            <tr>
+              <td>Interactions Measured</td>
+              <td class="value dim">Page views only</td>
+            </tr>
+            <tr>
+              <td>Timing Entropy</td>
+              <td class="value dim">Not available</td>
+            </tr>
+            <tr>
+              <td>Cognitive Processing</td>
+              <td class="value dim">Not available</td>
+            </tr>
+            <tr>
+              <td>Motor Pattern</td>
+              <td class="value dim">Not available</td>
+            </tr>
+            <tr>
+              <td>Verdict</td>
+              <td class="value dim">"Engaged session" (binary)</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Quality Tier Distribution -->
+    <section class="charts-section">
+      <div class="chart-card">
+        <h3>Quality Tier Distribution</h3>
+        <div class="tier-bars" id="tierBars">
+          <div class="tier-bar-row">
+            <span class="tier-label">Deep Focus</span>
+            <div class="tier-bar-track">
+              <div class="tier-bar deep" id="barDeep" style="width: 0%"></div>
+            </div>
+            <span class="tier-pct" id="pctDeep">0%</span>
+          </div>
+          <div class="tier-bar-row">
+            <span class="tier-label">Active</span>
+            <div class="tier-bar-track">
+              <div class="tier-bar active" id="barActive" style="width: 0%"></div>
+            </div>
+            <span class="tier-pct" id="pctActive">0%</span>
+          </div>
+          <div class="tier-bar-row">
+            <span class="tier-label">Passive</span>
+            <div class="tier-bar-track">
+              <div class="tier-bar passive" id="barPassive" style="width: 0%"></div>
+            </div>
+            <span class="tier-pct" id="pctPassive">0%</span>
+          </div>
+          <div class="tier-bar-row">
+            <span class="tier-label">Background</span>
+            <div class="tier-bar-track">
+              <div class="tier-bar background" id="barBackground" style="width: 0%"></div>
+            </div>
+            <span class="tier-pct" id="pctBackground">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Event Type Breakdown</h3>
+        <div id="eventBreakdown" class="event-list">
+          <p class="placeholder">Loading event data...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Hash Activity Feed -->
+    <section class="feed-section">
+      <h2 class="section-title">Live Hash Activity</h2>
+      <div class="hash-feed" id="hashFeed">
+        <p class="placeholder">Waiting for hash data...</p>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="dash-footer">
+      <span>SWS Proof of Attention Protocol v1.0 &mdash; Patent Pending &mdash; SWS Strategic Media LLC</span>
+      <span id="lastUpdated"></span>
+    </footer>
+  </div>
+
+  <script src="js/dashboard.js"></script>
+</body>
+</html>

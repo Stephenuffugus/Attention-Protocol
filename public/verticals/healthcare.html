@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWS Attention Protocol — Healthcare & Senior Care</title>
+<style>
+:root{--bg:#0a0e17;--card:#111827;--border:#1e293b;--text:#f1f5f9;--dim:#94a3b8;--muted:#475569;--cyan:#06b6d4;--purple:#8b5cf6;--green:#10b981;--amber:#f59e0b;--red:#ef4444}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+.container{max-width:1000px;margin:0 auto;padding:40px 24px}
+.badge{display:inline-block;padding:4px 12px;border-radius:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;background:rgba(139,92,246,.15);color:var(--purple);margin-bottom:16px}
+h1{font-size:42px;font-weight:800;line-height:1.15;margin-bottom:12px;background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.subtitle{font-size:20px;color:var(--dim);margin-bottom:40px;max-width:700px}
+.stat-hero{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:48px}
+.stat-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;text-align:center}
+.stat-box .val{font-size:36px;font-weight:800;background:linear-gradient(135deg,var(--cyan),var(--green));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.stat-box .label{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:32px;margin-bottom:24px}
+.section h2{font-size:22px;margin-bottom:16px;color:var(--cyan)}
+.section p{color:var(--dim);margin-bottom:12px}
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0}
+.compare-card{padding:24px;border-radius:10px;border:1px solid var(--border)}
+.compare-card.us{border-color:var(--cyan);background:rgba(6,182,212,.04)}
+.compare-card.them{border-color:var(--muted);background:rgba(71,85,105,.08)}
+.compare-card h3{font-size:15px;margin-bottom:12px}
+.compare-card.us h3{color:var(--cyan)}
+.compare-card.them h3{color:var(--muted)}
+.compare-card ul{list-style:none;font-size:14px;color:var(--dim)}
+.compare-card ul li{padding:6px 0;border-bottom:1px solid rgba(30,41,59,.4)}
+.compare-card ul li:last-child{border:none}
+.compare-card.us ul li::before{content:"✓ ";color:var(--green)}
+.compare-card.them ul li::before{content:"✗ ";color:var(--red)}
+.roi-calc{background:rgba(6,182,212,.04);border:1px solid rgba(6,182,212,.2);border-radius:12px;padding:32px;margin:24px 0}
+.roi-calc h3{color:var(--cyan);margin-bottom:16px;font-size:18px}
+.slider-group{margin-bottom:20px}
+.slider-group label{display:block;font-size:13px;color:var(--dim);margin-bottom:6px}
+.slider-group input[type=range]{width:100%;accent-color:var(--cyan)}
+.slider-group .val-display{font-size:20px;font-weight:700;color:var(--text)}
+.roi-result{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+.roi-box{background:var(--card);border-radius:8px;padding:16px;text-align:center}
+.roi-box .roi-val{font-size:24px;font-weight:800;color:var(--green)}
+.roi-box .roi-label{font-size:11px;color:var(--dim);text-transform:uppercase;margin-top:4px}
+.live-demo{margin:32px 0}
+.live-demo .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:16px}
+.live-stat{background:rgba(139,92,246,.06);border:1px solid rgba(139,92,246,.2);border-radius:8px;padding:14px;text-align:center}
+.live-stat .lv{font-size:22px;font-weight:700}
+.live-stat .ll{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0}
+.step{text-align:center;padding:24px 16px}
+.step-num{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--purple));color:#fff;font-weight:700;font-size:16px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px}
+.step h4{font-size:15px;margin-bottom:6px}
+.step p{font-size:13px;color:var(--dim)}
+.code{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:16px;font-family:'SF Mono',monospace;font-size:13px;color:var(--green);overflow-x:auto;margin:16px 0}
+.cta{text-align:center;padding:48px 24px;margin-top:32px}
+.cta h2{font-size:28px;margin-bottom:8px}
+.cta p{color:var(--dim);font-size:15px}
+.footer{text-align:center;padding:24px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);margin-top:32px}
+@media(max-width:768px){.stat-hero,.compare-grid,.roi-result,.steps,.live-demo .stats-row{grid-template-columns:1fr}h1{font-size:28px}}
+</style>
+</head>
+<body>
+<div class="container">
+<span class="badge">Patent Pending — SWS-PROV-001</span>
+<h1>Protect Residents. Prove Training. Sleep at Night.</h1>
+<p class="subtitle">CMS surveyors don't care what your LMS says. They care whether your staff actually learned the material. These people deserve better than a checkbox.</p>
+
+<div class="stat-hero">
+<div class="stat-box"><div class="val">$10K-100K+</div><div class="label">CMS fines per training deficiency</div></div>
+<div class="stat-box"><div class="val">15,000</div><div class="label">Nursing homes under CMS oversight</div></div>
+<div class="stat-box"><div class="val">4x Speed</div><div class="label">Rate staff click through required training</div></div>
+</div>
+
+<div class="section">
+<h2>The Problem: Your Staff Click Through at 4x Speed</h2>
+<p>You know it. Your DON knows it. A 45-minute infection control module completed in 11 minutes. A fall prevention course "finished" while the CNA was on their phone. The LMS says "completed." The quiz score says 80%. But the resident who falls next Tuesday doesn't care about quiz scores.</p>
+<p>When CMS surveys your facility and finds a pattern of incidents that map to training deficiencies, "but our LMS shows 100% completion" is not a defense. It's an indictment.</p>
+<p><strong>These people deserve better than a checkbox. And you deserve audit-ready proof that your training program actually works.</strong></p>
+</div>
+
+<div class="section">
+<h2>Us vs. Current Tools</h2>
+<div class="compare-grid">
+<div class="compare-card us">
+<h3>SWS Attention Protocol</h3>
+<ul>
+<li>Per-employee Focus Score 0-100 for every module</li>
+<li>Detects click-through and tab-switching behavior</li>
+<li>SHA-256 cryptographic receipts — audit-ready</li>
+<li>Flags staff who need re-training before incidents happen</li>
+<li>No content tracking — HIPAA-friendly architecture</li>
+<li>Works with any LMS platform</li>
+</ul>
+</div>
+<div class="compare-card them">
+<h3>Current LMS Quiz Scores & Timestamps</h3>
+<ul>
+<li>Binary: "completed" or "not completed"</li>
+<li>Quiz scores are easily gamed</li>
+<li>No detection of click-through behavior</li>
+<li>No cryptographic proof for auditors</li>
+<li>Timestamps prove login time, not learning</li>
+<li>Useless during CMS surveys</li>
+</ul>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h2>ROI Calculator: Fine Avoidance & Training Quality</h2>
+<div class="roi-calc">
+<h3>Calculate Your Risk Reduction</h3>
+<div class="slider-group">
+<label>Number of Facilities: <span class="val-display" id="facilitiesDisplay">5</span></label>
+<input type="range" id="facilities" min="1" max="100" step="1" value="5">
+</div>
+<div class="slider-group">
+<label>Staff Per Facility: <span class="val-display" id="staffDisplay">120</span></label>
+<input type="range" id="staff" min="20" max="500" step="10" value="120">
+</div>
+<div class="slider-group">
+<label>Estimated Annual Value: <span class="val-display" id="valueDisplay">$475,000</span></label>
+</div>
+<div class="roi-result">
+<div class="roi-box"><div class="roi-val" id="roiFines">$250,000</div><div class="roi-label">Fine avoidance value</div></div>
+<div class="roi-box"><div class="roi-val" id="roiQuality">$150,000</div><div class="roi-label">Training quality improvement</div></div>
+<div class="roi-box"><div class="roi-val" id="roiTotal">$475,000</div><div class="roi-label">Total annual value</div></div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<h2>How It Works</h2>
+<div class="steps">
+<div class="step"><div class="step-num">1</div><h4>Embed in Your LMS</h4><p>One line of JavaScript in your training platform. No backend changes. Works with Relias, HealthStream, and others.</p></div>
+<div class="step"><div class="step-num">2</div><h4>We Score Every Session</h4><p>6 behavioral signals produce a Focus Score for each employee on every training module, in real-time.</p></div>
+<div class="step"><div class="step-num">3</div><h4>You Get Audit-Ready Proof</h4><p>Cryptographic receipts per employee, per module. Flag low-engagement staff for re-training before CMS shows up.</p></div>
+</div>
+<div class="code">&lt;script src="https://cdn.swsprotocol.com/attention-protocol.js" data-game-id="your_lms_platform"&gt;&lt;/script&gt;</div>
+</div>
+
+<div class="section live-demo">
+<h2>Live on This Page Right Now</h2>
+<p>The protocol is measuring your attention as you read this. Here's what it sees:</p>
+<div class="stats-row">
+<div class="live-stat"><div class="lv" id="liveHashes">0</div><div class="ll">Hashes Generated</div></div>
+<div class="live-stat"><div class="lv" id="liveFocus">—</div><div class="ll">Focus Score</div></div>
+<div class="live-stat"><div class="lv" id="liveTime">0:00</div><div class="ll">Verified Attention</div></div>
+<div class="live-stat"><div class="lv" id="liveConfidence">—</div><div class="ll">Human Confidence</div></div>
+</div>
+</div>
+
+<div class="cta">
+<h2>Protect Your Residents. Prove Your Training. Pass Your Survey.</h2>
+<p>Free 30-day pilot. 5 spots available. You keep all the data.</p>
+<p style="margin-top:16px;color:var(--text)">Stephen Furpahs | SWS Strategic Media LLC | Patent Pending</p>
+</div>
+
+<div class="footer">&copy; 2026 SWS Strategic Media LLC. Patent Pending: SWS-PROV-001. All rights reserved.</div>
+</div>
+
+<script src="../../src/sdk/attention-protocol.js"></script>
+<script>
+SWSAttention.init({gameId:'sws_healthcare_demo',debug:false,enableBehavioralAnalysis:true});
+var _demoStart=Date.now();
+function updateROI(){
+var facilities=parseInt(document.getElementById('facilities').value);
+var staff=parseInt(document.getElementById('staff').value);
+var fineAvoidance=facilities*50000;
+var qualityImprovement=facilities*staff*25;
+var total=fineAvoidance+qualityImprovement;
+document.getElementById('facilitiesDisplay').textContent=facilities.toLocaleString();
+document.getElementById('staffDisplay').textContent=staff.toLocaleString();
+document.getElementById('valueDisplay').textContent='$'+total.toLocaleString();
+document.getElementById('roiFines').textContent='$'+fineAvoidance.toLocaleString();
+document.getElementById('roiQuality').textContent='$'+qualityImprovement.toLocaleString();
+document.getElementById('roiTotal').textContent='$'+total.toLocaleString();
+}
+document.getElementById('facilities').addEventListener('input',updateROI);
+document.getElementById('staff').addEventListener('input',updateROI);
+setInterval(function(){
+var s=SWSAttention.getStats();
+document.getElementById('liveHashes').textContent=s.totalHashes;
+document.getElementById('liveFocus').textContent=s.focusScore+'/100';
+var el=Math.floor((Date.now()-_demoStart)/1000);
+document.getElementById('liveTime').textContent=Math.floor(el/60)+':'+String(el%60).padStart(2,'0');
+if(s.humanConfidence)document.getElementById('liveConfidence').textContent=Math.round(s.humanConfidence.composite*100)+'%';
+},1000);
+</script>
+</body>
+</html>
