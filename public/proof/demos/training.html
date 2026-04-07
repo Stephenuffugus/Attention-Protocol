@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS Proof — Nursing Home Training Verification</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e2e8f0; }
+    .header { background: linear-gradient(135deg, #1e1b4b, #3b0764); padding: 24px; text-align: center; border-bottom: 1px solid #1e293b; }
+    .header h1 { font-size: 22px; color: #06b6d4; margin-bottom: 6px; }
+    .header p { color: #94a3b8; font-size: 13px; }
+    .scenario { background: #111827; border: 1px solid #f59e0b; border-radius: 8px; padding: 16px; margin: 20px 24px; font-size: 13px; color: #f59e0b; }
+    .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+    .split { display: grid; grid-template-columns: 1fr 340px; gap: 24px; }
+    @media (max-width: 800px) { .split { grid-template-columns: 1fr; } }
+
+    .training-content { background: #111827; border-radius: 12px; border: 1px solid #1e293b; }
+    .training-header { padding: 16px 20px; border-bottom: 1px solid #1e293b; }
+    .training-header h2 { font-size: 16px; color: #f1f5f9; }
+    .training-header .module { font-size: 12px; color: #64748b; margin-top: 4px; }
+
+    .section { padding: 20px; border-bottom: 1px solid #0f172a; }
+    .section h3 { font-size: 14px; color: #06b6d4; margin-bottom: 10px; }
+    .section p { font-size: 13px; color: #94a3b8; line-height: 1.7; margin-bottom: 10px; }
+    .section .highlight { color: #f59e0b; font-weight: 600; }
+
+    .quiz { padding: 20px; }
+    .quiz h3 { font-size: 14px; color: #8b5cf6; margin-bottom: 12px; }
+    .quiz-q { font-size: 13px; color: #e2e8f0; margin-bottom: 10px; }
+    .quiz-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+    .quiz-opt {
+      padding: 10px 14px; background: #1e293b; border: 1px solid #334155;
+      border-radius: 6px; font-size: 13px; cursor: pointer; transition: all 0.15s;
+    }
+    .quiz-opt:hover { border-color: #06b6d4; background: #0f172a; }
+    .quiz-opt.correct { border-color: #10b981; background: rgba(16,185,129,0.1); color: #10b981; }
+    .quiz-opt.wrong { border-color: #ef4444; background: rgba(239,68,68,0.1); color: #ef4444; }
+    .quiz-opt.disabled { pointer-events: none; opacity: 0.6; }
+
+    .sidebar { position: sticky; top: 24px; }
+    .score-panel { background: #111827; border-radius: 12px; border: 1px solid #1e293b; margin-bottom: 16px; }
+    .score-panel-header { padding: 14px 16px; border-bottom: 1px solid #1e293b; font-size: 13px; font-weight: 600; }
+    .score-panel-header.sws { color: #10b981; }
+    .score-panel-header.ga4 { color: #f59e0b; }
+    .score-panel-body { padding: 16px; }
+
+    .metric { display: flex; justify-content: space-between; padding: 8px 0; font-size: 12px; }
+    .metric-label { color: #64748b; }
+    .metric-val { font-weight: 600; font-family: 'SF Mono', monospace; }
+    .metric-val.good { color: #10b981; }
+    .metric-val.na { color: #ef4444; }
+    .metric-val.num { color: #06b6d4; }
+
+    .bar { height: 6px; background: #1e293b; border-radius: 3px; margin-top: 4px; }
+    .bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+    .bar-fill.green { background: #10b981; }
+
+    .progress-section { background: #111827; border-radius: 12px; border: 1px solid #1e293b; padding: 16px; margin-bottom: 16px; }
+    .progress-section h4 { font-size: 13px; color: #8b5cf6; margin-bottom: 10px; }
+    .step { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 6px 0; color: #64748b; }
+    .step.done { color: #10b981; }
+    .step-dot { width: 8px; height: 8px; border-radius: 50%; background: #334155; }
+    .step.done .step-dot { background: #10b981; }
+    .step.active .step-dot { background: #f59e0b; }
+    .step.active { color: #f59e0b; }
+
+    .receipt-btn {
+      width: 100%; padding: 12px; background: #06b6d4; color: #0a0e17;
+      border: none; border-radius: 8px; font-weight: 600; font-size: 13px;
+      cursor: pointer; margin-top: 12px; display: none;
+    }
+    .receipt-btn:hover { background: #22d3ee; }
+    .receipt-btn.show { display: block; }
+
+    .receipt-modal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+      z-index: 999; justify-content: center; align-items: center; padding: 24px;
+    }
+    .receipt-modal.show { display: flex; }
+    .receipt-box {
+      background: #111827; border: 1px solid #1e293b; border-radius: 12px;
+      max-width: 600px; width: 100%; max-height: 80vh; overflow-y: auto; padding: 24px;
+    }
+    .receipt-box h2 { color: #10b981; font-size: 18px; margin-bottom: 16px; }
+    .receipt-box pre { font-size: 11px; color: #94a3b8; white-space: pre-wrap; word-wrap: break-word; }
+    .close-btn { float: right; background: none; border: none; color: #64748b; font-size: 20px; cursor: pointer; }
+
+    .back-link { display: inline-block; padding: 8px 16px; color: #64748b; font-size: 12px; text-decoration: none; }
+    .back-link:hover { color: #06b6d4; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Nursing Home Training Verification</h1>
+    <p>Proof: SWS verifies genuine training engagement. GA4 only sees "page visited."</p>
+  </div>
+
+  <div class="scenario">
+    <strong>Scenario:</strong> A nursing home employee must complete mandatory Fall Prevention Training.
+    CMS requires proof they actually engaged with the material — not just clicked through.
+    Read each section and answer the quiz. Watch SWS measure your real engagement.
+  </div>
+
+  <div class="container">
+    <a href="index.html" class="back-link">&larr; Back to all demos</a>
+    <div class="split">
+      <div>
+        <!-- Training Content -->
+        <div class="training-content">
+          <div class="training-header">
+            <h2>Fall Prevention Training — Module 1</h2>
+            <div class="module">CMS Mandatory Training | Est. 8 minutes | Must score 80%+</div>
+          </div>
+
+          <div class="section" id="section-1" data-section="1">
+            <h3>Section 1: Risk Factors for Falls</h3>
+            <p>Falls are the leading cause of injury among nursing home residents. <span class="highlight">More than 50% of residents fall each year</span>, and the consequences can be devastating — hip fractures, head injuries, and a significant decline in quality of life.</p>
+            <p>Key risk factors include: <span class="highlight">medication side effects</span> (especially sedatives and blood pressure medications), <span class="highlight">environmental hazards</span> (wet floors, poor lighting, loose rugs), <span class="highlight">mobility impairments</span>, and <span class="highlight">cognitive decline</span>.</p>
+            <p>Staff must conduct a fall risk assessment within 24 hours of each resident's admission and after any significant change in condition.</p>
+          </div>
+
+          <div class="section" id="section-2" data-section="2">
+            <h3>Section 2: Prevention Strategies</h3>
+            <p>Evidence-based prevention strategies reduce falls by <span class="highlight">30-40%</span> when implemented consistently. The most effective approach is a <span class="highlight">multi-factorial intervention</span> that addresses multiple risk factors simultaneously.</p>
+            <p>Core strategies include: hourly rounding, proper footwear protocols, bed alarm utilization for high-risk residents, adequate lighting (especially nighttime), removal of environmental hazards, and <span class="highlight">medication review within 72 hours of admission</span>.</p>
+            <p>Exercise and physical therapy programs that focus on <span class="highlight">balance and strength training</span> have shown the strongest evidence for fall reduction in long-term care settings.</p>
+          </div>
+
+          <div class="section" id="section-3" data-section="3">
+            <h3>Section 3: Post-Fall Protocol</h3>
+            <p>When a fall occurs, staff must: (1) Assess the resident immediately — <span class="highlight">do not move them until injuries are ruled out</span>. (2) Check vital signs. (3) Notify the physician and family within <span class="highlight">1 hour</span>. (4) Document the incident in detail. (5) Complete a post-fall assessment within <span class="highlight">24 hours</span>.</p>
+            <p>The post-fall assessment must include: circumstances of the fall, medications taken in the prior 24 hours, environmental factors, and an updated care plan with new interventions to prevent recurrence.</p>
+          </div>
+
+          <!-- Quiz -->
+          <div class="quiz" id="quiz-section">
+            <h3>Comprehension Check — Answer All 3 Questions</h3>
+
+            <div class="quiz-q">1. What percentage of nursing home residents fall each year?</div>
+            <div class="quiz-options" id="q1-options">
+              <div class="quiz-opt" onclick="answer(1, this, false)">About 20%</div>
+              <div class="quiz-opt" onclick="answer(1, this, true)">More than 50%</div>
+              <div class="quiz-opt" onclick="answer(1, this, false)">About 75%</div>
+              <div class="quiz-opt" onclick="answer(1, this, false)">Less than 10%</div>
+            </div>
+
+            <div class="quiz-q">2. When must a medication review be completed after admission?</div>
+            <div class="quiz-options" id="q2-options">
+              <div class="quiz-opt" onclick="answer(2, this, false)">Within 24 hours</div>
+              <div class="quiz-opt" onclick="answer(2, this, false)">Within 1 week</div>
+              <div class="quiz-opt" onclick="answer(2, this, true)">Within 72 hours</div>
+              <div class="quiz-opt" onclick="answer(2, this, false)">Within 30 days</div>
+            </div>
+
+            <div class="quiz-q">3. After a fall, when must the physician and family be notified?</div>
+            <div class="quiz-options" id="q3-options">
+              <div class="quiz-opt" onclick="answer(3, this, true)">Within 1 hour</div>
+              <div class="quiz-opt" onclick="answer(3, this, false)">By end of shift</div>
+              <div class="quiz-opt" onclick="answer(3, this, false)">Within 24 hours</div>
+              <div class="quiz-opt" onclick="answer(3, this, false)">At the next care conference</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar: Live Metrics -->
+      <div class="sidebar">
+        <div class="progress-section">
+          <h4>Training Progress</h4>
+          <div class="step" id="step-1"><span class="step-dot"></span> Read Section 1</div>
+          <div class="step" id="step-2"><span class="step-dot"></span> Read Section 2</div>
+          <div class="step" id="step-3"><span class="step-dot"></span> Read Section 3</div>
+          <div class="step" id="step-quiz"><span class="step-dot"></span> Pass Quiz (80%+)</div>
+          <div class="step" id="step-receipt"><span class="step-dot"></span> Receipt Generated</div>
+        </div>
+
+        <div class="score-panel">
+          <div class="score-panel-header sws">SWS Attention Protocol</div>
+          <div class="score-panel-body">
+            <div class="metric"><span class="metric-label">Time Engaged</span><span class="metric-val good" id="m-time">0:00</span></div>
+            <div class="metric"><span class="metric-label">Focus Score</span><span class="metric-val good" id="m-focus">--</span></div>
+            <div class="metric"><span class="metric-label">Quality Tier</span><span class="metric-val good" id="m-tier">--</span></div>
+            <div class="metric"><span class="metric-label">Human Confidence</span><span class="metric-val good" id="m-human">--</span></div>
+            <div class="metric"><span class="metric-label">Hashes Earned</span><span class="metric-val good" id="m-hashes">0</span></div>
+            <div class="metric"><span class="metric-label">Sections Read</span><span class="metric-val good" id="m-sections">0 / 3</span></div>
+            <div class="metric"><span class="metric-label">Quiz Score</span><span class="metric-val good" id="m-quiz">-- / 3</span></div>
+            <div class="bar"><div class="bar-fill green" id="focus-bar" style="width:0%"></div></div>
+          </div>
+        </div>
+
+        <div class="score-panel">
+          <div class="score-panel-header ga4">Google Analytics 4</div>
+          <div class="score-panel-body">
+            <div class="metric"><span class="metric-label">Time on Page</span><span class="metric-val num" id="ga4-time">0:00</span></div>
+            <div class="metric"><span class="metric-label">Focus Score</span><span class="metric-val na">N/A</span></div>
+            <div class="metric"><span class="metric-label">Quality Tier</span><span class="metric-val na">N/A</span></div>
+            <div class="metric"><span class="metric-label">Human Confidence</span><span class="metric-val na">N/A</span></div>
+            <div class="metric"><span class="metric-label">Engagement Events</span><span class="metric-val num" id="ga4-events">1</span></div>
+            <div class="metric"><span class="metric-label">Sections Read</span><span class="metric-val na">N/A — can't measure</span></div>
+            <div class="metric"><span class="metric-label">Quiz Score</span><span class="metric-val na">N/A — can't measure</span></div>
+            <div style="margin-top:8px;font-size:11px;color:#ef4444;">GA4 sees "page_view" + time. It cannot verify the employee actually read the training content or passed the quiz.</div>
+          </div>
+        </div>
+
+        <button class="receipt-btn" id="receipt-btn" onclick="showReceipt()">Download Compliance Receipt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Receipt Modal -->
+  <div class="receipt-modal" id="receipt-modal">
+    <div class="receipt-box">
+      <button class="close-btn" onclick="document.getElementById('receipt-modal').classList.remove('show')">&times;</button>
+      <h2>SWS Attention Compliance Receipt</h2>
+      <p style="color:#64748b;font-size:12px;margin-bottom:16px;">This receipt is cryptographically verifiable. Present it during a CMS survey or insurance audit.</p>
+      <pre id="receipt-content"></pre>
+    </div>
+  </div>
+
+  <!-- SDK -->
+  <script src="../../../src/sdk/secure-config.js"></script>
+  <script src="../../../src/sdk/attention-protocol.js"></script>
+  <script src="../../../src/sdk/economy-engine.js"></script>
+  <script src="../../../src/sdk/privacy-compliance.js"></script>
+  <script src="../../../src/sdk/attention-receipts.js"></script>
+
+  <script>
+    // Initialize
+    var trainingStart = Date.now();
+    var sectionsRead = {};
+    var quizAnswers = { 1: null, 2: null, 3: null };
+    var quizCorrect = 0;
+    var trainingComplete = false;
+
+    SWSAttention.init({
+      gameId: 'proof_training_demo',
+      debug: false,
+      enableBehavioralAnalysis: true
+    });
+
+    // Track section reading via Intersection Observer
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+          var section = entry.target.getAttribute('data-section');
+          if (section && !sectionsRead[section]) {
+            // Start timing this section
+            var sectionTimer = setTimeout(function() {
+              sectionsRead[section] = true;
+              SWSAttention.recordContentRender('complex');
+              SWSAttention.earn('training_section_read', 5000, 10, 'deep');
+              document.getElementById('step-' + section).classList.add('done');
+              updateMetrics();
+            }, 3000); // Must view for 3+ seconds to count as "read"
+
+            entry.target._timer = sectionTimer;
+          }
+        } else if (entry.target._timer) {
+          clearTimeout(entry.target._timer);
+        }
+      });
+    }, { threshold: 0.5 });
+
+    document.querySelectorAll('.section').forEach(function(el) {
+      observer.observe(el);
+    });
+
+    // Quiz answering
+    function answer(qNum, el, correct) {
+      if (quizAnswers[qNum] !== null) return;
+
+      var startTime = trainingStart; // Simplified — real would track per-question
+      var responseTime = Date.now() - trainingStart;
+      var optionCount = 4;
+
+      // Record the decision for Hick's Law
+      SWSAttention.recordDecision(optionCount, Math.min(responseTime, 30000));
+
+      quizAnswers[qNum] = correct;
+      el.classList.add(correct ? 'correct' : 'wrong');
+
+      // Disable other options
+      var options = document.getElementById('q' + qNum + '-options').children;
+      for (var i = 0; i < options.length; i++) {
+        if (options[i] !== el) options[i].classList.add('disabled');
+        if (correct && options[i] !== el) { /* leave them */ }
+        if (!correct) {
+          // Show the correct answer
+          for (var j = 0; j < options.length; j++) {
+            if (options[j].onclick && options[j] !== el) {
+              // Can't easily detect, just dim them
+            }
+          }
+        }
+      }
+
+      if (correct) quizCorrect++;
+      SWSAttention.earn('quiz_answer', responseTime, 1, correct ? 'deep' : 'active');
+
+      // Check if all answered
+      var allAnswered = quizAnswers[1] !== null && quizAnswers[2] !== null && quizAnswers[3] !== null;
+      if (allAnswered) {
+        document.getElementById('step-quiz').classList.add(quizCorrect >= 2 ? 'done' : 'active');
+
+        if (quizCorrect >= 2 && Object.keys(sectionsRead).length >= 2) {
+          trainingComplete = true;
+          generateReceipt();
+        }
+      }
+
+      updateMetrics();
+    }
+
+    function generateReceipt() {
+      var confidence = SWSAttention.getHumanConfidence();
+      var receipt = SWSReceipts.generateCompletionReceipt({
+        userId: 'demo_employee_' + SWSAttention.getSessionId().substring(0, 8),
+        contentId: 'fall_prevention_module_1',
+        contentName: 'Fall Prevention Training — Module 1',
+        completionType: 'training_module',
+        durationMs: Date.now() - trainingStart,
+        focusScore: SWSAttention.getFocusScore(),
+        qualityTier: confidence.composite >= 0.5 ? 'active' : 'passive',
+        interactionCount: SWSAttention.getStats().totalHashes,
+        humanConfidence: confidence,
+        minimumMinutes: 2,
+        startedAt: trainingStart,
+        gameId: 'proof_training_demo'
+      });
+
+      document.getElementById('step-receipt').classList.add('done');
+      document.getElementById('receipt-btn').classList.add('show');
+      document.getElementById('receipt-content').textContent = JSON.stringify(receipt, null, 2);
+    }
+
+    function showReceipt() {
+      document.getElementById('receipt-modal').classList.add('show');
+    }
+
+    // Update display every 2 seconds
+    function updateMetrics() {
+      var elapsed = Date.now() - trainingStart;
+      var mins = Math.floor(elapsed / 60000);
+      var secs = Math.floor((elapsed % 60000) / 1000);
+      document.getElementById('m-time').textContent = mins + ':' + secs.toString().padStart(2, '0');
+      document.getElementById('ga4-time').textContent = mins + ':' + secs.toString().padStart(2, '0');
+
+      var stats = SWSAttention.getStats();
+      var confidence = SWSAttention.getHumanConfidence();
+
+      document.getElementById('m-focus').textContent = stats.focusScore;
+      document.getElementById('m-tier').textContent = confidence.composite >= 0.75 ? 'DEEP' : confidence.composite >= 0.5 ? 'ACTIVE' : 'PASSIVE';
+      document.getElementById('m-human').textContent = confidence.composite.toFixed(2);
+      document.getElementById('m-hashes').textContent = stats.totalHashes;
+      document.getElementById('m-sections').textContent = Object.keys(sectionsRead).length + ' / 3';
+      document.getElementById('m-quiz').textContent = quizCorrect + ' / 3';
+      document.getElementById('focus-bar').style.width = stats.focusScore + '%';
+
+      // GA4 just counts events
+      document.getElementById('ga4-events').textContent = Math.max(1, Math.floor(elapsed / 10000));
+    }
+
+    setInterval(updateMetrics, 2000);
+  </script>
+</body>
+</html>

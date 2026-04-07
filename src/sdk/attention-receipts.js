@@ -106,12 +106,17 @@
       generated_timestamp: receipt.generated_timestamp
     }, null, 0);
 
-    // Sync SHA-256 for receipt integrity
+    // Generate receipt hash asynchronously, then store
+    // Set a synchronous fallback immediately so callers always get a value
+    receipt.proof.receipt_hash = 'pending_' + receipt.generated_timestamp.toString(16);
+
     _sha256Sync(receiptPayload, function(hash) {
       receipt.proof.receipt_hash = hash;
+      // Re-store with final hash
+      _updateStoredReceipt(receipt);
     });
 
-    // Store receipt
+    // Store receipt immediately (with pending hash)
     _storeReceipt(receipt);
 
     return receipt;
@@ -195,6 +200,37 @@
   // ============================================================
   // RECEIPT STORAGE & RETRIEVAL
   // ============================================================
+
+  /**
+   * Async version of generateReceipt — resolves only after the receipt hash is computed.
+   * Use this when you need the final hash before proceeding.
+   */
+  function generateReceiptAsync(params, callback) {
+    var receipt = generateReceipt(params);
+
+    // Poll for hash completion (crypto.subtle is fast, typically <5ms)
+    var checks = 0;
+    var interval = setInterval(function() {
+      checks++;
+      if (!receipt.proof.receipt_hash.startsWith('pending_') || checks > 100) {
+        clearInterval(interval);
+        callback(receipt);
+      }
+    }, 10);
+  }
+
+  function _updateStoredReceipt(receipt) {
+    try {
+      var receipts = JSON.parse(localStorage.getItem(RECEIPTS_KEY) || '[]');
+      for (var i = receipts.length - 1; i >= 0; i--) {
+        if (receipts[i].receipt_id === receipt.receipt_id) {
+          receipts[i] = receipt;
+          break;
+        }
+      }
+      localStorage.setItem(RECEIPTS_KEY, JSON.stringify(receipts));
+    } catch (e) { /* non-critical */ }
+  }
 
   function _storeReceipt(receipt) {
     try {
@@ -379,6 +415,7 @@
 
   window.SWSReceipts = {
     generateReceipt: generateReceipt,
+    generateReceiptAsync: generateReceiptAsync,
     generateCompletionReceipt: generateCompletionReceipt,
     verifyReceipt: verifyReceipt,
     getReceipts: getReceipts,

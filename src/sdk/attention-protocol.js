@@ -357,12 +357,14 @@
         sumX2 += xs[i] * xs[i]; sumY2 += ys[i] * ys[i];
       }
       var denom = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
-      if (denom === 0) return 0.5;
+      if (denom < 0.001) return 0.3; // Near-zero variance in RT = suspicious (bot-like constant timing)
       var r = (n * sumXY - sumX * sumY) / denom;
 
-      // Positive correlation = human (response time scales with choices)
-      // Zero/negative = bot (constant time regardless of choices)
-      return isNaN(r) ? 0.5 : Math.max(0, Math.min(1, (r + 0.5) / 1.0));
+      // Positive correlation = human (response time scales with choices per Hick's Law)
+      // Zero/negative = bot (constant or inverse time regardless of choices)
+      // Map: r <= 0 → 0.0 (definite bot), r >= 0.7 → 1.0 (definite human)
+      if (isNaN(r)) return 0.5;
+      return Math.max(0, Math.min(1, r / 0.7));
     },
 
     // Pattern 5: Micro-Pause Analysis (Cognitive Processing Delay)

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS Proof — Survey Response Integrity</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e2e8f0; }
+    .header { background: linear-gradient(135deg, #1e1b4b, #312e81); padding: 24px; text-align: center; border-bottom: 1px solid #1e293b; }
+    .header h1 { font-size: 22px; color: #06b6d4; margin-bottom: 6px; }
+    .header p { color: #94a3b8; font-size: 13px; }
+    .container { max-width: 800px; margin: 0 auto; padding: 24px; }
+    .back-link { display: inline-block; padding: 8px 16px; color: #64748b; font-size: 12px; text-decoration: none; }
+
+    .survey-card { background: #111827; border: 1px solid #1e293b; border-radius: 12px; margin: 16px 0; padding: 24px; }
+    .q-number { font-size: 12px; color: #8b5cf6; font-weight: 600; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .q-text { font-size: 15px; color: #f1f5f9; margin-bottom: 16px; line-height: 1.5; }
+    .q-options { display: flex; flex-direction: column; gap: 8px; }
+    .q-opt {
+      padding: 12px 16px; background: #1e293b; border: 1px solid #334155;
+      border-radius: 8px; font-size: 13px; cursor: pointer; transition: all 0.15s;
+    }
+    .q-opt:hover { border-color: #06b6d4; }
+    .q-opt.selected { border-color: #06b6d4; background: rgba(6,182,212,0.1); color: #06b6d4; }
+    .q-opt.disabled { pointer-events: none; opacity: 0.5; }
+
+    .q-timer { font-size: 11px; color: #64748b; margin-top: 8px; text-align: right; }
+    .q-timer .time { color: #06b6d4; font-family: monospace; }
+
+    .sidebar-metrics {
+      background: #111827; border: 1px solid #1e293b; border-radius: 12px;
+      padding: 20px; margin: 16px 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px;
+    }
+    .sm { text-align: center; }
+    .sm-val { font-size: 24px; font-weight: 700; font-family: monospace; }
+    .sm-val.good { color: #10b981; }
+    .sm-val.warn { color: #f59e0b; }
+    .sm-label { font-size: 11px; color: #64748b; margin-top: 4px; }
+
+    .receipt-area { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; margin: 16px 0; display: none; }
+    .receipt-area.show { display: block; }
+    .receipt-area h3 { color: #10b981; font-size: 16px; margin-bottom: 12px; }
+    .receipt-area pre { font-size: 11px; color: #94a3b8; white-space: pre-wrap; background: #0a0e17; padding: 16px; border-radius: 8px; max-height: 300px; overflow-y: auto; }
+
+    .ga4-note { background: #1a0a0a; border: 1px solid #7f1d1d; border-radius: 8px; padding: 16px; font-size: 12px; color: #ef4444; line-height: 1.6; margin: 16px 0; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Survey Response Integrity</h1>
+    <p>Take this survey. SWS measures if you actually read each question. Generates an audit receipt.</p>
+  </div>
+  <div class="container">
+    <a href="index.html" class="back-link">&larr; Back to all demos</a>
+
+    <div class="sidebar-metrics">
+      <div class="sm"><div class="sm-val good" id="m-focus">--</div><div class="sm-label">Focus Score</div></div>
+      <div class="sm"><div class="sm-val good" id="m-human">--</div><div class="sm-label">Human Confidence</div></div>
+      <div class="sm"><div class="sm-val good" id="m-hashes">0</div><div class="sm-label">Attention Hashes</div></div>
+      <div class="sm"><div class="sm-val good" id="m-answered">0/5</div><div class="sm-label">Questions Answered</div></div>
+      <div class="sm"><div class="sm-val good" id="m-avgtime">--</div><div class="sm-label">Avg Response Time</div></div>
+    </div>
+
+    <div id="questions"></div>
+
+    <div class="ga4-note">
+      <strong>What GA4 sees:</strong> "User visited survey page. Time on page: X seconds. Scroll depth: Y%."
+      That's it. GA4 cannot tell if the user read the questions, thought about them, or speed-clicked random answers.
+      SWS measures response time per question, reading behavior, decision patterns, and generates a cryptographic receipt.
+    </div>
+
+    <div class="receipt-area" id="receipt-area">
+      <h3>Survey Integrity Receipt</h3>
+      <p style="font-size:12px;color:#64748b;margin-bottom:12px;">This receipt proves the respondent genuinely engaged with every question. Present during an audit.</p>
+      <pre id="receipt-json"></pre>
+    </div>
+  </div>
+
+  <script src="../../../src/sdk/secure-config.js"></script>
+  <script src="../../../src/sdk/attention-protocol.js"></script>
+  <script src="../../../src/sdk/economy-engine.js"></script>
+  <script src="../../../src/sdk/privacy-compliance.js"></script>
+  <script src="../../../src/sdk/attention-receipts.js"></script>
+
+  <script>
+    var questions = [
+      {
+        text: "A healthcare facility reports that 15% of patient falls occur during shift changes. Which intervention would most directly address this specific finding?",
+        options: ["Install more handrails", "Increase staff during shift changes", "Implement structured handoff protocols including fall-risk status", "Add fall prevention signage"],
+        correct: 2
+      },
+      {
+        text: "An insurance company wants to verify that policyholders completed a defensive driving course. What evidence would be strongest for compliance verification?",
+        options: ["Certificate of completion", "Time spent on course webpage", "Cryptographic proof of sustained engagement with quiz verification", "Self-reported attestation"],
+        correct: 2
+      },
+      {
+        text: "In a market research study, 40% of respondents completed a 20-minute survey in under 3 minutes. What does this most likely indicate?",
+        options: ["The survey was well-designed", "Respondents are very efficient", "Significant portion of responses are low-quality or bot-generated", "The incentive was too high"],
+        correct: 2
+      },
+      {
+        text: "A military training platform needs to verify engagement without capturing any personally identifiable information. Which approach satisfies both requirements?",
+        options: ["Video proctoring with facial recognition", "Behavioral attention metrics hashed with SHA-256", "IP-based session tracking", "Mandatory webcam monitoring"],
+        correct: 1
+      },
+      {
+        text: "An advertiser is told their ad received 500,000 'impressions.' What critical metric is missing from this claim?",
+        options: ["The cost per impression", "Whether any human actually looked at the ad with genuine attention", "The geographic distribution", "The device type breakdown"],
+        correct: 1
+      }
+    ];
+
+    var answers = [];
+    var questionTimes = [];
+    var surveyStart = Date.now();
+    var currentQuestionShown = Date.now();
+
+    SWSAttention.init({ gameId: 'proof_survey_demo', debug: false, enableBehavioralAnalysis: true });
+
+    // Render questions
+    var container = document.getElementById('questions');
+    questions.forEach(function(q, i) {
+      var card = document.createElement('div');
+      card.className = 'survey-card';
+      card.id = 'q-card-' + i;
+
+      var html = '<div class="q-number">Question ' + (i + 1) + ' of 5</div>';
+      html += '<div class="q-text">' + q.text + '</div>';
+      html += '<div class="q-options" id="q-opts-' + i + '">';
+      q.options.forEach(function(opt, j) {
+        html += '<div class="q-opt" data-q="' + i + '" data-o="' + j + '" onclick="selectAnswer(' + i + ',' + j + ',this)">' + opt + '</div>';
+      });
+      html += '</div>';
+      html += '<div class="q-timer">Response time: <span class="time" id="q-time-' + i + '">--</span></div>';
+
+      card.innerHTML = html;
+      container.appendChild(card);
+
+      // Track when question becomes visible
+      var obs = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            SWSAttention.recordContentRender('complex');
+            currentQuestionShown = Date.now();
+          }
+        });
+      }, { threshold: 0.5 });
+      obs.observe(card);
+    });
+
+    function selectAnswer(qIndex, optIndex, el) {
+      if (answers[qIndex] !== undefined) return;
+
+      var responseTime = Date.now() - currentQuestionShown;
+      answers[qIndex] = optIndex;
+      questionTimes[qIndex] = responseTime;
+
+      // Record with SWS
+      SWSAttention.recordDecision(questions[qIndex].options.length, responseTime);
+      SWSAttention.earn('survey_answer', responseTime, 1, responseTime > 2000 ? 'deep' : 'active');
+
+      // UI update
+      el.classList.add('selected');
+      var opts = document.getElementById('q-opts-' + qIndex).children;
+      for (var i = 0; i < opts.length; i++) {
+        if (opts[i] !== el) opts[i].classList.add('disabled');
+      }
+      document.getElementById('q-time-' + qIndex).textContent = (responseTime / 1000).toFixed(1) + 's';
+
+      updateMetrics();
+
+      // Check if all answered
+      var answered = answers.filter(function(a) { return a !== undefined; }).length;
+      if (answered >= 5) {
+        setTimeout(generateSurveyReceipt, 500);
+      }
+    }
+
+    function generateSurveyReceipt() {
+      var confidence = SWSAttention.getHumanConfidence();
+      var avgTime = questionTimes.reduce(function(a, b) { return a + b; }, 0) / questionTimes.length;
+      var correct = answers.filter(function(a, i) { return a === questions[i].correct; }).length;
+
+      var receipt = SWSReceipts.generateCompletionReceipt({
+        userId: 'respondent_' + SWSAttention.getSessionId().substring(0, 8),
+        contentId: 'proof_survey_5q',
+        contentName: 'SWS Proof of Concept — 5-Question Survey',
+        completionType: 'survey',
+        durationMs: Date.now() - surveyStart,
+        focusScore: SWSAttention.getFocusScore(),
+        qualityTier: confidence.composite >= 0.5 ? 'active' : 'passive',
+        interactionCount: SWSAttention.getStats().totalHashes,
+        humanConfidence: confidence,
+        minimumMinutes: 1,
+        startedAt: surveyStart,
+        gameId: 'proof_survey_demo'
+      });
+
+      // Add survey-specific data
+      receipt.survey_integrity = {
+        questions_answered: 5,
+        correct_answers: correct,
+        accuracy: (correct / 5 * 100) + '%',
+        avg_response_time_ms: Math.round(avgTime),
+        response_times_ms: questionTimes,
+        response_time_variance: _variance(questionTimes),
+        speed_flag: avgTime < 2000 ? 'SUSPICIOUS — avg response under 2 seconds' : 'NORMAL',
+        human_verified: confidence.composite >= 0.5
+      };
+
+      document.getElementById('receipt-json').textContent = JSON.stringify(receipt, null, 2);
+      document.getElementById('receipt-area').classList.add('show');
+    }
+
+    function _variance(arr) {
+      var mean = arr.reduce(function(a, b) { return a + b; }, 0) / arr.length;
+      var v = arr.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / arr.length;
+      return Math.round(Math.sqrt(v));
+    }
+
+    function updateMetrics() {
+      var stats = SWSAttention.getStats();
+      var c = SWSAttention.getHumanConfidence();
+      var answered = answers.filter(function(a) { return a !== undefined; }).length;
+
+      document.getElementById('m-focus').textContent = stats.focusScore;
+      document.getElementById('m-human').textContent = c.composite.toFixed(2);
+      document.getElementById('m-hashes').textContent = stats.totalHashes;
+      document.getElementById('m-answered').textContent = answered + '/5';
+
+      if (questionTimes.length > 0) {
+        var avg = questionTimes.reduce(function(a, b) { return a + b; }, 0) / questionTimes.length;
+        document.getElementById('m-avgtime').textContent = (avg / 1000).toFixed(1) + 's';
+      }
+    }
+
+    setInterval(updateMetrics, 2000);
+  </script>
+</body>
+</html>

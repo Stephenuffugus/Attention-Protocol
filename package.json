@@ -4,11 +4,27 @@
   "description": "SWS Proof of Attention Protocol — Cryptographic verification of genuine human attention",
   "main": "src/sdk/attention-protocol.js",
   "scripts": {
-    "build": "node scripts/build.js",
+    "test": "jest --verbose --forceExit",
+    "test:core": "jest tests/sdk-core.test.js --verbose",
+    "test:algorithms": "jest tests/behavioral-algorithms.test.js --verbose",
+    "test:ga4": "jest tests/ga4-comparison.test.js --verbose",
+    "test:bots": "jest tests/bot-harness.test.js --verbose --forceExit",
+    "test:api": "jest tests/api-server.test.js --verbose --forceExit",
+    "server": "node server/index.js",
     "serve": "npx http-server public -p 8080 -c-1",
     "dashboard": "npx http-server src/dashboard -p 3000 -c-1"
   },
   "author": "SWS Strategic Media LLC",
   "license": "UNLICENSED",
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "jest": "^30.3.0",
+    "puppeteer": "^24.40.0"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "crypto-js": "^4.2.0",
+    "express": "^5.2.1",
+    "uuid": "^13.0.0"
+  }
 }

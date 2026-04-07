@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS Proof of Attention — Live Vertical Demos</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e2e8f0; }
+    .header { background: linear-gradient(135deg, #0f172a, #1e1b4b); padding: 32px 24px; text-align: center; border-bottom: 1px solid #1e293b; }
+    .header h1 { font-size: 26px; color: #06b6d4; margin-bottom: 8px; }
+    .header p { color: #94a3b8; font-size: 14px; max-width: 600px; margin: 0 auto; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 32px 24px; }
+    .demo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+    .demo-card {
+      background: #111827; border: 1px solid #1e293b; border-radius: 12px;
+      padding: 24px; transition: border-color 0.2s; cursor: pointer; text-decoration: none; color: inherit; display: block;
+    }
+    .demo-card:hover { border-color: #06b6d4; }
+    .card-icon { font-size: 32px; margin-bottom: 12px; }
+    .card-title { font-size: 17px; font-weight: 600; color: #f1f5f9; margin-bottom: 8px; }
+    .card-desc { font-size: 13px; color: #94a3b8; line-height: 1.6; margin-bottom: 16px; }
+    .card-proof { font-size: 12px; color: #06b6d4; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+    .card-tag { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-right: 6px; margin-bottom: 4px; }
+    .tag-medical { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+    .tag-military { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+    .tag-adtech { background: rgba(168, 85, 247, 0.15); color: #a855f7; }
+    .tag-enterprise { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+    .tag-research { background: rgba(6, 182, 212, 0.15); color: #06b6d4; }
+    .footer { text-align: center; padding: 32px; font-size: 11px; color: #475569; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Live Proof Demos</h1>
+    <p>Each demo runs a real scenario. Interact with it and watch SWS detect what GA4 misses.</p>
+  </div>
+  <div class="container">
+    <div class="demo-grid">
+      <a class="demo-card" href="training.html">
+        <div class="card-icon">&#x1f3e5;</div>
+        <div class="card-title">Nursing Home Training Verification</div>
+        <div class="card-desc">An employee takes mandatory fall-prevention training. SWS proves they actually read it vs. just clicking through. GA4 only shows "page visited."</div>
+        <span class="card-tag tag-medical">Healthcare</span>
+        <span class="card-tag tag-enterprise">Compliance</span>
+        <div class="card-proof">Proves: Genuine engagement vs. click-through fraud</div>
+      </a>
+      <a class="demo-card" href="bot-detection.html">
+        <div class="card-icon">&#x1f916;</div>
+        <div class="card-title">Bot vs. Human Detection</div>
+        <div class="card-desc">See SWS detect automated behavior in real time. Simulate a bot clicking through a survey, then do it yourself as a human. Watch the scores diverge.</div>
+        <span class="card-tag tag-research">Market Research</span>
+        <span class="card-tag tag-adtech">Ad Tech</span>
+        <div class="card-proof">Proves: Real-time bot detection without CAPTCHA</div>
+      </a>
+      <a class="demo-card" href="attention-quality.html">
+        <div class="card-icon">&#x1f4a1;</div>
+        <div class="card-title">Attention Quality — Deep vs. Background</div>
+        <div class="card-desc">Open this page in two tabs — actively read one, ignore the other. SWS scores them differently. GA4 counts both as "30 min engagement."</div>
+        <span class="card-tag tag-adtech">Advertising</span>
+        <span class="card-tag tag-enterprise">Enterprise</span>
+        <div class="card-proof">Proves: Not all attention is equal</div>
+      </a>
+      <a class="demo-card" href="military.html">
+        <div class="card-icon">&#x1f6e1;</div>
+        <div class="card-title">Military/SCIF — Zero-PII Compliance</div>
+        <div class="card-desc">Full attention tracking with zero URLs, zero PII, zero content recorded. Every payload passes COPPA/SCIF audit. Inspect the raw data yourself.</div>
+        <span class="card-tag tag-military">Military</span>
+        <span class="card-tag tag-enterprise">SCIF</span>
+        <div class="card-proof">Proves: Classified-environment compatible</div>
+      </a>
+      <a class="demo-card" href="survey.html">
+        <div class="card-icon">&#x1f4cb;</div>
+        <div class="card-title">Survey Response Integrity</div>
+        <div class="card-desc">Take a 5-question survey. SWS verifies you actually read each question and thoughtfully responded. Generates an audit-grade receipt.</div>
+        <span class="card-tag tag-research">Market Research</span>
+        <span class="card-tag tag-medical">Insurance</span>
+        <div class="card-proof">Proves: Response quality verification</div>
+      </a>
+      <a class="demo-card" href="ad-verification.html">
+        <div class="card-icon">&#x1f4f0;</div>
+        <div class="card-title">Ad Attention Verification</div>
+        <div class="card-desc">An ad loads on the page. SWS measures whether you actually looked at it, for how long, and at what quality. GA4 just says "ad served."</div>
+        <span class="card-tag tag-adtech">Ad Tech</span>
+        <span class="card-tag tag-enterprise">Brand Safety</span>
+        <div class="card-proof">Proves: Real viewability beyond IAB standards</div>
+      </a>
+    </div>
+  </div>
+  <div class="footer">SWS Proof of Attention Protocol v1.0.0 | Patent Pending SWS-PROV-001 | &copy; 2026 SWS Strategic Media LLC</div>
+</body>
+</html>

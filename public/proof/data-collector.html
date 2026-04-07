@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS — Proof Data Collector</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e2e8f0; }
+    .header { background: linear-gradient(135deg, #0f172a, #1e1b4b); padding: 24px; text-align: center; border-bottom: 1px solid #1e293b; }
+    .header h1 { font-size: 22px; color: #06b6d4; margin-bottom: 6px; }
+    .header p { color: #94a3b8; font-size: 13px; max-width: 600px; margin: 0 auto; }
+    .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+
+    .phase { background: #111827; border: 1px solid #1e293b; border-radius: 12px; margin: 16px 0; padding: 24px; display: none; }
+    .phase.active { display: block; }
+    .phase h2 { color: #06b6d4; font-size: 18px; margin-bottom: 12px; }
+    .phase p { color: #94a3b8; font-size: 13px; line-height: 1.7; margin-bottom: 16px; }
+
+    .task-area { background: #0f172a; border-radius: 8px; padding: 20px; margin: 16px 0; min-height: 200px; }
+
+    .btn { padding: 12px 24px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; margin: 4px; }
+    .btn-primary { background: #06b6d4; color: #0a0e17; }
+    .btn-primary:hover { background: #22d3ee; }
+    .btn-secondary { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; }
+    .btn-secondary:hover { background: #334155; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .reading-content { font-size: 14px; color: #94a3b8; line-height: 1.8; max-height: 300px; overflow-y: auto; padding: 16px; }
+    .reading-content p { margin-bottom: 12px; }
+
+    .decision-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+    .decision-opt { padding: 14px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; cursor: pointer; font-size: 13px; text-align: center; transition: all 0.15s; }
+    .decision-opt:hover { border-color: #06b6d4; }
+    .decision-opt.selected { border-color: #10b981; background: rgba(16,185,129,0.1); }
+
+    .target-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; max-width: 400px; margin: 0 auto; }
+    .target { aspect-ratio: 1; background: #1e293b; border: 2px solid #334155; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: all 0.1s; }
+    .target.lit { background: #06b6d4; border-color: #22d3ee; }
+    .target.hit { background: #10b981; border-color: #34d399; }
+
+    .live-panel { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; margin: 16px 0; }
+    .signal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+    .signal-card { background: #0f172a; border-radius: 8px; padding: 12px; text-align: center; }
+    .signal-val { font-size: 24px; font-weight: 700; font-family: monospace; color: #06b6d4; }
+    .signal-label { font-size: 11px; color: #64748b; margin-top: 4px; }
+
+    .results-box { background: #0f172a; border-radius: 8px; padding: 16px; margin: 16px 0; }
+    .results-box pre { font-size: 11px; color: #94a3b8; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+
+    .progress { display: flex; gap: 4px; margin: 16px 0; }
+    .progress-step { flex: 1; height: 6px; background: #1e293b; border-radius: 3px; }
+    .progress-step.done { background: #10b981; }
+    .progress-step.current { background: #06b6d4; }
+
+    .timer { font-size: 32px; font-weight: 700; color: #06b6d4; text-align: center; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Proof Data Collector</h1>
+    <p>Complete 4 tasks. Your behavioral signals are captured in real-time and sent to the API server. This generates the real proof data.</p>
+  </div>
+
+  <div class="container">
+    <!-- Progress Bar -->
+    <div class="progress">
+      <div class="progress-step current" id="prog-1"></div>
+      <div class="progress-step" id="prog-2"></div>
+      <div class="progress-step" id="prog-3"></div>
+      <div class="progress-step" id="prog-4"></div>
+    </div>
+
+    <!-- Phase 1: Reading -->
+    <div class="phase active" id="phase-1">
+      <h2>Task 1: Read This Content</h2>
+      <p>Scroll through and read this article. SWS is tracking your scroll saccade pattern — the way you pause to read vs. smooth-scroll past content.</p>
+      <div class="task-area">
+        <div class="reading-content" id="reading-area">
+          <p><strong>The Attention Economy Problem</strong></p>
+          <p>Every day, billions of digital interactions happen across the internet. Companies pay for "impressions" and "engagement time," but these metrics tell them almost nothing about whether a human actually paid attention.</p>
+          <p>A background tab counts the same as focused reading. A bot clicking through a survey generates the same data as a thoughtful respondent. An employee who speed-clicks through safety training gets the same "completed" status as one who genuinely engaged.</p>
+          <p>This isn't a minor problem — it's a systemic failure that costs the advertising industry $84 billion in fraud annually, causes nursing homes to face CMS fines when untrained staff interact with residents, and undermines the entire foundation of digital market research.</p>
+          <p>The root cause is simple: existing analytics tools measure presence, not attention. They count events, not quality. They track time, not engagement.</p>
+          <p>The SWS Proof of Attention Protocol solves this by measuring six behavioral science signals — timing entropy, Fitts' Law compliance, Hick's Law scaling, scroll saccade patterns, micro-pause analysis, and touch variance — to produce a cryptographic proof of genuine human attention.</p>
+          <p>Each verified attention event is hashed with SHA-256, creating an immutable, tamper-proof record that can be independently verified. No URLs are tracked. No content is recorded. No personal information is collected. Just pure, verified attention.</p>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="completePhase(1)">Done Reading — Next Task</button>
+    </div>
+
+    <!-- Phase 2: Decision Making -->
+    <div class="phase" id="phase-2">
+      <h2>Task 2: Make Decisions</h2>
+      <p>Answer these questions. SWS is tracking your response time vs. the number of options (Hick's Law) — humans take longer with more choices, bots don't.</p>
+      <div class="task-area" id="decision-area"></div>
+    </div>
+
+    <!-- Phase 3: Target Clicking -->
+    <div class="phase" id="phase-3">
+      <h2>Task 3: Click the Targets</h2>
+      <p>Click the highlighted squares as fast as you can. SWS is measuring Fitts' Law — the relationship between distance and movement time. Bots click instantly regardless of distance.</p>
+      <div class="task-area">
+        <div class="timer" id="target-timer">Click the lit square!</div>
+        <div class="target-grid" id="target-grid"></div>
+      </div>
+    </div>
+
+    <!-- Phase 4: Results -->
+    <div class="phase" id="phase-4">
+      <h2>Results: Your Behavioral Profile</h2>
+      <p>Here's what SWS captured from your session — all 6 behavioral signals, scored in real time. This data was sent to the API server for scoring.</p>
+
+      <div class="signal-grid" id="signal-grid">
+        <div class="signal-card"><div class="signal-val" id="r-composite">--</div><div class="signal-label">Composite Score</div></div>
+        <div class="signal-card"><div class="signal-val" id="r-timing">--</div><div class="signal-label">Timing Entropy</div></div>
+        <div class="signal-card"><div class="signal-val" id="r-fitts">--</div><div class="signal-label">Fitts' Law</div></div>
+        <div class="signal-card"><div class="signal-val" id="r-hicks">--</div><div class="signal-label">Hick's Law</div></div>
+        <div class="signal-card"><div class="signal-val" id="r-scroll">--</div><div class="signal-label">Scroll Saccade</div></div>
+        <div class="signal-card"><div class="signal-val" id="r-pause">--</div><div class="signal-label">Micro-Pause</div></div>
+        <div class="signal-card"><div class="signal-val" id="r-touch">--</div><div class="signal-label">Touch Variance</div></div>
+      </div>
+
+      <div class="live-panel">
+        <h3 style="color:#10b981;font-size:15px;margin-bottom:12px;">Verdict</h3>
+        <div id="verdict-text" style="font-size:24px;font-weight:700;text-align:center;padding:16px;">Analyzing...</div>
+      </div>
+
+      <div class="results-box">
+        <h3 style="color:#06b6d4;font-size:14px;margin-bottom:8px;">API Server Response</h3>
+        <pre id="api-response">Submitting to server...</pre>
+      </div>
+
+      <div style="text-align:center;margin-top:16px;">
+        <button class="btn btn-primary" onclick="downloadData()">Download Full Report</button>
+        <button class="btn btn-secondary" onclick="location.reload()">Run Again</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../src/sdk/secure-config.js"></script>
+  <script src="../../src/sdk/attention-protocol.js"></script>
+  <script src="../../src/sdk/economy-engine.js"></script>
+
+  <script>
+    var sessionStart = Date.now();
+    var currentPhase = 1;
+    var collectedData = {
+      session_id: 'proof_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+      phases: {},
+      decisions: [],
+      tapSequence: [],
+      scrollEvents: [],
+      interactionIntervals: [],
+      lastInteractionTime: Date.now()
+    };
+
+    SWSAttention.init({ gameId: 'proof_data_collector', debug: false, enableBehavioralAnalysis: true });
+
+    // Track all interactions for timing entropy
+    document.addEventListener('click', function(e) {
+      var now = Date.now();
+      if (collectedData.lastInteractionTime) {
+        collectedData.interactionIntervals.push(now - collectedData.lastInteractionTime);
+      }
+      collectedData.lastInteractionTime = now;
+
+      // Track tap position for Fitts' Law
+      collectedData.tapSequence.push({ x: e.clientX, y: e.clientY, t: now });
+    });
+
+    // Track scroll for saccade
+    var readingArea = document.getElementById('reading-area');
+    if (readingArea) {
+      readingArea.addEventListener('scroll', function() {
+        collectedData.scrollEvents.push({ y: readingArea.scrollTop, t: Date.now() });
+      });
+    }
+    window.addEventListener('scroll', function() {
+      collectedData.scrollEvents.push({ y: window.scrollY, t: Date.now() });
+    });
+
+    // ---- Phase Management ----
+    function completePhase(phase) {
+      collectedData.phases[phase] = { completed: Date.now(), duration: Date.now() - sessionStart };
+
+      document.getElementById('phase-' + phase).classList.remove('active');
+      document.getElementById('prog-' + phase).classList.remove('current');
+      document.getElementById('prog-' + phase).classList.add('done');
+
+      currentPhase = phase + 1;
+      if (currentPhase <= 4) {
+        document.getElementById('phase-' + currentPhase).classList.add('active');
+        document.getElementById('prog-' + currentPhase).classList.add('current');
+      }
+
+      if (currentPhase === 2) setupDecisions();
+      if (currentPhase === 3) setupTargets();
+      if (currentPhase === 4) showResults();
+
+      SWSAttention.earn('phase_complete', Date.now() - sessionStart, 10, 'deep');
+    }
+
+    // ---- Phase 2: Decisions ----
+    var questions = [
+      { q: "Which is the largest ocean?", opts: ["Atlantic", "Pacific"], correct: 1 },
+      { q: "Best approach to verify attention?", opts: ["Page views", "Time on page", "Behavioral signals", "Click count"], correct: 2 },
+      { q: "What does SHA-256 produce?", opts: ["128-bit hash", "256-bit hash", "512-bit hash", "64-bit hash", "1024-bit hash", "Variable length", "No hash", "Depends on input"], correct: 1 },
+    ];
+    var qIndex = 0;
+    var qShownAt = 0;
+
+    function setupDecisions() {
+      showQuestion();
+    }
+
+    function showQuestion() {
+      if (qIndex >= questions.length) {
+        completePhase(2);
+        return;
+      }
+      var q = questions[qIndex];
+      qShownAt = Date.now();
+      SWSAttention.recordContentRender(q.opts.length > 4 ? 'complex' : 'moderate');
+
+      var html = '<p style="color:#e2e8f0;font-size:15px;margin-bottom:16px;">Q' + (qIndex + 1) + ': ' + q.q + ' <span style="color:#64748b;font-size:12px;">(' + q.opts.length + ' options)</span></p>';
+      html += '<div class="decision-grid">';
+      q.opts.forEach(function(opt, i) {
+        html += '<div class="decision-opt" onclick="pickAnswer(' + i + ', this)">' + opt + '</div>';
+      });
+      html += '</div>';
+      document.getElementById('decision-area').innerHTML = html;
+    }
+
+    function pickAnswer(idx, el) {
+      var rt = Date.now() - qShownAt;
+      var q = questions[qIndex];
+
+      collectedData.decisions.push({
+        optionCount: q.opts.length,
+        responseTimeMs: rt
+      });
+      SWSAttention.recordDecision(q.opts.length, rt);
+
+      el.classList.add('selected');
+      qIndex++;
+      setTimeout(showQuestion, 400);
+    }
+
+    // ---- Phase 3: Targets ----
+    var targetCount = 0;
+    var maxTargets = 10;
+    var currentTarget = -1;
+    var targetLitAt = 0;
+
+    function setupTargets() {
+      var grid = document.getElementById('target-grid');
+      grid.innerHTML = '';
+      for (var i = 0; i < 25; i++) {
+        var div = document.createElement('div');
+        div.className = 'target';
+        div.dataset.i = i;
+        div.textContent = '\u25CF';
+        div.addEventListener('click', function() { hitTarget(parseInt(this.dataset.i)); });
+        grid.appendChild(div);
+      }
+      nextTarget();
+    }
+
+    function nextTarget() {
+      if (targetCount >= maxTargets) {
+        completePhase(3);
+        return;
+      }
+      var targets = document.querySelectorAll('.target');
+      targets.forEach(function(t) { t.classList.remove('lit', 'hit'); });
+      currentTarget = Math.floor(Math.random() * 25);
+      targets[currentTarget].classList.add('lit');
+      targetLitAt = Date.now();
+      document.getElementById('target-timer').textContent = (targetCount + 1) + ' / ' + maxTargets;
+    }
+
+    function hitTarget(idx) {
+      if (idx !== currentTarget) return;
+      var rt = Date.now() - targetLitAt;
+      document.querySelectorAll('.target')[idx].classList.add('hit');
+      SWSAttention.recordDecision(25, rt); // 25 possible positions
+      targetCount++;
+      setTimeout(nextTarget, 300);
+    }
+
+    // ---- Phase 4: Results ----
+    function showResults() {
+      var c = SWSAttention.getHumanConfidence();
+      var stats = SWSAttention.getStats();
+
+      document.getElementById('r-composite').textContent = c.composite.toFixed(2);
+      document.getElementById('r-timing').textContent = c.timing.toFixed(2);
+      document.getElementById('r-fitts').textContent = c.fitts.toFixed(2);
+      document.getElementById('r-hicks').textContent = c.hicks.toFixed(2);
+      document.getElementById('r-scroll').textContent = c.scroll.toFixed(2);
+      document.getElementById('r-pause').textContent = c.microPause.toFixed(2);
+      document.getElementById('r-touch').textContent = c.touch.toFixed(2);
+
+      var verdictEl = document.getElementById('verdict-text');
+      if (c.composite >= 0.75) {
+        verdictEl.textContent = 'VERIFIED HUMAN — Deep Engagement';
+        verdictEl.style.color = '#10b981';
+      } else if (c.composite >= 0.50) {
+        verdictEl.textContent = 'VERIFIED HUMAN — Active Engagement';
+        verdictEl.style.color = '#06b6d4';
+      } else if (c.composite >= 0.25) {
+        verdictEl.textContent = 'LIKELY HUMAN — Passive';
+        verdictEl.style.color = '#f59e0b';
+      } else {
+        verdictEl.textContent = 'POSSIBLE AUTOMATION DETECTED';
+        verdictEl.style.color = '#ef4444';
+      }
+
+      // Submit to API server
+      submitToAPI(c, stats);
+    }
+
+    function submitToAPI(confidence, stats) {
+      var payload = {
+        session_id: collectedData.session_id,
+        duration_ms: Date.now() - sessionStart,
+        interaction_count: stats.totalHashes,
+        hash_count: stats.totalHashes,
+        game_id: 'proof_data_collector',
+        decisions: collectedData.decisions,
+        interaction_intervals: collectedData.interactionIntervals,
+        tap_sequence: collectedData.tapSequence.slice(-100),
+        scroll_events: collectedData.scrollEvents.slice(-500)
+      };
+
+      // Try local API server first, then show the payload regardless
+      fetch('http://localhost:3001/v1/sessions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-SWS-API-Key': 'sws_demo_key_2026',
+          'X-SWS-Client-ID': 'demo_client'
+        },
+        body: JSON.stringify(payload)
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        document.getElementById('api-response').textContent = JSON.stringify(data, null, 2);
+        // Store for download
+        collectedData.apiResponse = data;
+        collectedData.clientSideSignals = confidence;
+      })
+      .catch(function(err) {
+        document.getElementById('api-response').textContent =
+          'API server not running (start with: npm run server)\n\n' +
+          'Client-side scores:\n' + JSON.stringify(confidence, null, 2) +
+          '\n\nPayload that would be sent:\n' + JSON.stringify(payload, null, 2);
+        collectedData.clientSideSignals = confidence;
+      });
+    }
+
+    function downloadData() {
+      var report = {
+        title: 'SWS Proof of Attention — Data Collection Report',
+        protocol: 'SWS Proof of Attention Protocol',
+        patent: 'SWS-PROV-001',
+        entity: 'SWS Strategic Media LLC',
+        generated: new Date().toISOString(),
+        session_duration_ms: Date.now() - sessionStart,
+        client_side_signals: SWSAttention.getHumanConfidence(),
+        focus_score: SWSAttention.getFocusScore(),
+        stats: SWSAttention.getStats(),
+        raw_data: {
+          decisions: collectedData.decisions,
+          interaction_intervals: collectedData.interactionIntervals.slice(-200),
+          tap_count: collectedData.tapSequence.length,
+          scroll_events: collectedData.scrollEvents.length
+        },
+        api_response: collectedData.apiResponse || null
+      };
+
+      var blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'sws-proof-data-' + new Date().toISOString().split('T')[0] + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS Attention Protocol — Client Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { --bg: #0a0e17; --card: #111827; --border: #1e293b; --text: #e2e8f0; --dim: #64748b; --accent: #06b6d4; --green: #10b981; --red: #ef4444; --amber: #f59e0b; --purple: #8b5cf6; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* Nav */
+    .nav { background: var(--card); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; height: 56px; }
+    .nav-brand { font-size: 15px; font-weight: 700; color: var(--accent); margin-right: 32px; }
+    .nav-tabs { display: flex; gap: 4px; height: 100%; }
+    .nav-tab { padding: 0 16px; display: flex; align-items: center; font-size: 13px; color: var(--dim); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+    .nav-tab:hover { color: var(--text); }
+    .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+    .nav-status { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .status-dot.ok { background: var(--green); }
+    .status-dot.err { background: var(--red); }
+
+    /* Login */
+    .login-screen { max-width: 400px; margin: 100px auto; padding: 24px; }
+    .login-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 32px; }
+    .login-card h2 { color: var(--accent); font-size: 20px; margin-bottom: 8px; }
+    .login-card p { color: var(--dim); font-size: 13px; margin-bottom: 24px; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 12px; color: var(--dim); margin-bottom: 6px; font-weight: 600; }
+    .form-input { width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 13px; font-family: 'SF Mono', monospace; }
+    .form-input:focus { outline: none; border-color: var(--accent); }
+    .btn-login { width: 100%; padding: 12px; background: var(--accent); color: var(--bg); border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    .btn-login:hover { background: #22d3ee; }
+    .login-error { color: var(--red); font-size: 12px; margin-top: 8px; display: none; }
+
+    /* Dashboard Layout */
+    .dashboard { display: none; }
+    .main { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+    /* KPI Cards */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .kpi { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+    .kpi-val { font-size: 32px; font-weight: 700; font-family: 'SF Mono', monospace; }
+    .kpi-val.green { color: var(--green); }
+    .kpi-val.accent { color: var(--accent); }
+    .kpi-val.purple { color: var(--purple); }
+    .kpi-val.amber { color: var(--amber); }
+    .kpi-label { font-size: 12px; color: var(--dim); margin-top: 4px; }
+
+    /* Cards */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; }
+    .card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .card-title { font-size: 14px; font-weight: 600; }
+    .card-body { padding: 20px; }
+
+    /* Tier Bar Chart */
+    .tier-chart { display: flex; gap: 12px; align-items: flex-end; height: 120px; }
+    .tier-bar-wrapper { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
+    .tier-bar { width: 100%; border-radius: 4px 4px 0 0; transition: height 0.5s; min-height: 4px; }
+    .tier-bar.deep { background: var(--green); }
+    .tier-bar.active { background: var(--accent); }
+    .tier-bar.passive { background: var(--amber); }
+    .tier-bar.background { background: var(--red); }
+    .tier-label { font-size: 11px; color: var(--dim); margin-top: 6px; }
+    .tier-count { font-size: 13px; font-weight: 600; margin-top: 2px; }
+
+    /* Session Table */
+    .session-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .session-table th { text-align: left; padding: 10px 12px; color: var(--dim); border-bottom: 1px solid var(--border); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; }
+    .session-table td { padding: 10px 12px; border-bottom: 1px solid #0f172a; }
+    .session-table tr:hover { background: rgba(255,255,255,0.02); }
+
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+    .badge-deep { background: rgba(16,185,129,0.15); color: var(--green); }
+    .badge-active { background: rgba(6,182,212,0.15); color: var(--accent); }
+    .badge-passive { background: rgba(245,158,11,0.15); color: var(--amber); }
+    .badge-background { background: rgba(239,68,68,0.15); color: var(--red); }
+
+    .score-bar { display: inline-block; width: 60px; height: 6px; background: var(--border); border-radius: 3px; vertical-align: middle; margin-right: 6px; }
+    .score-fill { height: 100%; border-radius: 3px; }
+
+    /* Verify */
+    .verify-section { display: none; }
+    .verify-result { padding: 16px; border-radius: 8px; margin-top: 16px; font-size: 13px; }
+    .verify-result.valid { background: rgba(16,185,129,0.1); border: 1px solid #065f46; color: var(--green); }
+    .verify-result.invalid { background: rgba(239,68,68,0.1); border: 1px solid #7f1d1d; color: var(--red); }
+
+    /* Integration */
+    .code-block { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: 'SF Mono', monospace; font-size: 12px; color: var(--dim); overflow-x: auto; white-space: pre; margin: 12px 0; }
+
+    .footer { text-align: center; padding: 24px; font-size: 11px; color: #334155; }
+
+    /* Tab Content */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+  </style>
+</head>
+<body>
+
+  <!-- LOGIN SCREEN -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-card">
+      <h2>SWS Protocol Dashboard</h2>
+      <p>Enter your API credentials to view your attention analytics.</p>
+      <div class="form-group">
+        <label class="form-label">Client ID</label>
+        <input class="form-input" id="login-client" placeholder="cli_..." value="demo_client">
+      </div>
+      <div class="form-group">
+        <label class="form-label">API Key</label>
+        <input class="form-input" id="login-key" type="password" placeholder="sws_..." value="sws_demo_key_2026">
+      </div>
+      <div class="form-group">
+        <label class="form-label">API Server</label>
+        <input class="form-input" id="login-server" placeholder="http://localhost:3001" value="http://localhost:3001">
+      </div>
+      <button class="btn-login" onclick="login()">Connect</button>
+      <div class="login-error" id="login-error">Connection failed. Check your credentials and server address.</div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="dashboard">
+    <div class="nav">
+      <div class="nav-brand">SWS Protocol</div>
+      <div class="nav-tabs">
+        <div class="nav-tab active" data-tab="overview" onclick="switchTab('overview')">Overview</div>
+        <div class="nav-tab" data-tab="sessions" onclick="switchTab('sessions')">Sessions</div>
+        <div class="nav-tab" data-tab="verify" onclick="switchTab('verify')">Verify Receipt</div>
+        <div class="nav-tab" data-tab="integrate" onclick="switchTab('integrate')">Integration</div>
+      </div>
+      <div class="nav-right">
+        <div class="nav-status">
+          <span class="status-dot ok" id="status-dot"></span>
+          <span id="status-text">Connected</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="main">
+      <!-- OVERVIEW TAB -->
+      <div class="tab-content active" id="tab-overview">
+        <div class="kpi-grid">
+          <div class="kpi"><div class="kpi-val accent" id="kpi-sessions">0</div><div class="kpi-label">Total Sessions</div></div>
+          <div class="kpi"><div class="kpi-val green" id="kpi-score">0</div><div class="kpi-label">Avg Confidence Score</div></div>
+          <div class="kpi"><div class="kpi-val purple" id="kpi-hashes">0</div><div class="kpi-label">Total Hashes</div></div>
+          <div class="kpi"><div class="kpi-val amber" id="kpi-verified">0</div><div class="kpi-label">Verified Human</div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Quality Tier Distribution</span></div>
+          <div class="card-body">
+            <div class="tier-chart" id="tier-chart">
+              <div class="tier-bar-wrapper"><div class="tier-bar deep" id="bar-deep" style="height:10%"></div><div class="tier-label">Deep</div><div class="tier-count" id="count-deep">0</div></div>
+              <div class="tier-bar-wrapper"><div class="tier-bar active" id="bar-active" style="height:10%"></div><div class="tier-label">Active</div><div class="tier-count" id="count-active">0</div></div>
+              <div class="tier-bar-wrapper"><div class="tier-bar passive" id="bar-passive" style="height:10%"></div><div class="tier-label">Passive</div><div class="tier-count" id="count-passive">0</div></div>
+              <div class="tier-bar-wrapper"><div class="tier-bar background" id="bar-bg" style="height:10%"></div><div class="tier-label">Background</div><div class="tier-count" id="count-bg">0</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Verdict Distribution</span></div>
+          <div class="card-body" id="verdict-list" style="font-size:13px;color:var(--dim);">Loading...</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-title">Recent Sessions</span></div>
+          <div class="card-body" style="padding:0;overflow-x:auto;">
+            <table class="session-table">
+              <thead><tr><th>Session ID</th><th>Score</th><th>Tier</th><th>Verdict</th><th>Time</th></tr></thead>
+              <tbody id="session-rows"><tr><td colspan="5" style="text-align:center;color:var(--dim);">Loading...</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- SESSIONS TAB -->
+      <div class="tab-content" id="tab-sessions">
+        <div class="card">
+          <div class="card-header"><span class="card-title">All Sessions</span><span style="font-size:12px;color:var(--dim);" id="session-count">0 sessions</span></div>
+          <div class="card-body" style="padding:0;overflow-x:auto;">
+            <table class="session-table">
+              <thead><tr><th>Session ID</th><th>Score</th><th>Tier</th><th>Verdict</th><th>Time</th></tr></thead>
+              <tbody id="all-session-rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- VERIFY TAB -->
+      <div class="tab-content" id="tab-verify">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Verify Receipt Integrity</span></div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--dim);margin-bottom:16px;">Enter a receipt ID and hash to independently verify its cryptographic integrity. If the data has been tampered with, verification will fail.</p>
+            <div class="form-group">
+              <label class="form-label">Receipt ID</label>
+              <input class="form-input" id="verify-id" placeholder="rcpt_...">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Receipt Hash (optional — leave blank to just retrieve)</label>
+              <input class="form-input" id="verify-hash" placeholder="SHA-256 hash">
+            </div>
+            <button class="btn-login" onclick="verifyReceipt()">Verify</button>
+            <div id="verify-result"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- INTEGRATION TAB -->
+      <div class="tab-content" id="tab-integrate">
+        <div class="card">
+          <div class="card-header"><span class="card-title">Quick Integration</span></div>
+          <div class="card-body">
+            <p style="font-size:13px;color:var(--dim);margin-bottom:16px;">Add this single line to any page to start collecting attention data:</p>
+            <div class="code-block" id="integration-snippet">Loading...</div>
+            <p style="font-size:13px;color:var(--dim);margin-top:16px;">The tag automatically collects all 6 behavioral signals and sends them to the SWS API for scoring. You never need to write any additional code.</p>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">API Credentials</span></div>
+          <div class="card-body">
+            <div style="font-size:12px;color:var(--dim);font-family:monospace;">
+              <div style="margin-bottom:8px;">Client ID: <span style="color:var(--accent);" id="show-client-id"></span></div>
+              <div style="margin-bottom:8px;">API Key: <span style="color:var(--accent);" id="show-api-key"></span></div>
+              <div>Plan: <span style="color:var(--green);" id="show-plan"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Manual API Usage</span></div>
+          <div class="card-body">
+<div class="code-block">curl -X POST <span id="api-url-display">http://localhost:3001</span>/v1/sessions \
+  -H "Content-Type: application/json" \
+  -H "X-SWS-Client-ID: <span id="curl-client-id">YOUR_ID</span>" \
+  -H "X-SWS-API-Key: <span id="curl-api-key">YOUR_KEY</span>" \
+  -d '{
+    "session_id": "unique_session_123",
+    "duration_ms": 180000,
+    "interaction_count": 45,
+    "decisions": [
+      {"optionCount": 4, "responseTimeMs": 850},
+      {"optionCount": 8, "responseTimeMs": 1200}
+    ]
+  }'</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">SWS Proof of Attention Protocol v1.0.0 | Patent Pending SWS-PROV-001 | &copy; 2026 SWS Strategic Media LLC</div>
+  </div>
+
+  <script>
+    var _clientId = '';
+    var _apiKey = '';
+    var _apiBase = '';
+    var _statsData = null;
+
+    // ---- Login ----
+    function login() {
+      _clientId = document.getElementById('login-client').value.trim();
+      _apiKey = document.getElementById('login-key').value.trim();
+      _apiBase = document.getElementById('login-server').value.trim();
+
+      fetch(_apiBase + '/v1/clients/' + _clientId + '/stats', {
+        headers: { 'X-SWS-API-Key': _apiKey, 'X-SWS-Client-ID': _clientId }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.error) throw new Error(data.message || data.error);
+        _statsData = data;
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        renderDashboard(data);
+      })
+      .catch(function(err) {
+        document.getElementById('login-error').style.display = 'block';
+        document.getElementById('login-error').textContent = err.message || 'Connection failed.';
+      });
+    }
+
+    // ---- Render Dashboard ----
+    function renderDashboard(data) {
+      var s = data.stats;
+      document.getElementById('kpi-sessions').textContent = s.total_sessions;
+      document.getElementById('kpi-score').textContent = s.avg_score ? s.avg_score.toFixed(2) : '—';
+      document.getElementById('kpi-hashes').textContent = s.total_hashes;
+
+      var verified = (s.verdict_distribution.verified_human_deep_engagement || 0) +
+                     (s.verdict_distribution.verified_human_active_engagement || 0);
+      document.getElementById('kpi-verified').textContent = verified;
+
+      // Tier chart
+      var tiers = s.tier_distribution;
+      var max = Math.max(tiers.deep || 0, tiers.active || 0, tiers.passive || 0, tiers.background || 0, 1);
+      document.getElementById('bar-deep').style.height = Math.max(5, (tiers.deep / max) * 100) + '%';
+      document.getElementById('bar-active').style.height = Math.max(5, (tiers.active / max) * 100) + '%';
+      document.getElementById('bar-passive').style.height = Math.max(5, (tiers.passive / max) * 100) + '%';
+      document.getElementById('bar-bg').style.height = Math.max(5, (tiers.background / max) * 100) + '%';
+      document.getElementById('count-deep').textContent = tiers.deep || 0;
+      document.getElementById('count-active').textContent = tiers.active || 0;
+      document.getElementById('count-passive').textContent = tiers.passive || 0;
+      document.getElementById('count-bg').textContent = tiers.background || 0;
+
+      // Verdicts
+      var verdictHtml = '';
+      for (var v in s.verdict_distribution) {
+        verdictHtml += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #0f172a;">';
+        verdictHtml += '<span>' + v.replace(/_/g, ' ') + '</span>';
+        verdictHtml += '<span style="color:var(--accent);font-weight:600;">' + s.verdict_distribution[v] + '</span>';
+        verdictHtml += '</div>';
+      }
+      document.getElementById('verdict-list').innerHTML = verdictHtml || '<span>No data yet</span>';
+
+      // Sessions table
+      renderSessions(data.recent_sessions || []);
+
+      // Integration tab
+      document.getElementById('show-client-id').textContent = _clientId;
+      document.getElementById('show-api-key').textContent = _apiKey.substring(0, 12) + '...' + _apiKey.substring(_apiKey.length - 4);
+      document.getElementById('show-plan').textContent = data.plan || 'pilot';
+      document.getElementById('curl-client-id').textContent = _clientId;
+      document.getElementById('curl-api-key').textContent = _apiKey.substring(0, 12) + '...';
+      document.getElementById('api-url-display').textContent = _apiBase;
+      document.getElementById('integration-snippet').textContent =
+        '<script src="https://cdn.swsprotocol.com/sws-client.js"\n' +
+        '        data-client-id="' + _clientId + '"\n' +
+        '        data-api-key="' + _apiKey.substring(0, 12) + '...">\n' +
+        '</' + 'script>';
+    }
+
+    function renderSessions(sessions) {
+      var html = '';
+      sessions.forEach(function(s) {
+        var tierClass = 'badge-' + s.tier;
+        var scoreColor = s.score >= 0.5 ? 'var(--green)' : s.score >= 0.25 ? 'var(--amber)' : 'var(--red)';
+        var pct = Math.round(s.score * 100);
+        var fillColor = s.score >= 0.5 ? 'var(--green)' : s.score >= 0.25 ? 'var(--amber)' : 'var(--red)';
+        var time = s.created ? new Date(s.created).toLocaleTimeString() : '—';
+
+        html += '<tr>';
+        html += '<td style="font-family:monospace;font-size:11px;">' + (s.session_id || '').substring(0, 24) + '</td>';
+        html += '<td><span class="score-bar"><span class="score-fill" style="width:' + pct + '%;background:' + fillColor + ';"></span></span><span style="color:' + scoreColor + ';">' + s.score.toFixed(2) + '</span></td>';
+        html += '<td><span class="badge ' + tierClass + '">' + s.tier + '</span></td>';
+        html += '<td style="font-size:11px;">' + (s.verdict || '').replace(/_/g, ' ') + '</td>';
+        html += '<td style="font-size:11px;color:var(--dim);">' + time + '</td>';
+        html += '</tr>';
+      });
+      document.getElementById('session-rows').innerHTML = html || '<tr><td colspan="5" style="text-align:center;color:var(--dim);">No sessions yet</td></tr>';
+      document.getElementById('all-session-rows').innerHTML = html;
+      document.getElementById('session-count').textContent = sessions.length + ' sessions';
+    }
+
+    // ---- Tab Switching ----
+    function switchTab(tab) {
+      document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelector('[data-tab="' + tab + '"]').classList.add('active');
+      document.getElementById('tab-' + tab).classList.add('active');
+    }
+
+    // ---- Verify Receipt ----
+    function verifyReceipt() {
+      var receiptId = document.getElementById('verify-id').value.trim();
+      var receiptHash = document.getElementById('verify-hash').value.trim();
+      if (!receiptId) return;
+
+      fetch(_apiBase + '/v1/sessions/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receipt_id: receiptId, receipt_hash: receiptHash || undefined })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var el = document.getElementById('verify-result');
+        if (data.valid) {
+          el.innerHTML = '<div class="verify-result valid"><strong>VERIFIED</strong> — Receipt integrity confirmed.<br>' +
+            'Focus Score: ' + data.engagement.focus_score + ' | Tier: ' + data.engagement.quality_tier +
+            ' | Verdict: ' + data.verdict + '<br>Hash: ' + data.receipt_hash + '</div>';
+        } else if (data.error === 'receipt_not_found') {
+          el.innerHTML = '<div class="verify-result invalid"><strong>NOT FOUND</strong> — Receipt ID does not exist in the system.</div>';
+        } else {
+          el.innerHTML = '<div class="verify-result invalid"><strong>INVALID</strong> — ' + (data.message || data.reason || 'Verification failed') + '</div>';
+        }
+      })
+      .catch(function(err) {
+        document.getElementById('verify-result').innerHTML =
+          '<div class="verify-result invalid"><strong>ERROR</strong> — ' + err.message + '</div>';
+      });
+    }
+
+    // ---- Auto-refresh every 30s ----
+    setInterval(function() {
+      if (!_clientId || !_apiKey) return;
+      fetch(_apiBase + '/v1/clients/' + _clientId + '/stats', {
+        headers: { 'X-SWS-API-Key': _apiKey, 'X-SWS-Client-ID': _clientId }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.error) renderDashboard(data);
+      })
+      .catch(function() {});
+    }, 30000);
+  </script>
+</body>
+</html>

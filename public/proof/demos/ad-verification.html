@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS Proof — Ad Attention Verification</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e2e8f0; }
+    .header { background: linear-gradient(135deg, #1e1b4b, #4a1d96); padding: 24px; text-align: center; border-bottom: 1px solid #1e293b; }
+    .header h1 { font-size: 22px; color: #a855f7; margin-bottom: 6px; }
+    .header p { color: #94a3b8; font-size: 13px; }
+    .container { max-width: 900px; margin: 0 auto; padding: 24px; }
+    .back-link { display: inline-block; padding: 8px 16px; color: #64748b; font-size: 12px; text-decoration: none; }
+
+    .page-layout { display: grid; grid-template-columns: 1fr 300px; gap: 24px; margin: 20px 0; }
+    @media (max-width: 700px) { .page-layout { grid-template-columns: 1fr; } }
+
+    .content-area { background: #111827; border-radius: 12px; border: 1px solid #1e293b; padding: 24px; }
+    .content-area h2 { font-size: 18px; color: #f1f5f9; margin-bottom: 16px; }
+    .content-area p { font-size: 13px; color: #94a3b8; line-height: 1.8; margin-bottom: 12px; }
+
+    .ad-unit {
+      background: linear-gradient(135deg, #1e293b, #334155);
+      border: 2px dashed #475569; border-radius: 12px;
+      padding: 24px; text-align: center; min-height: 250px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      position: relative; overflow: hidden;
+    }
+    .ad-unit h3 { color: #f59e0b; font-size: 20px; margin-bottom: 8px; }
+    .ad-unit p { color: #94a3b8; font-size: 14px; margin-bottom: 16px; }
+    .ad-cta { padding: 10px 24px; background: #f59e0b; color: #0a0e17; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; }
+    .ad-label { position: absolute; top: 8px; right: 8px; font-size: 10px; color: #64748b; background: #0f172a; padding: 2px 6px; border-radius: 3px; }
+
+    .metrics-panel { background: #111827; border-radius: 12px; border: 1px solid #1e293b; }
+    .mp-header { padding: 14px 16px; border-bottom: 1px solid #1e293b; font-weight: 600; font-size: 13px; }
+    .mp-body { padding: 16px; }
+
+    .m-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 12px; border-bottom: 1px solid #0f172a; }
+    .m-row:last-child { border-bottom: none; }
+    .m-label { color: #64748b; }
+    .m-val { font-weight: 600; font-family: monospace; }
+    .m-val.good { color: #10b981; }
+    .m-val.na { color: #ef4444; }
+    .m-val.num { color: #a855f7; }
+
+    .comparison-box { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; margin: 20px 0; }
+    .comparison-box h3 { color: #a855f7; font-size: 15px; margin-bottom: 16px; }
+    .comp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .comp-item { padding: 16px; border-radius: 8px; }
+    .comp-item.sws { background: rgba(16,185,129,0.05); border: 1px solid #065f46; }
+    .comp-item.ga4 { background: rgba(239,68,68,0.05); border: 1px solid #7f1d1d; }
+    .comp-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+    .comp-title.sws { color: #10b981; }
+    .comp-title.ga4 { color: #ef4444; }
+    .comp-detail { font-size: 12px; color: #94a3b8; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Ad Attention Verification</h1>
+    <p>An ad is on this page. SWS measures if you actually looked at it. GA4 just says "ad served."</p>
+  </div>
+  <div class="container">
+    <a href="index.html" class="back-link">&larr; Back to all demos</a>
+
+    <div class="page-layout">
+      <div>
+        <div class="content-area">
+          <h2>Article: The Future of Digital Advertising</h2>
+          <p>The digital advertising industry has a $68 billion fraud problem. Bots generate fake impressions, ads are served to invisible pixels, and background tabs inflate engagement metrics to worthless numbers.</p>
+          <p>Traditional viewability standards (IAB: 50% of pixels visible for 1 second) are laughably inadequate. An ad can be "viewable" while the user is looking at their phone, reading a different tab, or asleep on the couch.</p>
+          <p>What advertisers actually need is proof that a human being, with genuine cognitive attention, saw their advertisement and processed its message. This is what the SWS Attention Protocol provides.</p>
+          <p>The protocol doesn't just measure if the ad was on screen — it measures the quality of attention directed at the page, using six behavioral science signals that cannot be faked by bots or passive viewing.</p>
+          <p>Scroll down to keep reading. The ad to the right is being monitored by both SWS and GA4. Notice the difference in what each system reports.</p>
+        </div>
+      </div>
+
+      <div>
+        <!-- Simulated Ad Unit -->
+        <div class="ad-unit" id="ad-unit">
+          <span class="ad-label">Sponsored</span>
+          <h3>Premium Widget Pro</h3>
+          <p>The world's best widget. Now 50% off.</p>
+          <button class="ad-cta" onclick="clickAd()">Learn More</button>
+        </div>
+
+        <!-- SWS Metrics -->
+        <div class="metrics-panel" style="margin-top:16px;">
+          <div class="mp-header" style="color:#10b981;">SWS Ad Attention Metrics</div>
+          <div class="mp-body">
+            <div class="m-row"><span class="m-label">Ad View Duration</span><span class="m-val good" id="m-view-time">0s</span></div>
+            <div class="m-row"><span class="m-label">Attention Quality</span><span class="m-val good" id="m-quality">--</span></div>
+            <div class="m-row"><span class="m-label">Human Confidence</span><span class="m-val good" id="m-human">--</span></div>
+            <div class="m-row"><span class="m-label">Focus Score</span><span class="m-val good" id="m-focus">--</span></div>
+            <div class="m-row"><span class="m-label">Ad Interaction</span><span class="m-val good" id="m-interaction">None yet</span></div>
+            <div class="m-row"><span class="m-label">Verified Attention</span><span class="m-val good" id="m-verified">Monitoring...</span></div>
+          </div>
+        </div>
+
+        <!-- GA4 Metrics -->
+        <div class="metrics-panel" style="margin-top:16px;">
+          <div class="mp-header" style="color:#f59e0b;">GA4 Ad Metrics</div>
+          <div class="mp-body">
+            <div class="m-row"><span class="m-label">Impression</span><span class="m-val num">1</span></div>
+            <div class="m-row"><span class="m-label">Viewable (IAB)</span><span class="m-val num" id="ga4-viewable">Yes</span></div>
+            <div class="m-row"><span class="m-label">Time on Page</span><span class="m-val num" id="ga4-time">0s</span></div>
+            <div class="m-row"><span class="m-label">Attention Quality</span><span class="m-val na">N/A</span></div>
+            <div class="m-row"><span class="m-label">Human Verified</span><span class="m-val na">N/A</span></div>
+            <div class="m-row"><span class="m-label">Focus Score</span><span class="m-val na">N/A</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="comparison-box">
+      <h3>The Proof: Same Ad, Two Systems, Vastly Different Data</h3>
+      <div class="comp-grid">
+        <div class="comp-item sws">
+          <div class="comp-title sws">SWS Attention Protocol Says:</div>
+          <div class="comp-detail" id="sws-says">Monitoring... interact with the page to generate data.</div>
+        </div>
+        <div class="comp-item ga4">
+          <div class="comp-title ga4">GA4 Says:</div>
+          <div class="comp-detail" id="ga4-says">1 impression served. Page view recorded. That's all GA4 will ever know about this ad view regardless of whether a human actually saw it.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../../../src/sdk/secure-config.js"></script>
+  <script src="../../../src/sdk/attention-protocol.js"></script>
+  <script src="../../../src/sdk/economy-engine.js"></script>
+
+  <script>
+    var adStart = Date.now();
+    var adViewTime = 0;
+    var adVisible = false;
+    var adClicked = false;
+
+    SWSAttention.init({ gameId: 'proof_ad_demo', debug: false, enableBehavioralAnalysis: true });
+
+    // Track ad visibility
+    var adObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        adVisible = entry.isIntersecting;
+      });
+    }, { threshold: 0.5 });
+    adObserver.observe(document.getElementById('ad-unit'));
+
+    function clickAd() {
+      adClicked = true;
+      SWSAttention.earn('ad_click', adViewTime * 1000, 1, 'deep');
+      document.getElementById('m-interaction').textContent = 'CLICKED';
+    }
+
+    setInterval(function() {
+      if (adVisible && !document.hidden) {
+        adViewTime++;
+        SWSAttention.earn('ad_view_second', 1000, 0, 'active');
+      }
+
+      var stats = SWSAttention.getStats();
+      var c = SWSAttention.getHumanConfidence();
+      var elapsed = Math.round((Date.now() - adStart) / 1000);
+
+      document.getElementById('m-view-time').textContent = adViewTime + 's';
+      document.getElementById('m-quality').textContent = c.composite >= 0.75 ? 'DEEP' : c.composite >= 0.5 ? 'ACTIVE' : 'PASSIVE';
+      document.getElementById('m-human').textContent = c.composite.toFixed(2);
+      document.getElementById('m-focus').textContent = stats.focusScore;
+      document.getElementById('ga4-time').textContent = elapsed + 's';
+
+      if (adViewTime >= 5 && c.composite >= 0.3) {
+        document.getElementById('m-verified').textContent = 'YES — Genuine attention';
+        document.getElementById('m-verified').style.color = '#10b981';
+      }
+
+      // Update comparison
+      document.getElementById('sws-says').innerHTML =
+        'User has spent <strong>' + adViewTime + 's</strong> with the ad visible. ' +
+        'Focus score: <strong>' + stats.focusScore + '</strong>. ' +
+        'Human confidence: <strong>' + c.composite.toFixed(2) + '</strong>. ' +
+        'Quality tier: <strong>' + (c.composite >= 0.5 ? 'ACTIVE' : 'PASSIVE') + '</strong>. ' +
+        (adClicked ? '<strong>User clicked the ad CTA.</strong> ' : '') +
+        'This is verified, cryptographically hashed attention — not just an impression count.';
+
+    }, 1000);
+  </script>
+</body>
+</html>

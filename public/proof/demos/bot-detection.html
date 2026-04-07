@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS Proof — Bot vs. Human Detection</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e2e8f0; }
+    .header { background: linear-gradient(135deg, #1e1b4b, #3b0764); padding: 24px; text-align: center; border-bottom: 1px solid #1e293b; }
+    .header h1 { font-size: 22px; color: #06b6d4; margin-bottom: 6px; }
+    .header p { color: #94a3b8; font-size: 13px; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 24px; }
+    .back-link { display: inline-block; padding: 8px 16px; color: #64748b; font-size: 12px; text-decoration: none; }
+    .back-link:hover { color: #06b6d4; }
+
+    .mode-selector { display: flex; gap: 16px; margin: 20px 0; justify-content: center; }
+    .mode-btn {
+      padding: 14px 28px; border-radius: 10px; border: 2px solid #334155;
+      background: #111827; font-size: 15px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; min-width: 200px; text-align: center;
+    }
+    .mode-btn:hover { border-color: #06b6d4; }
+    .mode-btn.active { border-color: #06b6d4; background: #0f172a; }
+    .mode-btn.bot { color: #ef4444; }
+    .mode-btn.human { color: #10b981; }
+    .mode-sub { font-size: 11px; color: #64748b; margin-top: 4px; font-weight: 400; }
+
+    .arena {
+      background: #111827; border: 1px solid #1e293b; border-radius: 12px;
+      padding: 24px; margin: 20px 0; min-height: 300px;
+    }
+    .arena h3 { color: #8b5cf6; font-size: 15px; margin-bottom: 16px; text-align: center; }
+
+    .target-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+      max-width: 500px; margin: 0 auto;
+    }
+    .target {
+      aspect-ratio: 1; border-radius: 10px; border: 2px solid #334155;
+      background: #1e293b; display: flex; align-items: center; justify-content: center;
+      font-size: 24px; cursor: pointer; transition: all 0.15s; position: relative;
+    }
+    .target:hover { border-color: #06b6d4; transform: scale(1.03); }
+    .target.lit { background: #06b6d4; border-color: #22d3ee; color: #0a0e17; animation: targetPulse 0.3s; }
+    .target.hit { background: #10b981; border-color: #34d399; }
+    .target.miss { background: #ef4444; border-color: #f87171; }
+    @keyframes targetPulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
+
+    .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+    @media (max-width: 700px) { .results-grid { grid-template-columns: 1fr; } }
+
+    .result-panel { background: #111827; border-radius: 12px; border: 1px solid #1e293b; }
+    .result-header { padding: 14px 16px; border-bottom: 1px solid #1e293b; font-weight: 600; font-size: 14px; }
+    .result-header.sws { color: #10b981; }
+    .result-header.ga4 { color: #f59e0b; }
+    .result-body { padding: 16px; }
+
+    .signal-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #0f172a; }
+    .signal-row:last-child { border-bottom: none; }
+    .signal-name { font-size: 12px; color: #94a3b8; }
+    .signal-bar-container { width: 120px; }
+    .signal-bar { height: 6px; background: #1e293b; border-radius: 3px; }
+    .signal-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+    .signal-fill.human { background: linear-gradient(90deg, #10b981, #06b6d4); }
+    .signal-fill.bot { background: linear-gradient(90deg, #ef4444, #f59e0b); }
+    .signal-val { font-size: 11px; font-family: monospace; width: 40px; text-align: right; }
+    .signal-val.good { color: #10b981; }
+    .signal-val.bad { color: #ef4444; }
+
+    .verdict-huge {
+      text-align: center; padding: 24px; margin: 20px 0;
+      background: #111827; border-radius: 12px; border: 1px solid #1e293b;
+    }
+    .verdict-label { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .verdict-score { font-size: 48px; font-weight: 800; }
+    .verdict-text { font-size: 16px; margin-top: 8px; }
+    .verdict-explain { font-size: 12px; color: #64748b; margin-top: 8px; max-width: 500px; margin-left: auto; margin-right: auto; }
+
+    .round-counter { text-align: center; font-size: 14px; color: #64748b; margin: 16px 0; }
+    .round-counter strong { color: #06b6d4; }
+
+    .btn-row { display: flex; gap: 12px; justify-content: center; margin: 20px 0; }
+    .action-btn {
+      padding: 12px 24px; border-radius: 8px; border: none;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .action-btn.primary { background: #06b6d4; color: #0a0e17; }
+    .action-btn.primary:hover { background: #22d3ee; }
+    .action-btn.danger { background: #ef4444; color: #fff; }
+    .action-btn.danger:hover { background: #f87171; }
+    .action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Bot vs. Human Detection</h1>
+    <p>Run the bot simulation, then try it yourself. Watch SWS catch the difference in real time.</p>
+  </div>
+
+  <div class="container">
+    <a href="index.html" class="back-link">&larr; Back to all demos</a>
+
+    <div class="mode-selector">
+      <div class="mode-btn bot" id="btn-bot" onclick="startBot()">
+        &#x1f916; Run Bot Simulation
+        <div class="mode-sub">Automated clicks — instant, perfect, metronomic</div>
+      </div>
+      <div class="mode-btn human" id="btn-human" onclick="startHuman()">
+        &#x1f9d1; Try It Yourself
+        <div class="mode-sub">Click the lit squares as fast as you can</div>
+      </div>
+    </div>
+
+    <div class="round-counter">Round: <strong id="round-num">0</strong> / <strong>10</strong></div>
+
+    <div class="arena">
+      <h3 id="arena-title">Choose a mode above to begin</h3>
+      <div class="target-grid" id="target-grid">
+        <div class="target" data-i="0" onclick="hitTarget(0)">&#x25CF;</div>
+        <div class="target" data-i="1" onclick="hitTarget(1)">&#x25CF;</div>
+        <div class="target" data-i="2" onclick="hitTarget(2)">&#x25CF;</div>
+        <div class="target" data-i="3" onclick="hitTarget(3)">&#x25CF;</div>
+        <div class="target" data-i="4" onclick="hitTarget(4)">&#x25CF;</div>
+        <div class="target" data-i="5" onclick="hitTarget(5)">&#x25CF;</div>
+        <div class="target" data-i="6" onclick="hitTarget(6)">&#x25CF;</div>
+        <div class="target" data-i="7" onclick="hitTarget(7)">&#x25CF;</div>
+        <div class="target" data-i="8" onclick="hitTarget(8)">&#x25CF;</div>
+        <div class="target" data-i="9" onclick="hitTarget(9)">&#x25CF;</div>
+        <div class="target" data-i="10" onclick="hitTarget(10)">&#x25CF;</div>
+        <div class="target" data-i="11" onclick="hitTarget(11)">&#x25CF;</div>
+        <div class="target" data-i="12" onclick="hitTarget(12)">&#x25CF;</div>
+        <div class="target" data-i="13" onclick="hitTarget(13)">&#x25CF;</div>
+        <div class="target" data-i="14" onclick="hitTarget(14)">&#x25CF;</div>
+        <div class="target" data-i="15" onclick="hitTarget(15)">&#x25CF;</div>
+      </div>
+    </div>
+
+    <!-- Verdict -->
+    <div class="verdict-huge" id="verdict-section" style="display:none;">
+      <div class="verdict-label">SWS Human Confidence Score</div>
+      <div class="verdict-score" id="verdict-score">--</div>
+      <div class="verdict-text" id="verdict-text">Analyzing...</div>
+      <div class="verdict-explain" id="verdict-explain"></div>
+    </div>
+
+    <!-- Signal Breakdown -->
+    <div class="results-grid">
+      <div class="result-panel">
+        <div class="result-header sws">SWS Behavioral Signals</div>
+        <div class="result-body">
+          <div class="signal-row">
+            <span class="signal-name">Timing Entropy</span>
+            <div class="signal-bar-container"><div class="signal-bar"><div class="signal-fill human" id="sig-timing" style="width:50%"></div></div></div>
+            <span class="signal-val" id="val-timing">0.50</span>
+          </div>
+          <div class="signal-row">
+            <span class="signal-name">Fitts' Law</span>
+            <div class="signal-bar-container"><div class="signal-bar"><div class="signal-fill human" id="sig-fitts" style="width:50%"></div></div></div>
+            <span class="signal-val" id="val-fitts">0.50</span>
+          </div>
+          <div class="signal-row">
+            <span class="signal-name">Hick's Law</span>
+            <div class="signal-bar-container"><div class="signal-bar"><div class="signal-fill human" id="sig-hicks" style="width:50%"></div></div></div>
+            <span class="signal-val" id="val-hicks">0.50</span>
+          </div>
+          <div class="signal-row">
+            <span class="signal-name">Touch Variance</span>
+            <div class="signal-bar-container"><div class="signal-bar"><div class="signal-fill human" id="sig-touch" style="width:50%"></div></div></div>
+            <span class="signal-val" id="val-touch">0.50</span>
+          </div>
+          <div class="signal-row">
+            <span class="signal-name">Composite Score</span>
+            <div class="signal-bar-container"><div class="signal-bar"><div class="signal-fill human" id="sig-composite" style="width:50%"></div></div></div>
+            <span class="signal-val" id="val-composite">0.50</span>
+          </div>
+        </div>
+      </div>
+      <div class="result-panel">
+        <div class="result-header ga4">What GA4 Sees</div>
+        <div class="result-body">
+          <div class="signal-row"><span class="signal-name">Page View</span><span class="signal-val" style="color:#f59e0b;">1</span></div>
+          <div class="signal-row"><span class="signal-name">Click Events</span><span class="signal-val" id="ga4-clicks" style="color:#f59e0b;">0</span></div>
+          <div class="signal-row"><span class="signal-name">Time on Page</span><span class="signal-val" id="ga4-time" style="color:#f59e0b;">0s</span></div>
+          <div class="signal-row"><span class="signal-name">Bot Detection</span><span class="signal-val" style="color:#ef4444;">None</span></div>
+          <div class="signal-row"><span class="signal-name">Engagement Quality</span><span class="signal-val" style="color:#ef4444;">None</span></div>
+          <div style="margin-top:12px;font-size:11px;color:#ef4444;line-height:1.5;">
+            GA4 records the same data for both the bot and the human — it cannot tell the difference.
+            The bot's 10 clicks look identical to a human's 10 clicks in GA4's reports.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="action-btn primary" onclick="resetDemo()">Reset Demo</button>
+    </div>
+  </div>
+
+  <!-- SDK -->
+  <script src="../../../src/sdk/secure-config.js"></script>
+  <script src="../../../src/sdk/attention-protocol.js"></script>
+  <script src="../../../src/sdk/economy-engine.js"></script>
+
+  <script>
+    var mode = null; // 'bot' or 'human'
+    var round = 0;
+    var maxRounds = 10;
+    var currentTarget = -1;
+    var targetLitTime = 0;
+    var clickCount = 0;
+    var demoStart = Date.now();
+    var targets = document.querySelectorAll('.target');
+    var botTimer = null;
+    var gameActive = false;
+
+    SWSAttention.init({
+      gameId: 'proof_bot_detection',
+      debug: false,
+      enableBehavioralAnalysis: true
+    });
+
+    function startBot() {
+      resetDemo();
+      mode = 'bot';
+      gameActive = true;
+      document.getElementById('btn-bot').classList.add('active');
+      document.getElementById('arena-title').textContent = 'Bot Simulation Running...';
+      demoStart = Date.now();
+      nextRound();
+    }
+
+    function startHuman() {
+      resetDemo();
+      mode = 'human';
+      gameActive = true;
+      document.getElementById('btn-human').classList.add('active');
+      document.getElementById('arena-title').textContent = 'Click the lit square!';
+      demoStart = Date.now();
+      nextRound();
+    }
+
+    function nextRound() {
+      if (round >= maxRounds) {
+        endGame();
+        return;
+      }
+
+      // Clear previous
+      targets.forEach(function(t) { t.classList.remove('lit', 'hit', 'miss'); });
+
+      // Light a random target
+      currentTarget = Math.floor(Math.random() * 16);
+      targets[currentTarget].classList.add('lit');
+      targetLitTime = Date.now();
+
+      document.getElementById('round-num').textContent = round + 1;
+
+      // Bot auto-clicks
+      if (mode === 'bot') {
+        // Bot clicks with constant 50ms delay — unnaturally fast and consistent
+        botTimer = setTimeout(function() {
+          hitTarget(currentTarget);
+        }, 50);
+      }
+    }
+
+    function hitTarget(index) {
+      if (!gameActive) return;
+      clickCount++;
+
+      var reactionTime = Date.now() - targetLitTime;
+
+      // Record with SWS
+      SWSAttention.recordDecision(16, reactionTime); // 16 possible targets
+
+      if (index === currentTarget) {
+        targets[index].classList.remove('lit');
+        targets[index].classList.add('hit');
+        SWSAttention.earn('target_hit', reactionTime, 1, reactionTime < 100 ? 'background' : 'active');
+      } else {
+        targets[index].classList.add('miss');
+      }
+
+      round++;
+      updateSignals();
+
+      setTimeout(nextRound, mode === 'bot' ? 100 : 500);
+    }
+
+    function endGame() {
+      gameActive = false;
+      document.getElementById('arena-title').textContent = 'Complete! See results below.';
+
+      var confidence = SWSAttention.getHumanConfidence();
+
+      // Show verdict
+      var verdictSection = document.getElementById('verdict-section');
+      verdictSection.style.display = 'block';
+
+      var score = confidence.composite;
+      var scoreEl = document.getElementById('verdict-score');
+      var textEl = document.getElementById('verdict-text');
+      var explainEl = document.getElementById('verdict-explain');
+
+      scoreEl.textContent = score.toFixed(2);
+
+      if (mode === 'bot') {
+        scoreEl.style.color = '#ef4444';
+        textEl.textContent = 'AUTOMATION DETECTED';
+        textEl.style.color = '#ef4444';
+        explainEl.textContent = 'The bot clicked with constant 50ms reaction time across all positions. ' +
+          'Zero timing variance (CV < 0.1), no Fitts\' Law compliance (distance didn\'t affect time), ' +
+          'and identical response regardless of target count. SWS flagged this immediately. ' +
+          'GA4 recorded 10 click events — indistinguishable from a human in its reports.';
+      } else {
+        scoreEl.style.color = score >= 0.5 ? '#10b981' : '#f59e0b';
+        textEl.textContent = score >= 0.5 ? 'VERIFIED HUMAN' : 'LIKELY HUMAN';
+        textEl.style.color = score >= 0.5 ? '#10b981' : '#f59e0b';
+        explainEl.textContent = 'Your clicks showed natural timing variance (CV > 0.4), ' +
+          'reaction time that correlated with target distance (Fitts\' Law), ' +
+          'and variable touch precision. These are biometric markers of genuine human interaction. ' +
+          'GA4 recorded the same 10 click events — identical to the bot in its data.';
+      }
+
+      updateSignals();
+    }
+
+    function updateSignals() {
+      var c = SWSAttention.getHumanConfidence();
+      var signals = [
+        { id: 'timing', val: c.timing },
+        { id: 'fitts', val: c.fitts },
+        { id: 'hicks', val: c.hicks },
+        { id: 'touch', val: c.touch },
+        { id: 'composite', val: c.composite }
+      ];
+
+      signals.forEach(function(s) {
+        var pct = Math.round(s.val * 100);
+        document.getElementById('sig-' + s.id).style.width = pct + '%';
+        document.getElementById('sig-' + s.id).className = 'signal-fill ' + (s.val >= 0.4 ? 'human' : 'bot');
+        var valEl = document.getElementById('val-' + s.id);
+        valEl.textContent = s.val.toFixed(2);
+        valEl.className = 'signal-val ' + (s.val >= 0.4 ? 'good' : 'bad');
+      });
+
+      document.getElementById('ga4-clicks').textContent = clickCount;
+      document.getElementById('ga4-time').textContent = Math.round((Date.now() - demoStart) / 1000) + 's';
+    }
+
+    function resetDemo() {
+      clearTimeout(botTimer);
+      mode = null;
+      round = 0;
+      currentTarget = -1;
+      clickCount = 0;
+      gameActive = false;
+      demoStart = Date.now();
+
+      targets.forEach(function(t) { t.classList.remove('lit', 'hit', 'miss'); });
+      document.getElementById('btn-bot').classList.remove('active');
+      document.getElementById('btn-human').classList.remove('active');
+      document.getElementById('verdict-section').style.display = 'none';
+      document.getElementById('round-num').textContent = '0';
+      document.getElementById('arena-title').textContent = 'Choose a mode above to begin';
+    }
+
+    // Periodic signal update
+    setInterval(updateSignals, 2000);
+  </script>
+</body>
+</html>

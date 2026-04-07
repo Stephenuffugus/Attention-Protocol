@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS Attention Protocol — Proof of Concept</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #0a0e17;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+      padding: 32px 24px;
+      text-align: center;
+      border-bottom: 1px solid #1e293b;
+    }
+    .header h1 { font-size: 28px; color: #06b6d4; margin-bottom: 8px; }
+    .header p { color: #94a3b8; font-size: 14px; max-width: 700px; margin: 0 auto; line-height: 1.6; }
+    .patent { color: #64748b; font-size: 11px; margin-top: 8px; letter-spacing: 0.05em; }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+    .instructions {
+      background: #111827;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .instructions h2 { color: #f59e0b; font-size: 16px; margin-bottom: 8px; }
+    .instructions p { color: #94a3b8; font-size: 13px; line-height: 1.6; }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 768px) { .comparison-grid { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: #111827;
+      border-radius: 12px;
+      border: 1px solid #1e293b;
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 15px;
+    }
+    .panel.sws .panel-header { background: linear-gradient(90deg, #0e4429, #0a2d1f); color: #10b981; }
+    .panel.ga4 .panel-header { background: linear-gradient(90deg, #422006, #2d1a06); color: #f59e0b; }
+    .panel-body { padding: 20px; }
+    .panel-icon { font-size: 20px; }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #1e293b;
+    }
+    .metric:last-child { border-bottom: none; }
+    .metric-label { font-size: 13px; color: #94a3b8; }
+    .metric-value { font-size: 14px; font-weight: 600; font-family: 'SF Mono', monospace; }
+    .metric-value.highlight { color: #10b981; }
+    .metric-value.dim { color: #475569; }
+    .metric-value.warn { color: #ef4444; }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+    .badge.exclusive { background: rgba(16, 185, 129, 0.15); color: #10b981; }
+    .badge.shared { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+    .badge.missing { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+    .live-feed {
+      background: #111827;
+      border-radius: 12px;
+      border: 1px solid #1e293b;
+      margin-bottom: 24px;
+    }
+    .live-feed-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #1e293b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .live-feed-header h3 { color: #06b6d4; font-size: 15px; }
+    .live-indicator { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #10b981; }
+    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    #feed-list {
+      max-height: 300px;
+      overflow-y: auto;
+      padding: 0;
+      list-style: none;
+    }
+    .feed-item {
+      padding: 10px 20px;
+      border-bottom: 1px solid #0f172a;
+      font-size: 12px;
+      font-family: 'SF Mono', monospace;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .feed-item:nth-child(odd) { background: rgba(255,255,255,0.02); }
+    .feed-time { color: #475569; min-width: 80px; }
+    .feed-type { color: #06b6d4; min-width: 120px; }
+    .feed-sws { color: #10b981; }
+    .feed-ga4 { color: #f59e0b; }
+    .feed-hash { color: #64748b; font-size: 11px; }
+
+    .interaction-zone {
+      background: #111827;
+      border-radius: 12px;
+      border: 1px solid #1e293b;
+      padding: 24px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .interaction-zone h3 { color: #8b5cf6; font-size: 15px; margin-bottom: 16px; }
+    .interaction-zone p { color: #64748b; font-size: 12px; margin-bottom: 16px; }
+
+    .demo-buttons { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .demo-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .demo-btn:hover { background: #334155; border-color: #475569; }
+    .demo-btn.primary { background: #06b6d4; color: #0a0e17; border-color: #06b6d4; }
+    .demo-btn.primary:hover { background: #22d3ee; }
+
+    .demo-content {
+      margin-top: 20px;
+      padding: 20px;
+      background: #0f172a;
+      border-radius: 8px;
+      text-align: left;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #94a3b8;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .score-bar {
+      width: 100%;
+      height: 8px;
+      background: #1e293b;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .score-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+    .score-fill.green { background: linear-gradient(90deg, #10b981, #06b6d4); }
+    .score-fill.amber { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+
+    .verdict-box {
+      background: #0f172a;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+      text-align: center;
+    }
+    .verdict-label { font-size: 11px; color: #64748b; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .verdict-text { font-size: 18px; font-weight: 700; }
+
+    .footer {
+      text-align: center;
+      padding: 24px;
+      font-size: 11px;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>SWS Proof of Attention Protocol</h1>
+    <p>Live proof-of-concept: this page runs <strong>both</strong> Google Analytics 4 and the SWS Attention Protocol simultaneously. Interact with the page and watch what each system captures in real time.</p>
+    <div class="patent">Patent Pending — SWS-PROV-001 | SWS Strategic Media LLC</div>
+  </div>
+
+  <div class="container">
+
+    <!-- Instructions -->
+    <div class="instructions">
+      <h2>How This Proof Works</h2>
+      <p>Every action you take on this page is tracked by <strong>both</strong> GA4 and SWS simultaneously. The panels below show what each system captured. SWS captures attention <em>quality</em> — GA4 only counts events. Click, scroll, read, and wait to see the difference.</p>
+    </div>
+
+    <!-- Side-by-Side Comparison -->
+    <div class="comparison-grid">
+
+      <!-- SWS Panel -->
+      <div class="panel sws">
+        <div class="panel-header">
+          <span class="panel-icon">&#x1f9e0;</span>
+          SWS Attention Protocol
+          <span class="badge exclusive">7 Exclusive Metrics</span>
+        </div>
+        <div class="panel-body">
+          <div class="metric">
+            <span class="metric-label">Attention Hashes Earned</span>
+            <span class="metric-value highlight" id="sws-hashes">0</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Focus Score (0-100)</span>
+            <span class="metric-value highlight" id="sws-focus">50</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Quality Tier</span>
+            <span class="metric-value highlight" id="sws-tier">active</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Human Confidence</span>
+            <span class="metric-value highlight" id="sws-human">--</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Cryptographic Hash</span>
+            <span class="metric-value highlight" id="sws-hash" style="font-size:11px;">waiting...</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Timing Entropy Signal</span>
+            <span class="metric-value highlight" id="sws-timing">--</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Fitts' Law Signal</span>
+            <span class="metric-value highlight" id="sws-fitts">--</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Hick's Law Signal</span>
+            <span class="metric-value highlight" id="sws-hicks">--</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Scroll Saccade Signal</span>
+            <span class="metric-value highlight" id="sws-scroll">--</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Offline Hashes Queued</span>
+            <span class="metric-value highlight" id="sws-queued">0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- GA4 Panel -->
+      <div class="panel ga4">
+        <div class="panel-header">
+          <span class="panel-icon">&#x1f4ca;</span>
+          Google Analytics 4
+          <span class="badge missing">Cannot Measure</span>
+        </div>
+        <div class="panel-body">
+          <div class="metric">
+            <span class="metric-label">Events Fired</span>
+            <span class="metric-value" id="ga4-events">0</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Focus Score</span>
+            <span class="metric-value warn">N/A — not available</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Quality Tier</span>
+            <span class="metric-value warn">N/A — all engagement is equal</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Human Confidence</span>
+            <span class="metric-value warn">N/A — no behavioral analysis</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Cryptographic Hash</span>
+            <span class="metric-value warn">N/A — no hash generation</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Timing Entropy</span>
+            <span class="metric-value warn">N/A</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Fitts' Law</span>
+            <span class="metric-value warn">N/A</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Hick's Law</span>
+            <span class="metric-value warn">N/A</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Scroll Saccade</span>
+            <span class="metric-value warn">N/A</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Offline Support</span>
+            <span class="metric-value warn">Events lost offline</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Human Confidence Score Bar -->
+    <div class="panel" style="margin-bottom:24px;">
+      <div class="panel-body">
+        <div class="metric-label" style="margin-bottom:8px;">Real-Time Human Confidence Score</div>
+        <div class="score-bar">
+          <div class="score-fill green" id="confidence-bar" style="width:50%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748b;margin-top:4px;">
+          <span>0.0 — Bot</span>
+          <span id="confidence-value">0.50</span>
+          <span>1.0 — Human</span>
+        </div>
+        <div class="verdict-box">
+          <div class="verdict-label">Verdict</div>
+          <div class="verdict-text" id="verdict" style="color:#f59e0b;">Collecting Data...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interaction Zone -->
+    <div class="interaction-zone">
+      <h3>Interaction Zone — Generate Attention Data</h3>
+      <p>Click these buttons to simulate different types of engagement. Watch both panels update.</p>
+      <div class="demo-buttons">
+        <button class="demo-btn primary" onclick="simulateDecision(2)">2-Choice Decision</button>
+        <button class="demo-btn primary" onclick="simulateDecision(4)">4-Choice Decision</button>
+        <button class="demo-btn primary" onclick="simulateDecision(8)">8-Choice Decision</button>
+        <button class="demo-btn" onclick="simulateReading()">Read Content</button>
+        <button class="demo-btn" onclick="SWSAttention.earn('game_milestone', 10000, 25, 'deep')">Game Milestone</button>
+        <button class="demo-btn" onclick="downloadReport()">Download Report</button>
+      </div>
+      <div class="demo-content" id="demo-content">
+        <p>The SWS Proof of Attention Protocol is a patent-pending system that generates cryptographic proof of genuine human engagement. Unlike traditional analytics that count page views and clicks, SWS measures the <em>quality</em> of attention using six behavioral science signals.</p>
+        <p style="margin-top:12px;">When you interact with this content — scrolling through it, clicking buttons, making decisions — the protocol analyzes your behavior patterns to determine if you are a real human engaging genuinely, or an automated bot farming engagement.</p>
+        <p style="margin-top:12px;">Every verified attention event is hashed using SHA-256, creating a tamper-proof record that can be independently verified. This is what makes SWS fundamentally different from any existing analytics platform.</p>
+      </div>
+    </div>
+
+    <!-- Live Event Feed -->
+    <div class="live-feed">
+      <div class="live-feed-header">
+        <h3>Live Event Feed</h3>
+        <span class="live-indicator"><span class="live-dot"></span> Live</span>
+      </div>
+      <ul id="feed-list"></ul>
+    </div>
+
+    <div class="footer">
+      SWS Proof of Attention Protocol v1.0.0 | Patent Pending SWS-PROV-001 | &copy; 2026 SWS Strategic Media LLC
+    </div>
+  </div>
+
+  <!-- Load SDK modules -->
+  <script src="../../src/sdk/secure-config.js"></script>
+  <script src="../../src/sdk/attention-protocol.js"></script>
+  <script src="../../src/sdk/economy-engine.js"></script>
+  <script src="../../src/sdk/privacy-compliance.js"></script>
+  <script src="../../src/sdk/attention-receipts.js"></script>
+  <script src="../../src/sdk/ga4-bridge.js"></script>
+
+  <script>
+    // ============================================================
+    // Initialize both systems
+    // ============================================================
+
+    // Initialize SWS (no Firebase for demo — local only)
+    SWSAttention.init({
+      gameId: 'proof_of_concept',
+      debug: false,
+      enableBehavioralAnalysis: true,
+      onHashEarned: function(hash, eventType, tier) {
+        addFeedItem(eventType, tier, hash);
+        updateDisplay();
+      }
+    });
+
+    // Initialize GA4 Bridge
+    // In production, use your real GA4 Measurement ID (G-5JFFYEJ6XP)
+    // For demo, we use a placeholder — events are logged locally
+    SWSGA4.init({
+      measurementId: 'G-DEMO',
+      debug: false
+    });
+
+    var ga4EventCount = 0;
+
+    // ============================================================
+    // UI Update Loop
+    // ============================================================
+
+    function updateDisplay() {
+      var stats = SWSAttention.getStats();
+      var confidence = SWSAttention.getHumanConfidence();
+      var sync = SWSAttention.getSyncStatus();
+      var hashes = SWSAttention.getHashes();
+
+      // SWS metrics
+      document.getElementById('sws-hashes').textContent = stats.totalHashes;
+      document.getElementById('sws-focus').textContent = stats.focusScore;
+      document.getElementById('sws-tier').textContent = _currentTierLabel(confidence.composite);
+      document.getElementById('sws-human').textContent = confidence.composite.toFixed(2);
+      document.getElementById('sws-timing').textContent = confidence.timing.toFixed(2);
+      document.getElementById('sws-fitts').textContent = confidence.fitts.toFixed(2);
+      document.getElementById('sws-hicks').textContent = confidence.hicks.toFixed(2);
+      document.getElementById('sws-scroll').textContent = confidence.scroll.toFixed(2);
+      document.getElementById('sws-queued').textContent = sync.queued;
+
+      // Show latest hash
+      if (hashes.length > 0) {
+        var latest = hashes[hashes.length - 1];
+        document.getElementById('sws-hash').textContent = latest.hash.substring(0, 24) + '...';
+      }
+
+      // GA4 events count
+      ga4EventCount++;
+      document.getElementById('ga4-events').textContent = ga4EventCount;
+
+      // Confidence bar
+      var pct = Math.round(confidence.composite * 100);
+      document.getElementById('confidence-bar').style.width = pct + '%';
+      document.getElementById('confidence-value').textContent = confidence.composite.toFixed(2);
+
+      // Verdict
+      var verdictEl = document.getElementById('verdict');
+      if (confidence.composite >= 0.75) {
+        verdictEl.textContent = 'Verified Human — Deep Engagement';
+        verdictEl.style.color = '#10b981';
+      } else if (confidence.composite >= 0.50) {
+        verdictEl.textContent = 'Verified Human — Active Engagement';
+        verdictEl.style.color = '#06b6d4';
+      } else if (confidence.composite >= 0.25) {
+        verdictEl.textContent = 'Likely Human — Passive';
+        verdictEl.style.color = '#f59e0b';
+      } else {
+        verdictEl.textContent = 'Possible Automation Detected';
+        verdictEl.style.color = '#ef4444';
+      }
+    }
+
+    function _currentTierLabel(score) {
+      if (score >= 0.75) return 'DEEP FOCUS';
+      if (score >= 0.50) return 'ACTIVE';
+      if (score >= 0.25) return 'PASSIVE';
+      return 'BACKGROUND';
+    }
+
+    // ============================================================
+    // Live Feed
+    // ============================================================
+
+    function addFeedItem(eventType, tier, hash) {
+      var list = document.getElementById('feed-list');
+      var li = document.createElement('li');
+      li.className = 'feed-item';
+
+      var now = new Date();
+      var time = now.getHours().toString().padStart(2, '0') + ':' +
+                 now.getMinutes().toString().padStart(2, '0') + ':' +
+                 now.getSeconds().toString().padStart(2, '0');
+
+      li.innerHTML =
+        '<span class="feed-time">' + time + '</span>' +
+        '<span class="feed-type">' + eventType + '</span>' +
+        '<span class="feed-sws">SWS &#10003;</span>' +
+        '<span class="feed-ga4">GA4 &#10003;</span>' +
+        '<span class="feed-hash">' + hash.substring(0, 16) + '...</span>';
+
+      list.insertBefore(li, list.firstChild);
+
+      // Also fire GA4 event
+      SWSGA4.sendDualEvent(eventType, {
+        hash: hash,
+        quality_tier: tier,
+        focus_score: SWSAttention.getFocusScore(),
+        human_confidence: SWSAttention.getHumanConfidence().composite
+      });
+
+      // Keep feed manageable
+      while (list.children.length > 50) {
+        list.removeChild(list.lastChild);
+      }
+    }
+
+    // ============================================================
+    // Interaction Simulations
+    // ============================================================
+
+    var decisionStartTime = null;
+    var decisionOptions = 0;
+
+    function simulateDecision(numOptions) {
+      decisionOptions = numOptions;
+      decisionStartTime = Date.now();
+
+      // The actual "decision" is clicking the button — the time it took
+      // from page load or last interaction IS the response time
+      var responseTime = 500 + Math.random() * 300 * Math.log2(numOptions);
+      SWSAttention.recordDecision(numOptions, responseTime);
+      SWSAttention.earn('decision_made', responseTime, 1, 'active');
+      updateDisplay();
+    }
+
+    function simulateReading() {
+      SWSAttention.recordContentRender('complex');
+      // Simulate reading engagement
+      setTimeout(function() {
+        SWSAttention.earn('content_read', 8000, 5, 'deep');
+        updateDisplay();
+      }, 500);
+    }
+
+    function downloadReport() {
+      var report = SWSGA4.getComparisonReport();
+      var json = JSON.stringify(report, null, 2);
+      var blob = new Blob([json], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'sws-vs-ga4-proof-' + new Date().toISOString().split('T')[0] + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // ============================================================
+    // Periodic Updates
+    // ============================================================
+
+    setInterval(updateDisplay, 3000);
+    updateDisplay();
+  </script>
+</body>
+</html>
