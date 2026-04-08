@@ -643,6 +643,390 @@ app.post('/v1/sessions/verify', (req, res) => {
   });
 });
 
+// ============================================================
+// CONTENT ATTENTION ANALYSIS (Policy Read Verification)
+// ============================================================
+
+function analyzeContentAttention(sections) {
+  if (!sections || typeof sections !== 'object') {
+    return { documentScore: 0, verdict: 'no_data', sections: [] };
+  }
+
+  const sectionResults = [];
+  let weightedSum = 0;
+  let totalWords = 0;
+  let sectionsRead = 0;
+  let sectionsSkimmed = 0;
+  let sectionsMissed = 0;
+
+  for (const [sectionId, s] of Object.entries(sections)) {
+    const wordCount = sanitizeNumber(s.wordCount, 0, 100000);
+    const dwellMs = sanitizeNumber(s.totalDwellMs, 0, 3600000);
+    const viewEntries = sanitizeNumber(s.viewEntries, 0, 1000);
+    const reReadCount = sanitizeNumber(s.reReadCount, 0, 100);
+    const activeSignals = sanitizeNumber(s.activeSignals, 0, 100000);
+    const textSelections = sanitizeNumber(s.textSelections, 0, 1000);
+
+    // Expected reading time (200 WPM average)
+    const expectedReadMs = (wordCount / 200) * 60 * 1000;
+    const minExpected = Math.max(1000, expectedReadMs * 0.3);
+
+    // 1. Dwell score
+    let dwellScore;
+    if (dwellMs >= expectedReadMs * 0.8) {
+      dwellScore = 1.0;
+    } else if (dwellMs >= minExpected) {
+      dwellScore = 0.5 + 0.5 * (dwellMs - minExpected) / Math.max(1, expectedReadMs * 0.8 - minExpected);
+    } else if (dwellMs >= 1000) {
+      dwellScore = 0.3 * (dwellMs / Math.max(1, minExpected));
+    } else {
+      dwellScore = 0;
+    }
+    dwellScore = Math.min(1, Math.max(0, dwellScore));
+
+    // 2. Reading pace (WPM)
+    let paceScore = 0;
+    let wpm = 0;
+    if (wordCount > 0 && dwellMs > 0) {
+      wpm = Math.round((wordCount / dwellMs) * 60 * 1000);
+      if (wpm >= 100 && wpm <= 400) paceScore = 1.0;
+      else if (wpm < 100) paceScore = 0.7;
+      else if (wpm <= 600) paceScore = 0.4;
+      else paceScore = 0.1;
+    }
+
+    // 3. Re-read score
+    const reReadScore = reReadCount >= 2 ? 1.0 : reReadCount === 1 ? 0.7 : 0.3;
+
+    // 4. Active engagement
+    const expectedSignals = Math.max(2, dwellMs / 2000);
+    let engagementScore;
+    if (activeSignals >= expectedSignals) {
+      engagementScore = 1.0;
+    } else if (activeSignals > 0) {
+      engagementScore = 0.3 + 0.7 * (activeSignals / expectedSignals);
+    } else {
+      engagementScore = 0.1;
+    }
+    engagementScore = Math.min(1, engagementScore);
+
+    // 5. Scroll velocity (from raw data if provided)
+    let scrollScore = 0.5;
+    if (Array.isArray(s.scrollVelocities) && s.scrollVelocities.length >= 2) {
+      const velocities = [];
+      for (let i = 1; i < s.scrollVelocities.length; i++) {
+        const dy = Math.abs(s.scrollVelocities[i].y - s.scrollVelocities[i - 1].y);
+        const dt = s.scrollVelocities[i].t - s.scrollVelocities[i - 1].t;
+        if (dt > 0) velocities.push(dy / dt);
+      }
+      if (velocities.length > 0) {
+        const avgV = velocities.reduce((a, b) => a + b, 0) / velocities.length;
+        if (avgV < 0.3) scrollScore = 1.0;
+        else if (avgV < 1.0) scrollScore = 0.7;
+        else if (avgV < 2.0) scrollScore = 0.4;
+        else scrollScore = 0.1;
+      }
+    }
+
+    // 6. Viewport coverage
+    let coverageScore = 0;
+    if (Array.isArray(s.intersectionSamples) && s.intersectionSamples.length > 0) {
+      coverageScore = s.intersectionSamples.reduce((a, b) => a + b, 0) / s.intersectionSamples.length;
+    } else {
+      coverageScore = sanitizeNumber(s.maxIntersectionRatio, 0, 1);
+    }
+
+    // Composite
+    const composite = (
+      dwellScore * 0.30 +
+      paceScore * 0.20 +
+      reReadScore * 0.10 +
+      engagementScore * 0.15 +
+      scrollScore * 0.15 +
+      coverageScore * 0.10
+    );
+
+    const verdict = composite >= 0.7 ? 'read' :
+                    composite >= 0.4 ? 'skimmed' :
+                    composite >= 0.2 ? 'glanced' : 'missed';
+
+    if (verdict === 'read') sectionsRead++;
+    else if (verdict === 'skimmed') sectionsSkimmed++;
+    else sectionsMissed++;
+
+    const weight = wordCount || 1;
+    weightedSum += composite * weight;
+    totalWords += wordCount;
+
+    sectionResults.push({
+      sectionId,
+      title: sanitizeString(s.title, 256),
+      wordCount,
+      dwellMs,
+      wpm,
+      viewEntries,
+      reReadCount,
+      scores: {
+        dwell: Math.round(dwellScore * 1000) / 1000,
+        readingPace: Math.round(paceScore * 1000) / 1000,
+        reRead: Math.round(reReadScore * 1000) / 1000,
+        activeEngagement: Math.round(engagementScore * 1000) / 1000,
+        scrollVelocity: Math.round(scrollScore * 1000) / 1000,
+        viewportCoverage: Math.round(coverageScore * 1000) / 1000
+      },
+      composite: Math.round(composite * 1000) / 1000,
+      verdict
+    });
+  }
+
+  const documentScore = totalWords > 0 ? Math.round((weightedSum / totalWords) * 1000) / 1000 : 0;
+
+  let documentVerdict;
+  if (documentScore >= 0.7 && sectionsRead >= sectionResults.length * 0.8) {
+    documentVerdict = 'thoroughly_read';
+  } else if (documentScore >= 0.5) {
+    documentVerdict = 'partially_read';
+  } else if (documentScore >= 0.25) {
+    documentVerdict = 'skimmed';
+  } else {
+    documentVerdict = 'not_read';
+  }
+
+  return {
+    documentScore,
+    verdict: documentVerdict,
+    totalSections: sectionResults.length,
+    sectionsRead,
+    sectionsSkimmed,
+    sectionsMissed,
+    totalWordCount: totalWords,
+    sections: sectionResults
+  };
+}
+
+// Submit content attention data for analysis
+app.post('/v1/sessions/content-attention', authenticate, (req, res) => {
+  const rateCheck = checkRateLimit(req.client.id, req.client.plan);
+  if (!rateCheck.allowed) {
+    return res.status(429).json({ error: rateCheck.reason });
+  }
+
+  const data = req.body;
+  if (!data.session_id) return res.status(400).json({ error: 'session_id_required' });
+  if (!data.sections || typeof data.sections !== 'object') {
+    return res.status(400).json({ error: 'sections_required', message: 'Provide sections object with per-section data' });
+  }
+
+  // Limit section count
+  const sectionKeys = Object.keys(data.sections);
+  if (sectionKeys.length > 200) {
+    return res.status(400).json({ error: 'too_many_sections', message: 'Maximum 200 sections per document' });
+  }
+
+  const result = analyzeContentAttention(data.sections);
+
+  // Generate receipt
+  const receiptId = 'rcpt_content_' + Date.now().toString(36) + '_' + uuidv4().substring(0, 8);
+  const receiptPayload = JSON.stringify({
+    receipt_id: receiptId,
+    session_id: data.session_id,
+    document_score: result.documentScore,
+    verdict: result.verdict,
+    sections_read: result.sectionsRead,
+    total_sections: result.totalSections
+  });
+  const receiptHash = crypto.createHash('sha256').update(receiptPayload).digest('hex');
+
+  const receipt = {
+    receipt_id: receiptId,
+    receipt_version: '1.0',
+    protocol: 'SWS Proof of Attention Protocol — Content Verification',
+    issuer: 'SWS Strategic Media LLC',
+    generated_at: new Date().toISOString(),
+    session_id: data.session_id,
+    proof: { algorithm: 'SHA-256', receipt_hash: receiptHash }
+  };
+
+  receipts.set(receiptId, receipt);
+  req.client.sessionsCount++;
+
+  res.status(201).json({
+    session_id: data.session_id,
+    receipt_id: receiptId,
+    content_attention: result,
+    receipt
+  });
+});
+
+// ============================================================
+// DRIFT DETECTION (Performance Degradation)
+// ============================================================
+
+function analyzeBaselineDrift(baseline, current, thresholds) {
+  const drifts = {};
+  let driftValues = [];
+  let degradedCount = 0;
+
+  const defaultThresholds = {
+    reactionTime: 0.40,
+    clickPrecision: 0.35,
+    scrollRhythm: 0.40,
+    mouseJitter: 0.50,
+    interactionFrequency: 0.50
+  };
+  thresholds = thresholds || defaultThresholds;
+
+  function mean(arr) {
+    if (!arr || arr.length === 0) return 0;
+    return arr.reduce((a, b) => a + b, 0) / arr.length;
+  }
+
+  function cv(arr) {
+    if (!arr || arr.length < 2) return 0;
+    const m = mean(arr);
+    if (m === 0) return 0;
+    const variance = arr.reduce((a, b) => a + Math.pow(b - m, 2), 0) / arr.length;
+    return Math.sqrt(variance) / m;
+  }
+
+  // 1. Reaction time drift
+  if (current.reactionTimes && current.reactionTimes.length >= 3 &&
+      baseline.reactionTime && baseline.reactionTime.mean > 0) {
+    const currentMean = mean(current.reactionTimes);
+    const drift = (currentMean - baseline.reactionTime.mean) / baseline.reactionTime.mean;
+    const degraded = drift > (thresholds.reactionTime || 0.40);
+    drifts.reactionTime = {
+      baselineMean: Math.round(baseline.reactionTime.mean),
+      currentMean: Math.round(currentMean),
+      drift: Math.round(drift * 1000) / 1000,
+      degraded
+    };
+    driftValues.push(Math.min(1, Math.max(0, drift)));
+    if (degraded) degradedCount++;
+  }
+
+  // 2. Click precision drift
+  if (current.clickPrecisions && current.clickPrecisions.length >= 3 &&
+      baseline.clickPrecision && baseline.clickPrecision.mean > 0) {
+    const currentMean = mean(current.clickPrecisions);
+    const drift = (currentMean - baseline.clickPrecision.mean) / baseline.clickPrecision.mean;
+    const degraded = drift > (thresholds.clickPrecision || 0.35);
+    drifts.clickPrecision = {
+      baselineMean: Math.round(baseline.clickPrecision.mean * 10) / 10,
+      currentMean: Math.round(currentMean * 10) / 10,
+      drift: Math.round(drift * 1000) / 1000,
+      degraded
+    };
+    driftValues.push(Math.min(1, Math.max(0, drift)));
+    if (degraded) degradedCount++;
+  }
+
+  // 3. Scroll rhythm drift
+  if (current.scrollIntervals && current.scrollIntervals.length >= 3 &&
+      baseline.scrollRhythm && baseline.scrollRhythm.cv > 0) {
+    const currentCv = cv(current.scrollIntervals);
+    const drift = Math.abs(currentCv - baseline.scrollRhythm.cv) / baseline.scrollRhythm.cv;
+    const degraded = drift > (thresholds.scrollRhythm || 0.40);
+    drifts.scrollRhythm = {
+      baselineCv: Math.round(baseline.scrollRhythm.cv * 1000) / 1000,
+      currentCv: Math.round(currentCv * 1000) / 1000,
+      drift: Math.round(drift * 1000) / 1000,
+      degraded
+    };
+    driftValues.push(Math.min(1, Math.max(0, drift)));
+    if (degraded) degradedCount++;
+  }
+
+  // 4. Mouse jitter drift
+  if (current.mouseJitter && current.mouseJitter.length >= 3 &&
+      baseline.mouseJitter && baseline.mouseJitter.mean > 0) {
+    const currentMean = mean(current.mouseJitter);
+    const drift = (currentMean - baseline.mouseJitter.mean) / baseline.mouseJitter.mean;
+    const degraded = drift > (thresholds.mouseJitter || 0.50);
+    drifts.mouseJitter = {
+      baselineMean: Math.round(baseline.mouseJitter.mean * 10) / 10,
+      currentMean: Math.round(currentMean * 10) / 10,
+      drift: Math.round(drift * 1000) / 1000,
+      degraded
+    };
+    driftValues.push(Math.min(1, Math.max(0, drift)));
+    if (degraded) degradedCount++;
+  }
+
+  // 5. Interaction frequency drift
+  if (current.interactionGaps && current.interactionGaps.length >= 3 &&
+      baseline.interactionFrequency && baseline.interactionFrequency.meanGap > 0) {
+    const currentMean = mean(current.interactionGaps);
+    const drift = (currentMean - baseline.interactionFrequency.meanGap) / baseline.interactionFrequency.meanGap;
+    const degraded = drift > (thresholds.interactionFrequency || 0.50);
+    drifts.interactionFrequency = {
+      baselineGap: Math.round(baseline.interactionFrequency.meanGap),
+      currentGap: Math.round(currentMean),
+      drift: Math.round(drift * 1000) / 1000,
+      degraded
+    };
+    driftValues.push(Math.min(1, Math.max(0, drift)));
+    if (degraded) degradedCount++;
+  }
+
+  const compositeDrift = driftValues.length > 0 ?
+    Math.round((driftValues.reduce((a, b) => a + b, 0) / driftValues.length) * 1000) / 1000 : 0;
+
+  let level;
+  if (compositeDrift >= 0.70) level = 'critical';
+  else if (compositeDrift >= 0.50) level = 'alert';
+  else if (compositeDrift >= 0.30) level = 'warning';
+  else level = 'normal';
+
+  let recommendation;
+  if (level === 'critical') recommendation = 'Immediate break recommended. Multiple signals show significant degradation.';
+  else if (level === 'alert') recommendation = 'Performance degradation detected. Consider a short break.';
+  else if (level === 'warning') recommendation = 'Minor drift detected. Monitor closely.';
+  else recommendation = 'Performance within normal range.';
+
+  return {
+    driftScore: compositeDrift,
+    level,
+    degradedSignals: degradedCount,
+    totalSignals: driftValues.length,
+    signals: drifts,
+    recommendation
+  };
+}
+
+// Submit drift check
+app.post('/v1/sessions/drift-check', authenticate, (req, res) => {
+  const rateCheck = checkRateLimit(req.client.id, req.client.plan);
+  if (!rateCheck.allowed) {
+    return res.status(429).json({ error: rateCheck.reason });
+  }
+
+  const data = req.body;
+  if (!data.session_id) return res.status(400).json({ error: 'session_id_required' });
+  if (!data.baseline || typeof data.baseline !== 'object') {
+    return res.status(400).json({ error: 'baseline_required', message: 'Provide baseline stats object' });
+  }
+  if (!data.current || typeof data.current !== 'object') {
+    return res.status(400).json({ error: 'current_required', message: 'Provide current window data' });
+  }
+
+  // Limit array sizes
+  const currentData = data.current;
+  if (Array.isArray(currentData.reactionTimes)) currentData.reactionTimes = currentData.reactionTimes.slice(0, 500);
+  if (Array.isArray(currentData.clickPrecisions)) currentData.clickPrecisions = currentData.clickPrecisions.slice(0, 500);
+  if (Array.isArray(currentData.scrollIntervals)) currentData.scrollIntervals = currentData.scrollIntervals.slice(0, 500);
+  if (Array.isArray(currentData.mouseJitter)) currentData.mouseJitter = currentData.mouseJitter.slice(0, 1000);
+  if (Array.isArray(currentData.interactionGaps)) currentData.interactionGaps = currentData.interactionGaps.slice(0, 500);
+
+  const result = analyzeBaselineDrift(data.baseline, currentData, data.thresholds);
+
+  res.status(200).json({
+    session_id: data.session_id,
+    timestamp: new Date().toISOString(),
+    drift: result
+  });
+});
+
 // Client stats
 app.get('/v1/clients/:clientId/stats', authenticate, (req, res) => {
   if (req.params.clientId !== req.client.id) {
@@ -686,6 +1070,301 @@ app.get('/v1/clients/:clientId/stats', authenticate, (req, res) => {
       verdict_distribution: verdicts
     },
     recent_sessions: clientSessions.slice(-20).reverse()
+  });
+});
+
+// ============================================================
+// VIDEO ATTENTION ANALYSIS
+// ============================================================
+
+function analyzeVideoAttention(data) {
+  const scores = {};
+  const videoDurationSec = sanitizeNumber(data.videoDurationSec, 0, 86400);
+  const videoDurationMs = videoDurationSec * 1000;
+  const totalPlayTimeMs = sanitizeNumber(data.totalPlayTimeMs, 0, 86400000);
+
+  // 1. Completion
+  let watchedSegments = 0;
+  let totalSegments = 0;
+  if (Array.isArray(data.segments)) {
+    totalSegments = data.segments.length;
+    data.segments.forEach(seg => { if (seg.watched) watchedSegments++; });
+  }
+  scores.completion = totalSegments > 0 ? watchedSegments / totalSegments : 0;
+
+  // 2. Focus
+  const tabFocusedMs = sanitizeNumber(data.tabFocusedMs, 0, 86400000);
+  const tabHiddenMs = sanitizeNumber(data.tabHiddenMs, 0, 86400000);
+  const totalTrackableMs = tabFocusedMs + tabHiddenMs;
+  scores.focus = totalTrackableMs > 0 ? tabFocusedMs / totalTrackableMs : 1;
+
+  // 3. Engagement (pause/seek)
+  const pauseCount = sanitizeNumber(data.pauseCount, 0, 10000);
+  const seekBackCount = sanitizeNumber(data.seekBackCount, 0, 10000);
+  const seekForwardCount = sanitizeNumber(data.seekForwardCount, 0, 10000);
+
+  let pauseScore = pauseCount >= 3 ? 1.0 : pauseCount >= 1 ? 0.6 : 0.2;
+  let seekScore = seekBackCount >= 2 ? 1.0 : seekBackCount >= 1 ? 0.7 :
+                  seekForwardCount > 0 ? 0.3 : 0.2;
+  scores.engagement = pauseScore * 0.5 + seekScore * 0.5;
+
+  // 4. Activity during playback
+  const activityCount = sanitizeNumber(data.activityDuringPlay, 0, 100000);
+  const playMinutes = totalPlayTimeMs / 60000;
+  const expectedActivity = playMinutes * 3; // 3 per minute
+  if (expectedActivity > 0 && activityCount >= expectedActivity * 0.5) {
+    scores.activity = Math.min(1, activityCount / expectedActivity);
+  } else if (activityCount > 0) {
+    scores.activity = 0.3 + 0.3 * (activityCount / Math.max(1, expectedActivity));
+  } else {
+    scores.activity = 0.1;
+  }
+  scores.activity = Math.min(1, Math.max(0, scores.activity));
+
+  // 5. Pacing
+  scores.pacing = 1.0;
+  if (Array.isArray(data.playbackRateChanges) && data.playbackRateChanges.length > 0) {
+    let maxRate = 1.0;
+    data.playbackRateChanges.forEach(r => { if (r.to > maxRate) maxRate = r.to; });
+    if (maxRate <= 2.0) scores.pacing = 0.8;
+    else if (maxRate <= 3.0) scores.pacing = 0.5;
+    else scores.pacing = 0.2;
+  }
+
+  // 6. Attention continuity
+  let gapCount = 0;
+  if (Array.isArray(data.activityLog) && data.activityLog.length >= 2) {
+    for (let i = 1; i < data.activityLog.length; i++) {
+      if (data.activityLog[i].wallTime - data.activityLog[i - 1].wallTime > 60000) {
+        gapCount++;
+      }
+    }
+  }
+  scores.attentionContinuity = gapCount === 0 ? 1.0 :
+    gapCount <= 2 ? 0.6 : Math.max(0.1, 1 - gapCount * 0.15);
+
+  // Composite
+  const composite = (
+    scores.completion * 0.25 +
+    scores.focus * 0.20 +
+    scores.engagement * 0.15 +
+    scores.activity * 0.20 +
+    scores.pacing * 0.10 +
+    scores.attentionContinuity * 0.10
+  );
+
+  const verdict = composite >= 0.70 ? 'genuine_viewer' :
+                  composite >= 0.50 ? 'partial_attention' :
+                  composite >= 0.30 ? 'minimal_attention' : 'likely_bot';
+
+  return {
+    composite: Math.round(composite * 1000) / 1000,
+    verdict,
+    scores: Object.fromEntries(
+      Object.entries(scores).map(([k, v]) => [k, Math.round(v * 1000) / 1000])
+    ),
+    stats: {
+      videoDurationSec,
+      totalPlayTimeMs: Math.round(totalPlayTimeMs),
+      pauseCount,
+      seekBackCount,
+      seekForwardCount,
+      segmentsWatched: watchedSegments,
+      segmentsTotal: totalSegments,
+      completionPercent: Math.round(scores.completion * 100),
+      focusPercent: Math.round(scores.focus * 100)
+    }
+  };
+}
+
+app.post('/v1/sessions/video-attention', authenticate, (req, res) => {
+  const rateCheck = checkRateLimit(req.client.id, req.client.plan);
+  if (!rateCheck.allowed) return res.status(429).json({ error: rateCheck.reason });
+
+  const data = req.body;
+  if (!data.session_id) return res.status(400).json({ error: 'session_id_required' });
+  if (!data.videoDurationSec || data.videoDurationSec <= 0) {
+    return res.status(400).json({ error: 'video_duration_required' });
+  }
+
+  // Limit arrays
+  if (Array.isArray(data.activityLog)) data.activityLog = data.activityLog.slice(0, 2000);
+  if (Array.isArray(data.segments)) data.segments = data.segments.slice(0, 5000);
+  if (Array.isArray(data.playbackRateChanges)) data.playbackRateChanges = data.playbackRateChanges.slice(0, 100);
+
+  const result = analyzeVideoAttention(data);
+
+  // Generate receipt
+  const receiptId = 'rcpt_video_' + Date.now().toString(36) + '_' + uuidv4().substring(0, 8);
+  const receiptPayload = JSON.stringify({
+    receipt_id: receiptId,
+    session_id: data.session_id,
+    composite: result.composite,
+    verdict: result.verdict,
+    completion: result.scores.completion
+  });
+  const receiptHash = crypto.createHash('sha256').update(receiptPayload).digest('hex');
+
+  const receipt = {
+    receipt_id: receiptId,
+    receipt_version: '1.0',
+    protocol: 'SWS Proof of Attention Protocol — Video Verification',
+    issuer: 'SWS Strategic Media LLC',
+    generated_at: new Date().toISOString(),
+    session_id: data.session_id,
+    proof: { algorithm: 'SHA-256', receipt_hash: receiptHash }
+  };
+
+  receipts.set(receiptId, receipt);
+  req.client.sessionsCount++;
+
+  res.status(201).json({
+    session_id: data.session_id,
+    receipt_id: receiptId,
+    video_attention: result,
+    receipt
+  });
+});
+
+// ============================================================
+// TEMPORAL SESSION ANALYSIS
+// ============================================================
+
+app.post('/v1/sessions/temporal-analysis', authenticate, (req, res) => {
+  const rateCheck = checkRateLimit(req.client.id, req.client.plan);
+  if (!rateCheck.allowed) return res.status(429).json({ error: rateCheck.reason });
+
+  const data = req.body;
+  if (!data.session_id) return res.status(400).json({ error: 'session_id_required' });
+  if (!Array.isArray(data.events) || data.events.length < 10) {
+    return res.status(400).json({
+      error: 'insufficient_events',
+      message: 'Provide at least 10 timestamped events for temporal analysis'
+    });
+  }
+
+  // Limit events
+  const events = data.events.slice(0, 10000);
+  const windowSizeMs = sanitizeNumber(data.windowSizeMs, 30000, 3600000) || 300000; // default 5min
+  const sessionStart = events[0].timestamp || Date.now();
+
+  // Build windows
+  const sessionDuration = (events[events.length - 1].timestamp || Date.now()) - sessionStart;
+  const windowCount = Math.max(1, Math.ceil(sessionDuration / windowSizeMs));
+  const windows = [];
+
+  for (let w = 0; w < windowCount; w++) {
+    const wStart = sessionStart + (w * windowSizeMs);
+    const wEnd = wStart + windowSizeMs;
+    const wEvents = events.filter(e => e.timestamp >= wStart && e.timestamp < wEnd);
+
+    const rts = wEvents.filter(e => e.type === 'reaction_time').map(e => e.value);
+    const precs = wEvents.filter(e => e.type === 'click_precision').map(e => e.value);
+    const jitter = wEvents.filter(e => e.type === 'mouse_jitter').map(e => e.value);
+
+    const gaps = [];
+    const sorted = wEvents.sort((a, b) => a.timestamp - b.timestamp);
+    for (let i = 1; i < sorted.length; i++) {
+      gaps.push(sorted[i].timestamp - sorted[i - 1].timestamp);
+    }
+
+    const mean = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+
+    windows.push({
+      index: w,
+      eventCount: wEvents.length,
+      valid: wEvents.length >= 5,
+      metrics: {
+        reactionTime: rts.length >= 2 ? { mean: Math.round(mean(rts)), count: rts.length } : null,
+        clickPrecision: precs.length >= 2 ? { mean: Math.round(mean(precs) * 10) / 10, count: precs.length } : null,
+        interactionRate: { eventsPerMinute: Math.round(wEvents.length / (windowSizeMs / 60000) * 10) / 10 },
+        mouseJitter: jitter.length >= 2 ? { mean: Math.round(mean(jitter) * 100) / 100, count: jitter.length } : null
+      }
+    });
+  }
+
+  // Trend detection
+  const validWindows = windows.filter(w => w.valid);
+  const trends = {};
+  const degradationPoints = [];
+
+  function detectTrend(values) {
+    if (values.length < 3) return { trend: 'insufficient_data', pctChange: 0 };
+    const first = values[0];
+    const last = values[values.length - 1];
+    const pctChange = first !== 0 ? Math.round(((last - first) / Math.abs(first)) * 1000) / 1000 : 0;
+    const trend = Math.abs(pctChange) < 0.10 ? 'stable' :
+                  pctChange > 0 ? 'increasing' : 'decreasing';
+    return { trend, pctChange };
+  }
+
+  const rtSeries = validWindows.filter(w => w.metrics.reactionTime).map(w => w.metrics.reactionTime.mean);
+  if (rtSeries.length >= 3) {
+    trends.reactionTime = detectTrend(rtSeries);
+    trends.reactionTime.interpretation =
+      trends.reactionTime.trend === 'increasing' ? 'slowing_down' :
+      trends.reactionTime.trend === 'decreasing' ? 'speeding_up' : 'stable';
+  }
+
+  const rateSeries = validWindows.map(w => w.metrics.interactionRate.eventsPerMinute);
+  if (rateSeries.length >= 3) {
+    trends.interactionRate = detectTrend(rateSeries);
+    trends.interactionRate.interpretation =
+      trends.interactionRate.trend === 'decreasing' ? 'disengaging' :
+      trends.interactionRate.trend === 'increasing' ? 'more_active' : 'stable';
+  }
+
+  // Overall degradation
+  let degradationScores = [];
+  if (trends.reactionTime && trends.reactionTime.trend === 'increasing') {
+    degradationScores.push(Math.min(1, Math.abs(trends.reactionTime.pctChange)));
+  }
+  if (trends.interactionRate && trends.interactionRate.trend === 'decreasing') {
+    degradationScores.push(Math.min(1, Math.abs(trends.interactionRate.pctChange)));
+  }
+  const overallDegradation = degradationScores.length > 0 ?
+    Math.round((degradationScores.reduce((a, b) => a + b, 0) / degradationScores.length) * 1000) / 1000 : 0;
+
+  const verdict = overallDegradation >= 0.50 ? 'significant_fatigue' :
+                  overallDegradation >= 0.25 ? 'moderate_fatigue' :
+                  overallDegradation > 0 ? 'mild_fatigue' : 'sustained_attention';
+
+  res.status(200).json({
+    session_id: data.session_id,
+    sessionDurationMs: sessionDuration,
+    windowCount: windows.length,
+    validWindowCount: validWindows.length,
+    verdict,
+    overallDegradation,
+    trends,
+    windows: windows.map(w => ({
+      index: w.index,
+      eventCount: w.eventCount,
+      valid: w.valid,
+      metrics: w.metrics
+    }))
+  });
+});
+
+// ============================================================
+// SESSION INTEGRITY VALIDATION
+// ============================================================
+
+const IntegrityValidator = require('../src/sdk/session-integrity-validator');
+
+app.post('/v1/sessions/validate-integrity', authenticate, (req, res) => {
+  const rateCheck = checkRateLimit(req.client.id, req.client.plan);
+  if (!rateCheck.allowed) return res.status(429).json({ error: rateCheck.reason });
+
+  const data = req.body;
+  if (!data.session_id) return res.status(400).json({ error: 'session_id_required' });
+
+  const result = IntegrityValidator.validate(data);
+
+  res.status(200).json({
+    session_id: data.session_id,
+    timestamp: new Date().toISOString(),
+    integrity: result
   });
 });
 
