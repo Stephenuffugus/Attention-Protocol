@@ -203,12 +203,39 @@
     </div>
   </div>
 
+  <!-- Firebase for saving sessions -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <!-- SWS SDK -->
   <script src="sdk/secure-config.js"></script>
   <script src="sdk/attention-protocol.js"></script>
   <script src="sdk/economy-engine.js"></script>
 
   <script>
+    // ---- FIREBASE INIT ----
+    var fbApp = firebase.initializeApp({
+      apiKey: "AIzaSyDbpqisJpnoh2OUYSJIdKIo17SdF0eGPiM",
+      authDomain: "sws-attention-proofs.firebaseapp.com",
+      projectId: "sws-attention-proofs",
+      storageBucket: "sws-attention-proofs.firebasestorage.app",
+      messagingSenderId: "420661886092",
+      appId: "1:420661886092:web:a4c79cd07fc804428f4fa9"
+    });
+    var db = firebase.firestore(fbApp);
+    var fbUser = null;
+
+    // Sign in anonymously so we can write to Firestore
+    firebase.auth(fbApp).signInAnonymously().catch(function(err) {
+      console.warn('[Demo] Auth failed:', err.code);
+    });
+    firebase.auth(fbApp).onAuthStateChanged(function(user) {
+      if (user) fbUser = user;
+    });
+
     // ---- STATE ----
+    var sessionId = 'demo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
     var sessionStart = Date.now();
     var currentPhase = 1;
     var maxScrollDepth = 0;
@@ -405,6 +432,54 @@
       // GA4 comparison
       document.getElementById('r-ga4-time').textContent = elapsed + 's';
       document.getElementById('r-ga4-scroll').textContent = maxScrollDepth + '%';
+
+      // ---- SAVE TO FIRESTORE ----
+      saveSession(c, stats, elapsed);
+    }
+
+    function saveSession(confidence, stats, elapsed) {
+      if (!db) return;
+
+      var sessionData = {
+        session_id: sessionId,
+        timestamp: Date.now(),
+        generated: new Date().toISOString(),
+        duration_sec: elapsed,
+        user_agent: navigator.userAgent,
+        screen: { width: screen.width, height: screen.height },
+        signals: {
+          composite: confidence.composite,
+          timing: confidence.timing,
+          fitts: confidence.fitts,
+          hicks: confidence.hicks,
+          scroll: confidence.scroll,
+          microPause: confidence.microPause,
+          touch: confidence.touch
+        },
+        quality_tier: confidence.composite >= 0.7 ? 'deep' : confidence.composite >= 0.5 ? 'active' : confidence.composite >= 0.25 ? 'passive' : 'background',
+        hashes_earned: stats.totalHashes,
+        scroll_depth_pct: maxScrollDepth,
+        ga4_would_capture: {
+          events: ga4Events,
+          engagement_time_sec: elapsed,
+          scroll_depth_pct: maxScrollDepth,
+          behavioral_signals: 'none',
+          crypto_receipt: 'none'
+        },
+        uid: fbUser ? fbUser.uid : 'anonymous'
+      };
+
+      // Save to demos/ collection
+      db.collection('demos').doc(sessionId).set(sessionData)
+        .then(function() {
+          document.getElementById('r-hash').textContent =
+            'SHA-256: ' + (stats.lastHash || sessionId) + '\nSession saved to proof catalog.';
+          logEvent('SESSION SAVED to Firestore', '');
+        })
+        .catch(function(err) {
+          console.warn('[Demo] Save failed:', err);
+          logEvent('Save failed: ' + err.code, '');
+        });
     }
   </script>
 </body>
