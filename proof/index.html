@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS Proof of Attention Protocol</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e2e8f0; min-height: 100vh; }
+
+    .hero { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); padding: 80px 24px; text-align: center; border-bottom: 2px solid #06b6d4; }
+    .hero h1 { font-size: 36px; color: #06b6d4; margin-bottom: 12px; letter-spacing: -1px; }
+    .hero .tagline { font-size: 18px; color: #94a3b8; max-width: 700px; margin: 0 auto 8px; line-height: 1.6; }
+    .hero .patent { font-size: 13px; color: #475569; margin-top: 16px; font-family: monospace; }
+
+    .cta-row { display: flex; gap: 12px; justify-content: center; margin-top: 32px; flex-wrap: wrap; }
+    .cta { display: inline-block; padding: 14px 32px; border-radius: 8px; font-size: 15px; font-weight: 600; text-decoration: none; transition: all 0.15s; }
+    .cta-primary { background: #06b6d4; color: #0a0e17; }
+    .cta-primary:hover { background: #22d3ee; }
+    .cta-secondary { background: transparent; color: #06b6d4; border: 1px solid #06b6d4; }
+    .cta-secondary:hover { background: rgba(6,182,212,0.1); }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
+
+    .section-title { font-size: 22px; color: #e2e8f0; text-align: center; margin-bottom: 8px; }
+    .section-sub { font-size: 14px; color: #64748b; text-align: center; margin-bottom: 32px; }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 48px; }
+    .card { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; transition: border-color 0.15s; }
+    .card:hover { border-color: #334155; }
+    .card-icon { font-size: 28px; margin-bottom: 12px; }
+    .card h3 { font-size: 16px; color: #06b6d4; margin-bottom: 8px; }
+    .card p { font-size: 13px; color: #94a3b8; line-height: 1.6; }
+
+    .how-it-works { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 32px; margin-bottom: 48px; }
+    .step-row { display: grid; grid-template-columns: 40px 1fr; gap: 16px; margin-bottom: 20px; align-items: start; }
+    .step-num { width: 32px; height: 32px; border-radius: 50%; background: #06b6d4; color: #0a0e17; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+    .step-text h4 { font-size: 14px; color: #e2e8f0; margin-bottom: 4px; }
+    .step-text p { font-size: 13px; color: #94a3b8; line-height: 1.5; }
+
+    .signals-showcase { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 48px; }
+    @media (max-width: 600px) { .signals-showcase { grid-template-columns: repeat(2, 1fr); } }
+    .signal { background: #111827; border: 1px solid #1e293b; border-radius: 8px; padding: 16px; text-align: center; }
+    .signal .name { font-size: 12px; color: #06b6d4; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .signal .desc { font-size: 11px; color: #64748b; margin-top: 4px; }
+    .signal .science { font-size: 10px; color: #475569; margin-top: 6px; font-style: italic; }
+
+    .bottom-cta { text-align: center; padding: 48px 24px; border-top: 1px solid #1e293b; }
+    .bottom-cta h2 { font-size: 24px; color: #e2e8f0; margin-bottom: 8px; }
+    .bottom-cta p { font-size: 14px; color: #94a3b8; margin-bottom: 24px; }
+
+    .footer { text-align: center; padding: 24px; color: #475569; font-size: 11px; }
+    .footer a { color: #06b6d4; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <h1>SWS Proof of Attention Protocol</h1>
+    <div class="tagline">Cryptographic verification of genuine human attention. Generate tamper-proof behavioral tokens anywhere, analyze them anytime.</div>
+    <div class="patent">Patent Pending SWS-PROV-001 | SWS Strategic Media LLC</div>
+    <div class="cta-row">
+      <a href="demo.html" class="cta cta-primary">Try the Live Demo</a>
+      <a href="gallery.html" class="cta cta-secondary">View Proof Gallery</a>
+      <a href="results-dashboard.html" class="cta cta-secondary">Session Results</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="section-title">What It Does</div>
+    <div class="section-sub">One JavaScript tag. Six behavioral science signals. Cryptographic proof.</div>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">&#x1f6e1;</div>
+        <h3>Insurance Compliance</h3>
+        <p>Prove a policyholder actually read the coverage terms. Per-section reading verification with a tamper-proof receipt. Not "they visited the page" — "they read section 3."</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">&#x1f3af;</div>
+        <h3>Bot Detection</h3>
+        <p>6 behavioral signals that separate genuine humans from bots, click farms, and replay attacks. Not a one-time CAPTCHA — continuous verification throughout the session.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">&#x1f9e0;</div>
+        <h3>Fatigue Detection</h3>
+        <p>Detect when a soldier, doctor, or machine operator is degrading. Real-time performance drift from behavioral baselines. No wearables, no cameras — just interaction signals.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">&#x1f3ac;</div>
+        <h3>Training Verification</h3>
+        <p>Did the employee actually watch the safety video? SWS tracks tab visibility, pauses, seek-backs, and engagement — not just "video played to 100%."</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">&#x1f4ca;</div>
+        <h3>Survey Quality</h3>
+        <p>Flag respondents who speed-click through surveys. Response time should scale with question complexity (Hick's Law). Bots and rushers fail this test. Current tools miss it.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">&#x1f3ed;</div>
+        <h3>6 Industries, 1 SDK</h3>
+        <p>Military, medical, insurance, education, workplace, advertising — same behavioral signals, different scoring weights per vertical. One integration covers every use case.</p>
+      </div>
+    </div>
+
+    <div class="section-title">The 6 Behavioral Signals</div>
+    <div class="section-sub">Peer-reviewed science. 70 years of research. Impossible for bots to fake all six.</div>
+
+    <div class="signals-showcase">
+      <div class="signal">
+        <div class="name">Timing Entropy</div>
+        <div class="desc">Variation in interaction intervals</div>
+        <div class="science">Human CV: 0.4-1.5 | Bot CV: &lt;0.1</div>
+      </div>
+      <div class="signal">
+        <div class="name">Hick's Law</div>
+        <div class="desc">Decision time scales with options</div>
+        <div class="science">Hick (1952) — 70+ years validated</div>
+      </div>
+      <div class="signal">
+        <div class="name">Fitts' Law</div>
+        <div class="desc">Movement time scales with distance</div>
+        <div class="science">Fitts (1954) — 1000+ studies</div>
+      </div>
+      <div class="signal">
+        <div class="name">Scroll Saccade</div>
+        <div class="desc">Reading pause patterns while scrolling</div>
+        <div class="science">Human: 2-8 fixations/screen</div>
+      </div>
+      <div class="signal">
+        <div class="name">Micro-Pause</div>
+        <div class="desc">Cognitive delay before interaction</div>
+        <div class="science">200-600ms human processing time</div>
+      </div>
+      <div class="signal">
+        <div class="name">Touch Variance</div>
+        <div class="desc">Finger pressure and angle variation</div>
+        <div class="science">Each tap is physically unique</div>
+      </div>
+    </div>
+
+    <div class="section-title">How It Works</div>
+    <div class="section-sub">From user interaction to cryptographic proof in milliseconds.</div>
+
+    <div class="how-it-works">
+      <div class="step-row">
+        <div class="step-num">1</div>
+        <div class="step-text">
+          <h4>User interacts with any digital content</h4>
+          <p>Reading a policy, watching a video, taking a survey, playing a game — any interaction on any device.</p>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num">2</div>
+        <div class="step-text">
+          <h4>SDK captures 6 behavioral signals in real time</h4>
+          <p>Timing entropy, Fitts' Law, Hick's Law, scroll saccade, micro-pause, touch variance — all running silently in the background.</p>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num">3</div>
+        <div class="step-text">
+          <h4>Signals produce a composite attention score</h4>
+          <p>Weighted composite score (0-1) classifies attention quality: Deep Focus, Active, Passive, or Background. Bots score low. Engaged humans score high.</p>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num">4</div>
+        <div class="step-text">
+          <h4>SHA-256 hash generates a tamper-proof receipt</h4>
+          <p>The attention payload is cryptographically hashed. The receipt is verifiable, portable, and impossible to forge. Store it now, verify it later.</p>
+        </div>
+      </div>
+      <div class="step-row">
+        <div class="step-num">5</div>
+        <div class="step-text">
+          <h4>Receipt stored locally + synced to cloud vault</h4>
+          <p>Works offline-first. Hashes stored in localStorage immediately, synced to Firestore when connected. No data loss, no dependency on network.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-cta">
+    <h2>See It In Action</h2>
+    <p>Complete 3 tasks in 3 minutes. Watch your behavioral signals captured in real time.</p>
+    <a href="demo.html" class="cta cta-primary">Start the Live Demo</a>
+  </div>
+
+  <div class="footer">
+    (c) 2026 SWS Strategic Media LLC — Patent Pending SWS-PROV-001<br>
+    <a href="https://stevieweedseed.com">stevieweedseed.com</a>
+  </div>
+</body>
+</html>

@@ -1,0 +1,163 @@
+/**
+ * SWS Attention Protocol — One-Tag Embed
+ *
+ * Drop this single script on ANY page to start generating
+ * attention tokens with full behavioral analysis.
+ *
+ * Usage:
+ *   <script src="https://sws-attention-proofs.web.app/embed.js"
+ *           data-game-id="your_site_id"></script>
+ *
+ * Or with options:
+ *   <script src="https://sws-attention-proofs.web.app/embed.js"
+ *           data-game-id="your_site_id"
+ *           data-debug="false"
+ *           data-save="true"></script>
+ *
+ * What it does:
+ *   1. Loads the SWS SDK (secure-config, attention-protocol, economy-engine)
+ *   2. Initializes with behavioral analysis enabled
+ *   3. Starts earning hashes from genuine attention events
+ *   4. Optionally saves session data to the SWS proof Firestore
+ *
+ * (c) 2026 SWS Strategic Media LLC. Patent Pending SWS-PROV-001.
+ */
+(function() {
+  'use strict';
+
+  // Read config from script tag attributes
+  var scripts = document.getElementsByTagName('script');
+  var thisScript = scripts[scripts.length - 1];
+  var gameId = thisScript.getAttribute('data-game-id') || 'sws_embed_' + location.hostname;
+  var debug = thisScript.getAttribute('data-debug') === 'true';
+  var saveToFirestore = thisScript.getAttribute('data-save') !== 'false'; // default true
+  var baseUrl = thisScript.src.replace(/embed\.js.*$/, '');
+
+  // Track session
+  var sessionId = 'embed_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+  var sessionStart = Date.now();
+
+  // Load SDK files in order
+  var sdkFiles = ['sdk/secure-config.js', 'sdk/attention-protocol.js', 'sdk/economy-engine.js'];
+  var loaded = 0;
+
+  function loadNext() {
+    if (loaded >= sdkFiles.length) {
+      onSDKReady();
+      return;
+    }
+    var s = document.createElement('script');
+    s.src = baseUrl + sdkFiles[loaded];
+    s.onload = function() {
+      loaded++;
+      loadNext();
+    };
+    s.onerror = function() {
+      console.warn('[SWS Embed] Failed to load: ' + sdkFiles[loaded]);
+      loaded++;
+      loadNext();
+    };
+    document.head.appendChild(s);
+  }
+
+  function onSDKReady() {
+    if (typeof SWSAttention === 'undefined') {
+      console.warn('[SWS Embed] SDK failed to load');
+      return;
+    }
+
+    // Initialize
+    SWSAttention.init({
+      gameId: gameId,
+      debug: debug,
+      enableBehavioralAnalysis: true
+    });
+
+    if (debug) console.log('[SWS Embed] Initialized for ' + gameId);
+
+    // Auto-earn for page visit
+    SWSAttention.earn('page_visit', 0, 0, 'active');
+
+    // Track scroll depth
+    var maxScroll = 0;
+    window.addEventListener('scroll', function() {
+      var pct = Math.round((window.scrollY / (document.documentElement.scrollHeight - window.innerHeight)) * 100);
+      if (pct > maxScroll) maxScroll = pct;
+    }, { passive: true });
+
+    // Periodic hash earning (every 60s of engagement)
+    var earnInterval = setInterval(function() {
+      var elapsed = Date.now() - sessionStart;
+      var tier = document.hidden ? 'background' : 'active';
+      SWSAttention.earn('engagement_tick', 60000, 0, tier);
+      if (debug) {
+        var c = SWSAttention.getHumanConfidence();
+        console.log('[SWS Embed] Composite: ' + c.composite.toFixed(3) + ' | Hashes: ' + SWSAttention.getStats().totalHashes);
+      }
+    }, 60000);
+
+    // Save session on page unload
+    if (saveToFirestore) {
+      window.addEventListener('beforeunload', function() {
+        saveSession();
+      });
+
+      // Also save after 30 seconds of engagement
+      setTimeout(function() {
+        saveSession();
+      }, 30000);
+    }
+
+    // Expose API for advanced usage
+    window.SWSEmbed = {
+      getScore: function() { return SWSAttention.getHumanConfidence(); },
+      getStats: function() { return SWSAttention.getStats(); },
+      getFocusScore: function() { return SWSAttention.getFocusScore(); },
+      getSessionId: function() { return sessionId; },
+      saveNow: function() { saveSession(); }
+    };
+  }
+
+  function saveSession() {
+    if (typeof SWSAttention === 'undefined') return;
+
+    var c = SWSAttention.getHumanConfidence();
+    var stats = SWSAttention.getStats();
+    var elapsed = Math.round((Date.now() - sessionStart) / 1000);
+
+    var data = {
+      session_id: sessionId,
+      game_id: gameId,
+      timestamp: Date.now(),
+      generated: new Date().toISOString(),
+      duration_sec: elapsed,
+      page_url: location.hostname + location.pathname,
+      signals: {
+        composite: c.composite,
+        timing: c.timing,
+        fitts: c.fitts,
+        hicks: c.hicks,
+        scroll: c.scroll,
+        microPause: c.microPause,
+        touch: c.touch
+      },
+      quality_tier: c.composite >= 0.7 ? 'deep' : c.composite >= 0.5 ? 'active' : c.composite >= 0.25 ? 'passive' : 'background',
+      hashes_earned: stats.totalHashes,
+      source: 'embed'
+    };
+
+    // Use sendBeacon for reliability on page unload
+    if (navigator.sendBeacon) {
+      // Store locally for now — Firestore requires auth which we handle via the proof site
+      try {
+        var existing = JSON.parse(localStorage.getItem('sws_embed_sessions') || '[]');
+        existing.push(data);
+        if (existing.length > 50) existing.shift();
+        localStorage.setItem('sws_embed_sessions', JSON.stringify(existing));
+      } catch(e) {}
+    }
+  }
+
+  // Start loading
+  loadNext();
+})();

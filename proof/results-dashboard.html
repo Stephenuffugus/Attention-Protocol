@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS — Session Results Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e2e8f0; min-height: 100vh; }
+
+    .header { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); padding: 24px; text-align: center; border-bottom: 2px solid #06b6d4; }
+    .header h1 { font-size: 24px; color: #06b6d4; margin-bottom: 4px; }
+    .header .subtitle { color: #94a3b8; font-size: 13px; }
+    .nav { margin-top: 12px; }
+    .nav a { color: #06b6d4; text-decoration: none; font-size: 13px; margin: 0 10px; padding: 6px 14px; border: 1px solid #1e293b; border-radius: 6px; }
+    .nav a:hover { border-color: #06b6d4; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+    .stats-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 16px; text-align: center; }
+    .stat-val { font-size: 28px; font-weight: 700; font-family: monospace; color: #06b6d4; }
+    .stat-label { font-size: 11px; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+    .session-list { }
+    .session-card { background: #111827; border: 1px solid #1e293b; border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+    .session-header { padding: 16px 20px; display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 16px; align-items: center; cursor: pointer; }
+    .session-header:hover { background: #1a2234; }
+    .session-id { font-family: monospace; font-size: 12px; color: #94a3b8; }
+    .session-time { font-size: 12px; color: #64748b; }
+
+    .score-badge { padding: 4px 14px; border-radius: 16px; font-size: 14px; font-weight: 700; font-family: monospace; }
+    .score-high { background: rgba(16,185,129,0.15); color: #10b981; }
+    .score-mid { background: rgba(6,182,212,0.15); color: #06b6d4; }
+    .score-low { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .score-bot { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+    .tier-badge { padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .tier-deep { background: rgba(16,185,129,0.15); color: #10b981; }
+    .tier-active { background: rgba(6,182,212,0.15); color: #06b6d4; }
+    .tier-passive { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .tier-background { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+    .session-body { padding: 0 20px 20px; display: none; }
+    .session-card.open .session-body { display: block; }
+
+    .signals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 12px 0; }
+    .signal-card { background: #0f172a; border-radius: 8px; padding: 12px; text-align: center; }
+    .signal-val { font-size: 22px; font-weight: 700; font-family: monospace; }
+    .signal-name { font-size: 10px; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .signal-bar { height: 4px; background: #1e293b; border-radius: 2px; margin-top: 6px; overflow: hidden; }
+    .signal-fill { height: 100%; border-radius: 2px; }
+
+    .compare-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+    .compare-card { background: #0f172a; border-radius: 8px; padding: 14px; }
+    .compare-card h4 { font-size: 12px; margin-bottom: 8px; }
+    .compare-card h4.sws { color: #10b981; }
+    .compare-card h4.ga4 { color: #ef4444; }
+    .compare-item { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; }
+    .compare-item .label { color: #64748b; }
+    .compare-item .val { font-family: monospace; font-weight: 600; }
+
+    .device-info { font-size: 11px; color: #475569; margin-top: 8px; }
+
+    #loading { text-align: center; padding: 60px; color: #64748b; }
+    #empty { text-align: center; padding: 60px; color: #64748b; display: none; }
+    #empty a { color: #06b6d4; }
+
+    .refresh-btn { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; padding: 8px 16px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+    .refresh-btn:hover { background: #334155; }
+
+    .footer { text-align: center; padding: 24px; color: #475569; font-size: 11px; border-top: 1px solid #1e293b; margin-top: 32px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Session Results Dashboard</h1>
+    <div class="subtitle">Real behavioral data from real people — every demo session saved and analyzed</div>
+    <div class="nav">
+      <a href="gallery.html">Proof Gallery</a>
+      <a href="demo.html">Live Demo</a>
+      <a href="results-dashboard.html">Results</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div style="font-size:14px;color:#94a3b8;" id="session-count">Loading sessions...</div>
+      <button class="refresh-btn" onclick="loadSessions()">Refresh</button>
+    </div>
+
+    <div class="stats-bar" id="stats-bar"></div>
+    <div id="session-list"></div>
+    <div id="loading">Loading sessions from Firestore...</div>
+    <div id="empty">No sessions yet. <a href="demo.html">Run the demo</a> or send the link to someone!</div>
+  </div>
+
+  <div class="footer">
+    (c) 2026 SWS Strategic Media LLC — Patent Pending SWS-PROV-001
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    var app = firebase.initializeApp({
+      apiKey: "AIzaSyDbpqisJpnoh2OUYSJIdKIo17SdF0eGPiM",
+      authDomain: "sws-attention-proofs.firebaseapp.com",
+      projectId: "sws-attention-proofs",
+      storageBucket: "sws-attention-proofs.firebasestorage.app",
+      messagingSenderId: "420661886092",
+      appId: "1:420661886092:web:a4c79cd07fc804428f4fa9"
+    });
+    var db = firebase.firestore(app);
+
+    // Auth for reading
+    firebase.auth(app).signInAnonymously();
+
+    var sessions = [];
+
+    function loadSessions() {
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('empty').style.display = 'none';
+      document.getElementById('session-list').innerHTML = '';
+
+      db.collection('demos').orderBy('timestamp', 'desc').limit(100).get()
+        .then(function(snapshot) {
+          document.getElementById('loading').style.display = 'none';
+          sessions = [];
+
+          if (snapshot.empty) {
+            document.getElementById('empty').style.display = 'block';
+            document.getElementById('session-count').textContent = '0 sessions';
+            return;
+          }
+
+          snapshot.forEach(function(doc) {
+            sessions.push(doc.data());
+          });
+
+          renderStats();
+          renderSessions();
+        })
+        .catch(function(err) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('session-count').textContent = 'Error loading: ' + err.code;
+        });
+    }
+
+    function renderStats() {
+      var count = sessions.length;
+      var avgComposite = sessions.reduce(function(s, d) { return s + (d.signals?.composite || 0); }, 0) / count;
+      var avgDuration = sessions.reduce(function(s, d) { return s + (d.duration_sec || 0); }, 0) / count;
+      var deepCount = sessions.filter(function(d) { return d.quality_tier === 'deep'; }).length;
+      var avgHicks = sessions.reduce(function(s, d) { return s + (d.signals?.hicks || 0); }, 0) / count;
+
+      document.getElementById('session-count').textContent = count + ' sessions collected';
+
+      document.getElementById('stats-bar').innerHTML =
+        statCard(count, 'Sessions') +
+        statCard(avgComposite.toFixed(3), 'Avg Composite') +
+        statCard(Math.round(avgDuration) + 's', 'Avg Duration') +
+        statCard(deepCount + '/' + count, 'Deep Focus') +
+        statCard(avgHicks.toFixed(2), 'Avg Hick\'s');
+    }
+
+    function statCard(val, label) {
+      return '<div class="stat-card"><div class="stat-val">' + val + '</div><div class="stat-label">' + label + '</div></div>';
+    }
+
+    function renderSessions() {
+      var html = '';
+      sessions.forEach(function(s, i) {
+        var composite = s.signals?.composite || 0;
+        var scoreClass = composite >= 0.7 ? 'score-high' : composite >= 0.5 ? 'score-mid' : composite >= 0.3 ? 'score-low' : 'score-bot';
+        var tierClass = 'tier-' + (s.quality_tier || 'background');
+        var timeStr = s.generated ? new Date(s.generated).toLocaleString() : 'Unknown';
+
+        html += '<div class="session-card" onclick="this.classList.toggle(\'open\')">';
+        html += '<div class="session-header">';
+        html += '<div><div class="session-id">' + (s.session_id || 'unknown') + '</div><div class="session-time">' + timeStr + '</div></div>';
+        html += '<span class="score-badge ' + scoreClass + '">' + composite.toFixed(3) + '</span>';
+        html += '<span class="tier-badge ' + tierClass + '">' + (s.quality_tier || '?') + '</span>';
+        html += '<span style="font-size:12px;color:#64748b;">' + (s.duration_sec || 0) + 's</span>';
+        html += '<span style="font-size:12px;color:#06b6d4;">' + (s.hashes_earned || 0) + ' hashes</span>';
+        html += '</div>';
+
+        // Expandable body
+        html += '<div class="session-body" onclick="event.stopPropagation()">';
+
+        // Signal cards
+        if (s.signals) {
+          html += '<div class="signals-grid">';
+          var sigs = [
+            ['Composite', s.signals.composite, '#10b981'],
+            ['Hick\'s Law', s.signals.hicks, '#06b6d4'],
+            ['Timing', s.signals.timing, '#06b6d4'],
+            ['Fitts\' Law', s.signals.fitts, '#06b6d4'],
+            ['Scroll', s.signals.scroll, '#06b6d4'],
+            ['Micro-Pause', s.signals.microPause, '#06b6d4'],
+            ['Touch', s.signals.touch, '#06b6d4']
+          ];
+          sigs.forEach(function(sig) {
+            var val = sig[1] || 0;
+            html += '<div class="signal-card">';
+            html += '<div class="signal-val" style="color:' + sig[2] + '">' + val.toFixed(3) + '</div>';
+            html += '<div class="signal-name">' + sig[0] + '</div>';
+            html += '<div class="signal-bar"><div class="signal-fill" style="width:' + (val * 100) + '%;background:' + sig[2] + '"></div></div>';
+            html += '</div>';
+          });
+          html += '</div>';
+        }
+
+        // SWS vs GA4 comparison
+        html += '<div class="compare-row">';
+
+        html += '<div class="compare-card">';
+        html += '<h4 class="sws">SWS Captured</h4>';
+        html += compareItem('Behavioral Signals', '6 signals');
+        html += compareItem('Composite Score', (s.signals?.composite || 0).toFixed(3));
+        html += compareItem('Quality Tier', s.quality_tier || '?');
+        html += compareItem('Hashes Earned', s.hashes_earned || 0);
+        html += compareItem('Crypto Receipt', 'SHA-256');
+        html += compareItem('Bot Detection', composite >= 0.5 ? 'Human' : 'Suspicious');
+        html += '</div>';
+
+        html += '<div class="compare-card">';
+        html += '<h4 class="ga4">GA4 Would Capture</h4>';
+        if (s.ga4_would_capture) {
+          html += compareItem('Events', (s.ga4_would_capture.events || []).join(', '));
+          html += compareItem('Engagement Time', (s.ga4_would_capture.engagement_time_sec || 0) + 's');
+          html += compareItem('Scroll Depth', (s.ga4_would_capture.scroll_depth_pct || 0) + '%');
+        }
+        html += compareItem('Behavioral Signals', '<span style="color:#ef4444">None</span>');
+        html += compareItem('Crypto Receipt', '<span style="color:#ef4444">None</span>');
+        html += compareItem('Bot Detection', '<span style="color:#ef4444">None</span>');
+        html += '</div>';
+
+        html += '</div>';
+
+        // Device info
+        if (s.user_agent) {
+          var device = s.user_agent.indexOf('Mobile') > -1 ? 'Mobile' : 'Desktop';
+          var screenStr = s.screen ? s.screen.width + 'x' + s.screen.height : '?';
+          html += '<div class="device-info">Device: ' + device + ' | Screen: ' + screenStr + '</div>';
+        }
+
+        html += '</div>'; // session-body
+        html += '</div>'; // session-card
+      });
+
+      document.getElementById('session-list').innerHTML = html;
+    }
+
+    function compareItem(label, val) {
+      return '<div class="compare-item"><span class="label">' + label + '</span><span class="val">' + val + '</span></div>';
+    }
+
+    // Load on start and after auth
+    firebase.auth(app).onAuthStateChanged(function(user) {
+      if (user) loadSessions();
+    });
+  </script>
+</body>
+</html>
