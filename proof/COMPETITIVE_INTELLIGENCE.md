@@ -155,5 +155,152 @@ Companies do ONE of these. Some do TWO. Nobody does all THREE. That's the moat.
 
 ---
 
-*Report compiled from patent landscape analysis and competitive research.*
-*Next update: After emerging tech integration research completes.*
+---
+
+## DETAILED COMPETITOR PROFILES — THE REAL LANDSCAPE
+
+### Adelaide (adelaidemetrics.com) — Attention Measurement for Ads
+- **Method:** Predictive model trained on eye-tracking panel data. Does NOT measure actual individual attention. Predicts probability an ad placement will receive attention based on position, size, clutter, device type.
+- **Clients:** Havas, GroupM. Real agency adoption. Published third-party validation studies.
+- **Limitation:** Statistical prediction, not per-user measurement. No behavioral biometrics. No cryptographic receipts. Advertising-only.
+- **Where they're ahead:** Market adoption. Agency relationships. Brand lift correlation studies.
+- **Where SWS is ahead:** Real-time per-user behavioral measurement. Works across verticals. Cryptographic proof output.
+
+### Lumen Research (lumen-research.com) — Eye Tracking Panels
+- **Method:** Webcam-based eye tracking on ~100K+ opted-in panelists. Measures fixation count, duration, gaze position.
+- **Clients:** Licenses panel data to Adelaide and others. Enterprise contracts.
+- **Limitation:** Requires camera. Panel-based (sample, not 100% coverage). Tells you WHERE someone looked, not whether they cognitively processed it. Advertising-only.
+- **Where they're ahead:** Largest commercial eye-tracking dataset. Academic credibility.
+- **Where SWS is ahead:** No camera needed. Measures cognitive engagement, not just gaze. 100% of interactions, not a sample.
+
+### RealEyes (realeyesit.com) — Facial Emotion + Attention AI
+- **Method:** Webcam captures facial video. AI detects eye gaze, blink rate, head pose, facial expressions mapped to emotions.
+- **Clients:** Mars, Hershey's, CPG brands.
+- **Limitation:** Requires webcam consent. Facial expression analysis is scientifically contested (Lisa Feldman Barrett's work). Accuracy issues across demographics. Advertising-focused.
+- **Where they're ahead:** Working product with brand-name clients. Emotional dimension.
+- **Where SWS is ahead:** Zero hardware. No camera. More scientifically robust signals. Works in every context.
+
+### BioCatch — Behavioral Biometrics (BIGGEST TECHNICAL COMPETITOR)
+- **Method:** Keystroke dynamics, mouse movement, scroll behavior, touch pressure, device handling, hand tremor, cognitive load indicators. Builds behavioral profile per user.
+- **Clients:** HSBC, Barclays, NatWest. $1.3B valuation (2023 SPAC).
+- **Limitation:** Banking fraud detection only. Asks "is this the SAME person?" not "is this person paying attention?" No attention quality score. No cryptographic receipts. No Hick's/Fitts' Law as named signals.
+- **Where they're ahead:** MOST SOPHISTICATED DEPLOYED behavioral biometrics in the world. Billions of sessions. Mature signal processing. Regulatory acceptance.
+- **Where SWS is ahead:** Different problem (attention vs identity). Portable receipts. Multi-vertical. Transparent scoring (named behavioral science laws vs ML black box).
+- **HONEST RISK:** If BioCatch pivoted to attention measurement, they have a 10+ year head start in signal processing. They have NOT done this — that's our window.
+
+### Brave/BAT — "Proof of Attention" Token
+- **Method:** Tab-focus timer. Ad was displayed + tab was active for 5-10 seconds = "attention."
+- **50M+ monthly active users.** Working crypto infrastructure.
+- **Limitation:** "Proof of attention" is a massive overstatement. Trivially gameable. No behavioral science whatsoever. Browser-locked.
+- **SWS advantage:** The scientific gap is enormous. SWS actually measures cognitive engagement.
+
+### Survey Quality (Research Defender, Imperium, Verisoul, PureSpectrum)
+- All do device fingerprinting, IP fraud, duplicate detection.
+- **None measure behavioral engagement quality.**
+- **PureSpectrum's PureScore** is closest — analyzes open-ended text responses for quality. Content analysis, not behavioral analysis, but it IS a form of quality scoring.
+- **SWS advantage:** Behavioral engagement scoring that catches inattentive real humans, not just bots.
+
+### Fatigue Detection (Seeing Machines, Smart Eye, Caterpillar DSS)
+- All use CAMERAS pointed at the face. Hardware-dependent.
+- **None use behavioral interaction patterns.**
+- **SWS advantage:** Detects fatigue from interaction signals alone. Zero hardware. Any device with a screen.
+
+### Document Reading Verification
+- **DocuSign, Adobe Sign, Ironclad, PandaDoc:** Prove a document was opened and signed. CANNOT prove it was read.
+- **No product exists that cryptographically proves someone read a document using behavioral signals.** This is genuine white space.
+
+### Employee Training (Relias, HealthStream, Cornerstone, CareAcademy)
+- Track login time, video completion %, quiz scores. Trivially cheatable.
+- Some have added "anti-speeding" (minimum time per page).
+- **No behavioral engagement verification exists in this space.** Genuine white space for SWS.
+
+---
+
+## EMERGING TECH THAT COULD MAKE US STRONGER
+
+### Tier 1 — Implement Now (high impact, proven tech)
+
+**1. WebAuthn / Passkeys — Device-Bound Receipts**
+- Bind each attention receipt to a hardware-verified device (iPhone Secure Enclave, Windows TPM)
+- At receipt generation time, call `navigator.credentials.get()` with a challenge derived from the receipt hash
+- Result: Cryptographically expensive to farm attention across bot instances
+- **This proves "real device" + our behavioral signals prove "real human" = strongest verification possible**
+- Effort: 2-3 weeks. Ready to ship now.
+
+**2. W3C Verifiable Credentials — Interoperable Receipts**
+- Wrap attention receipts as W3C VCs with issuer, subject, claims, proof
+- Any VC-compatible verifier (enterprise HR, regulatory tools, LMS) can verify without custom integration
+- EU Digital Identity Wallet mandates VC format — this puts us in compliance
+- Selective disclosure: employee presents "completed training with verified attention" without revealing exact scores
+- Effort: 1-2 weeks. Libraries exist.
+
+**3. Differential Privacy — Protected Analytics**
+- Add calibrated Laplace noise to aggregate reports so individual employees can't be identified
+- Critical for healthcare/insurance sales where individual behavioral data is sensitive
+- "We computed your compliance engagement metrics but literally never saw individual data"
+- Effort: 1 week. Straightforward math.
+
+### Tier 2 — Build Next Quarter
+
+**4. Ethereum Attestation Service (EAS) — On-Chain Receipts**
+- Register "Attention Receipt" schema on Ethereum. Each verified session = on-chain attestation.
+- Smart contracts can gate access based on attention history
+- Off-chain attestations (free) with on-chain Merkle root anchoring (fractions of a cent on L2)
+- Opens entire Web3 market
+- Effort: 3-4 weeks.
+
+**5. WebGPU/WebNN ML Models — Smarter Integrity Checks**
+- Replace rule-based integrity checks with a small neural network (~10KB) running in-browser
+- Much harder to game than threshold checks
+- ONNX Runtime Web is production-ready (used by Microsoft Office)
+- Effort: 4-6 weeks.
+
+**6. Zero-Knowledge Proofs — Privacy-Preserving Verification**
+- ZK proof: "all 6 signals exceeded threshold" without revealing actual scores
+- Nursing home regulator verifies training completion without seeing behavioral surveillance data
+- Start server-side, move to browser as WASM performance improves
+- Effort: 4-6 weeks.
+
+### Tier 3 — Use for Sales Narrative Now
+
+**7. Privacy Sandbox / Topics API** — Our protocol is ALREADY compliant. Zero third-party cookies, zero cross-site tracking. Use this fact in every pitch.
+
+**8. Apple ATT** — "No ATT prompt needed" is a killer sales line for mobile advertisers. Our signals work within a single app context.
+
+**9. Webcam Eye Tracking (WebGazer.js)** — Optional 7th signal. Gaze-content coherence. Add when a customer specifically wants it.
+
+### The Killer Stack
+
+The most powerful combination possible:
+
+**WebAuthn (device proof) + 6 Behavioral Signals (human proof) + ZK Proof (privacy) + Verifiable Credential (interoperability) + On-chain Anchor (permanence)**
+
+This produces a receipt that says: "A verified hardware device, operated by a verified human (6 behavioral signals above threshold, ZK-proven without revealing raw data), genuinely engaged with this content, issued as a W3C Verifiable Credential, anchored to Ethereum."
+
+**No company in the world offers anything close to this.**
+
+---
+
+## BOTTOM LINE
+
+### What we own that nobody else has:
+1. The specific 6-signal behavioral science composite (Fitts', Hick's, timing entropy, scroll saccade, micro-pause, touch variance)
+2. Attention quality tiers from behavioral signals (deep/active/passive/background)
+3. SHA-256 cryptographic receipts proving attention events
+4. Portable attention hashes across platforms
+5. Multi-vertical scoring from one SDK (military, medical, insurance, education, workplace, advertising)
+
+### Biggest risks to watch:
+1. **BioCatch expansion** into attention measurement (they have the signal infrastructure)
+2. **Adelaide moving from predictive to behavioral** measurement (they have the agency relationships)
+3. **Google/Meta exposing internal attention metrics** to advertisers (they have the scale)
+4. **Academic spin-outs** commercializing behavioral analysis tools (they have peer-reviewed validation)
+
+### Immediate actions:
+1. File utility patent emphasizing the COMBINATION (signals + tiers + receipts) — not individual signals
+2. Hire patent search firm for FTO search (BioCatch and Google reCAPTCHA families specifically)
+3. Start WebAuthn integration (strongest near-term technical moat)
+4. Position as "Privacy Sandbox-compatible" and "ATT-compliant" in all marketing
+
+*Report compiled from patent landscape analysis, competitor deep dive, and emerging tech research.*
+*April 8, 2026 — SWS Strategic Media LLC*
