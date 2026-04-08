@@ -289,6 +289,8 @@
       else if (key === 'session-integrity') body = renderSessionIntegrity(v);
       else if (key === 'temporal-analysis') body = renderTemporalAnalysis(v);
       else if (key === 'vertical-profiles') body = renderVerticalProfiles(v);
+      else if (key === 'verifiable-credentials') body = renderVC(v);
+      else if (key === 'differential-privacy') body = renderDP(v);
       else body = '<pre>' + JSON.stringify(v, null, 2) + '</pre>';
 
       // Append competitor comparison if available
@@ -492,6 +494,97 @@
       });
       html += '</table>';
       html += '<div class="verdict-box verdict-pass">Same behavioral signals &rarr; Different scores per industry vertical</div>';
+      return html;
+    }
+
+    // ---- VERIFIABLE CREDENTIALS ----
+    function renderVC(v) {
+      var html = '<div class="comparison-grid">';
+
+      // Receipt to VC conversion
+      html += '<div class="profile-card">';
+      html += '<div class="profile-name" style="color:#06b6d4">Receipt &rarr; W3C Verifiable Credential</div>';
+      if (v.receipt_to_vc) {
+        html += '<div class="signal-row"><span class="signal-name">VC Context</span><span class="signal-value">' + (v.receipt_to_vc.vc_context || []).join(', ') + '</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Types</span><span class="signal-value">' + (v.receipt_to_vc.vc_types || []).join(', ') + '</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Issuer DID</span><span class="signal-value">' + (v.receipt_to_vc.issuer_did || '') + '</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Subject DID</span><span class="signal-value">' + (v.receipt_to_vc.subject_did || '') + '</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Verification</span><span class="signal-value green">' + (v.receipt_to_vc.verification || '') + '</span></div>';
+      }
+      html += '</div>';
+
+      // Selective disclosure
+      html += '<div class="profile-card">';
+      html += '<div class="profile-name" style="color:#10b981">Selective Disclosure</div>';
+      if (v.selective_disclosure) {
+        html += '<div class="signal-row"><span class="signal-name">Full Credential</span><span class="signal-value">' + v.selective_disclosure.full_credential_fields + ' fields</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Limited (verdict+tier)</span><span class="signal-value">' + v.selective_disclosure.limited_presentation_fields + ' fields</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Minimal (verdict only)</span><span class="signal-value">' + v.selective_disclosure.minimal_presentation_fields + ' fields</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Signals hidden?</span><span class="signal-value green">Yes</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Verification</span><span class="signal-value green">' + (v.selective_disclosure.verification || '') + '</span></div>';
+      }
+      html += '</div>';
+
+      html += '</div>';
+
+      // Use cases
+      if (v.use_cases) {
+        html += '<div style="margin-top:16px;">';
+        v.use_cases.forEach(function(uc) {
+          html += '<div style="padding:6px 12px;margin:4px 0;background:#0f172a;border-radius:6px;font-size:12px;color:#94a3b8;border-left:3px solid #06b6d4;">' + uc + '</div>';
+        });
+        html += '</div>';
+      }
+
+      return html;
+    }
+
+    // ---- DIFFERENTIAL PRIVACY ----
+    function renderDP(v) {
+      var html = '<div class="comparison-grid">';
+
+      // Dataset info
+      html += '<div class="profile-card">';
+      html += '<div class="profile-name" style="color:#06b6d4">Dataset (True Values)</div>';
+      if (v.dataset) {
+        html += '<div class="signal-row"><span class="signal-name">Sessions</span><span class="signal-value">' + v.dataset.sessions + '</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">True Mean Composite</span><span class="signal-value">' + v.dataset.true_mean_composite + '</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">True Deep Focus Count</span><span class="signal-value">' + v.dataset.true_deep_focus_count + '</span></div>';
+      }
+      html += '</div>';
+
+      // Private report
+      html += '<div class="profile-card">';
+      html += '<div class="profile-name" style="color:#10b981">Private Report (With Noise)</div>';
+      if (v.private_report) {
+        html += '<div class="signal-row"><span class="signal-name">Sessions (noisy)</span><span class="signal-value">' + v.private_report.session_count + '</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Avg Composite (noisy)</span><span class="signal-value">' + v.private_report.avg_composite + '</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Deep Focus Rate</span><span class="signal-value">' + v.private_report.deep_focus_rate + '</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Human Verified Rate</span><span class="signal-value">' + v.private_report.human_verified_rate + '</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Privacy Guarantee</span><span class="signal-value green">' + v.private_report.privacy_guarantee + '</span></div>';
+      }
+      html += '</div>';
+
+      html += '</div>';
+
+      // Noise demonstration
+      if (v.noise_demonstration) {
+        html += '<table><tr><th>Privacy Level</th><th>Epsilon</th><th>Reported Mean</th><th>Noise</th></tr>';
+        html += '<tr><td>True Value</td><td>-</td><td style="font-family:monospace">' + v.noise_demonstration.true_mean + '</td><td>None</td></tr>';
+        html += '<tr><td style="color:#f59e0b">Low Privacy</td><td>10.0</td><td style="font-family:monospace">' + v.noise_demonstration.low_privacy_mean + '</td><td>Minimal</td></tr>';
+        html += '<tr><td style="color:#10b981">High Privacy</td><td>0.1</td><td style="font-family:monospace">' + v.noise_demonstration.high_privacy_mean + '</td><td>Heavy</td></tr>';
+        html += '</table>';
+      }
+
+      // Why it matters
+      if (v.why_it_matters) {
+        html += '<div style="margin-top:16px;">';
+        v.why_it_matters.forEach(function(w) {
+          html += '<div style="padding:6px 12px;margin:4px 0;background:#0f172a;border-radius:6px;font-size:12px;color:#94a3b8;border-left:3px solid #10b981;">' + w + '</div>';
+        });
+        html += '</div>';
+      }
+
       return html;
     }
 

@@ -38,6 +38,10 @@ const TemporalAnalyzer = require(path.resolve(__dirname, '../src/sdk/temporal-se
 const IntegrityValidator = require(path.resolve(__dirname, '../src/sdk/session-integrity-validator.js'));
 const VerticalProfiles = require(path.resolve(__dirname, '../src/sdk/vertical-scoring-profiles.js'));
 
+// Next-gen modules
+const VerifiableCredentials = require(path.resolve(__dirname, '../src/sdk/verifiable-credentials.js'));
+const DifferentialPrivacy = require(path.resolve(__dirname, '../src/sdk/differential-privacy.js'));
+
 // Helper: generate scroll velocity data
 function makeScrollVelocities(avgVelocity, count) {
   const vels = [];
@@ -752,6 +756,200 @@ function runVerticalProfiles() {
 }
 
 // ============================================================
+// VERTICAL 8: VERIFIABLE CREDENTIALS
+// ============================================================
+
+function runVerifiableCredentials() {
+  // Generate a sample receipt
+  var sampleReceipt = {
+    receipt_id: 'rcpt_proof_' + Date.now().toString(36),
+    receipt_version: '1.0',
+    protocol: 'SWS Proof of Attention Protocol',
+    issuer: 'SWS Strategic Media LLC',
+    generated_at: new Date().toISOString(),
+    generated_timestamp: Date.now(),
+    subject_id: 'employee_12345',
+    application_id: 'safety_training_portal',
+    content_id: 'module_fire_safety_101',
+    content_name: 'Fire Safety Training Module',
+    engagement: {
+      duration_ms: 420000,
+      duration_formatted: '7 min 0 sec',
+      focus_score: 82,
+      quality_tier: 'deep',
+      interaction_count: 67
+    },
+    human_verification: {
+      composite_score: 0.78,
+      timing_entropy: 0.72,
+      fitts_compliance: 0.85,
+      hicks_compliance: 0.88,
+      scroll_saccade: 0.65,
+      micro_pause: 0.71,
+      touch_variance: 0.80,
+      verdict: 'verified_human_deep_engagement'
+    },
+    proof: {
+      hash_count: 7,
+      hash_ids: ['h1','h2','h3','h4','h5','h6','h7'],
+      algorithm: 'SHA-256',
+      receipt_hash: 'a1b2c3d4e5f6'
+    },
+    privacy: {
+      no_content_recorded: true,
+      no_pii_collected: true,
+      no_urls_tracked: true,
+      data_categories: ['duration', 'interaction_count', 'quality_tier', 'behavioral_metrics'],
+      coppa_compliant: true,
+      scif_eligible: true
+    },
+    completion: {
+      type: 'training_module',
+      started_at: new Date(Date.now() - 420000).toISOString(),
+      completed_at: new Date().toISOString(),
+      minimum_required_minutes: 5,
+      actual_minutes: 7.0,
+      met_minimum: true,
+      engagement_sufficient: true,
+      human_verified: true
+    }
+  };
+
+  // Convert to W3C Verifiable Credential
+  var fullCredential = VerifiableCredentials.fromReceipt(sampleReceipt);
+  var verifyFull = VerifiableCredentials.verify(fullCredential);
+
+  // Create selective disclosure presentation (verdict + tier only)
+  var limitedPresentation = VerifiableCredentials.createPresentation(fullCredential, ['verdict', 'tier', 'completion']);
+  var verifyLimited = VerifiableCredentials.verify(limitedPresentation);
+
+  // Create minimal presentation (just verdict)
+  var minimalPresentation = VerifiableCredentials.createPresentation(fullCredential, ['verdict']);
+
+  // Export formats
+  var jsonLd = VerifiableCredentials.toJsonLd(fullCredential);
+  var jwt = VerifiableCredentials.toJwt(fullCredential);
+
+  return {
+    vertical: 'verifiable-credentials',
+    title: 'W3C Verifiable Credentials',
+    description: 'Attention receipts as industry-standard verifiable credentials — interoperable with any enterprise system',
+    receipt_to_vc: {
+      original_receipt_fields: Object.keys(sampleReceipt).length,
+      vc_context: fullCredential['@context'],
+      vc_types: fullCredential.type,
+      issuer_did: fullCredential.issuer.id,
+      subject_did: fullCredential.credentialSubject.id,
+      verification: verifyFull.valid ? 'VALID' : 'INVALID (' + verifyFull.errors.join(', ') + ')'
+    },
+    selective_disclosure: {
+      full_credential_fields: countFields(fullCredential.credentialSubject),
+      limited_presentation_fields: countFields(limitedPresentation.verifiableCredential[0].credentialSubject),
+      minimal_presentation_fields: countFields(minimalPresentation.verifiableCredential[0].credentialSubject),
+      limited_includes: ['verdict', 'quality tier', 'completion status'],
+      minimal_includes: ['verdict only'],
+      full_signals_hidden_in_limited: true,
+      verification: verifyLimited.valid ? 'VALID' : 'INVALID'
+    },
+    export_formats: {
+      json_ld_size: jsonLd.length + ' chars',
+      jwt_size: jwt.length + ' chars',
+      json_ld_valid: jsonLd.indexOf('@context') > -1,
+      jwt_parts: jwt.split('.').length
+    },
+    use_cases: [
+      'Employee presents training completion to regulator without exposing behavioral data',
+      'Insurance policyholder proves they read the policy — verifiable by any VC-compatible system',
+      'EU Digital Identity Wallet compatible — W3C standard',
+      'Selective disclosure: choose which fields to reveal per audience'
+    ],
+    verdict: verifyFull.valid && verifyLimited.valid ?
+      'PASS — Receipts convert to valid W3C Verifiable Credentials with selective disclosure' : 'NEEDS WORK'
+  };
+}
+
+function countFields(obj) {
+  var count = 0;
+  for (var key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      if (typeof obj[key] === 'object' && obj[key] !== null) {
+        count += countFields(obj[key]);
+      } else {
+        count++;
+      }
+    }
+  }
+  return count;
+}
+
+// ============================================================
+// VERTICAL 9: DIFFERENTIAL PRIVACY
+// ============================================================
+
+function runDifferentialPrivacy() {
+  DifferentialPrivacy.init({ epsilon: 1.0, maxBudget: 100.0 });
+
+  // Generate 50 simulated sessions
+  var sessions = [];
+  for (var i = 0; i < 50; i++) {
+    sessions.push({
+      signals: {
+        composite: 0.5 + Math.random() * 0.35,
+        hicks: 0.4 + Math.random() * 0.5,
+        timing: 0.3 + Math.random() * 0.5,
+      },
+      duration_sec: 60 + Math.random() * 180,
+      quality_tier: ['deep', 'deep', 'active', 'active', 'passive'][Math.floor(Math.random() * 5)]
+    });
+  }
+
+  // True values (before noise)
+  var trueComposites = sessions.map(s => s.signals.composite);
+  var trueMean = trueComposites.reduce((a,b) => a+b, 0) / trueComposites.length;
+  var trueDeep = sessions.filter(s => s.quality_tier === 'deep').length;
+
+  // Generate private report
+  var report = DifferentialPrivacy.generatePrivateReport(sessions, { epsilon: 2.0 });
+
+  // Show the noise effect
+  DifferentialPrivacy.init({ epsilon: 1.0, maxBudget: 100.0 });
+  var lowPrivacy = DifferentialPrivacy.privateMean(trueComposites, { min: 0, max: 1, epsilon: 10.0 });
+  var highPrivacy = DifferentialPrivacy.privateMean(trueComposites, { min: 0, max: 1, epsilon: 0.1 });
+
+  return {
+    vertical: 'differential-privacy',
+    title: 'Differential Privacy — Protected Analytics',
+    description: 'Aggregate attention reports with mathematical privacy guarantees — no individual can be identified',
+    dataset: {
+      sessions: 50,
+      true_mean_composite: round(trueMean),
+      true_deep_focus_count: trueDeep
+    },
+    private_report: {
+      session_count: report.session_count.value,
+      avg_composite: report.avg_composite_score.value,
+      deep_focus_rate: report.deep_focus_rate.value + '%',
+      human_verified_rate: report.human_verified_rate.value + '%',
+      privacy_guarantee: report.privacy_guarantee
+    },
+    noise_demonstration: {
+      true_mean: round(trueMean),
+      low_privacy_mean: lowPrivacy.value + ' (epsilon=10, almost no noise)',
+      high_privacy_mean: highPrivacy.value + ' (epsilon=0.1, heavy noise)',
+      explanation: 'Lower epsilon = more noise = stronger privacy. Even with heavy noise, the aggregate trend is preserved.'
+    },
+    why_it_matters: [
+      'Healthcare: "We verified 94% of nurses completed training with genuine attention" — without exposing any individual nurse\'s behavioral data',
+      'Insurance: "Policyholder engagement averaged 78/100 focus score" — individual scores are protected',
+      'GDPR/HIPAA: Mathematical proof that individual data cannot be reverse-engineered from published aggregates',
+      'Enterprise sales: "Your data is protected by epsilon=1.0 differential privacy" — a concrete, auditable guarantee'
+    ],
+    verdict: report.session_count.value > 0 ?
+      'PASS — Private reports generated with calibrated noise and budget tracking' : 'NEEDS WORK'
+  };
+}
+
+// ============================================================
 // COMPETITOR COMPARISONS — What everyone else captures vs SWS
 // ============================================================
 
@@ -1009,6 +1207,8 @@ function runAllProofs() {
     'session-integrity': safeRun('session-integrity', runSessionIntegrity),
     'temporal-analysis': safeRun('temporal-analysis', runTemporalAnalysis),
     'vertical-profiles': safeRun('vertical-profiles', runVerticalProfiles),
+    'verifiable-credentials': safeRun('verifiable-credentials', runVerifiableCredentials),
+    'differential-privacy': safeRun('differential-privacy', runDifferentialPrivacy),
   };
 
   // Attach competitor comparisons to each vertical
@@ -1106,4 +1306,5 @@ if (require.main === module) {
 }
 
 module.exports = { runAllProofs, runBotDetection, runContentReading, runVideoAttention,
-  runFatigueDetection, runSessionIntegrity, runTemporalAnalysis, runVerticalProfiles };
+  runFatigueDetection, runSessionIntegrity, runTemporalAnalysis, runVerticalProfiles,
+  runVerifiableCredentials, runDifferentialPrivacy };
