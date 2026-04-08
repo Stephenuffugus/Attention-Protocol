@@ -752,6 +752,238 @@ function runVerticalProfiles() {
 }
 
 // ============================================================
+// COMPETITOR COMPARISONS — What everyone else captures vs SWS
+// ============================================================
+
+/**
+ * For each vertical, what does GA4/competitors capture vs SWS?
+ * This is the "aha" data for the gallery.
+ */
+function getCompetitorComparison(vertical) {
+  const GA4 = {
+    name: 'Google Analytics 4',
+    type: 'Web Analytics',
+    captures: ['Page views', 'Session duration', 'Bounce rate', 'Engagement time (single number)', 'Scroll depth %', 'Click events (if configured)'],
+    misses: ['Whether user actually READ content', 'Cognitive engagement quality', 'Bot vs human behavioral separation', 'Per-section reading verification', 'Fatigue/degradation detection', 'Tamper-proof cryptographic receipts'],
+    cost: 'Free (data goes to Google)'
+  };
+
+  const comparisons = {
+    'bot-detection': {
+      ga4: {
+        ...GA4,
+        for_this_vertical: 'Counts the bot visit as a real session. Engagement time may be high if bot keeps page open. No behavioral discrimination.',
+        verdict: 'BLIND — Cannot distinguish engaged human from sophisticated bot'
+      },
+      competitors: [
+        {
+          name: 'DoubleVerify / IAS / MOAT',
+          type: 'Ad Verification',
+          what_they_do: 'Verify ad viewability — was the ad in viewport for 2+ seconds? Detect known bot signatures via IP/device fingerprinting.',
+          what_they_miss: 'Cannot detect HUMAN inattention. Ad in viewport ≠ human looking at it. Useless against click farms (real humans, no engagement). No behavioral science signals.',
+          sws_advantage: 'SWS measures 6 behavioral signals proving cognitive engagement, not just viewport presence. Catches click farms, distracted users, and speed-clickers that pass all viewability checks.'
+        },
+        {
+          name: 'Research Defender / Imperium',
+          type: 'Survey Fraud Detection',
+          what_they_do: 'Device fingerprinting, IP reputation, trap questions, speeder detection (total time too fast).',
+          what_they_miss: 'Only catches the worst offenders. A human clicking at constant speed passes their checks. No Hick\'s Law, no timing entropy, no behavioral science.',
+          sws_advantage: 'SWS detects that a human who answers a 4-option question in the same time as a 16-option question is not cognitively engaged — even if they\'re a real human on a real device.'
+        },
+        {
+          name: 'reCAPTCHA / hCaptcha',
+          type: 'Bot Detection',
+          what_they_do: 'One-time challenge to prove you\'re human. Checkbox or image puzzle.',
+          what_they_miss: 'Proves human at ONE moment. Says nothing about attention during the rest of the session. Click farms pass easily.',
+          sws_advantage: 'SWS continuously monitors behavioral signals throughout the entire session, not just at one checkpoint.'
+        }
+      ],
+      sws: {
+        signals: ['Timing entropy (CV of inter-event intervals)', 'Hick\'s Law compliance (decision time vs option count)', 'Fitts\' Law compliance (movement time vs distance)', 'Scroll saccade pattern', 'Micro-pause analysis', 'Touch variance'],
+        output: 'Per-session composite score (0-1) with full signal breakdown + SHA-256 cryptographic receipt',
+        unique: 'Only system that produces a tamper-proof, verifiable PROOF of genuine human attention — not just a bot/human binary.'
+      }
+    },
+
+    'content-reading': {
+      ga4: {
+        ...GA4,
+        for_this_vertical: 'Records "page_view" event and total time on page. If scroll tracking enabled, records scroll depth %. Cannot tell if user read any specific section.',
+        verdict: 'BLIND — "3 minutes on page" could be reading or could be open in background tab'
+      },
+      competitors: [
+        {
+          name: 'Hotjar / FullStory',
+          type: 'Session Replay',
+          what_they_do: 'Record full session video. Heatmaps show where users clicked and scrolled.',
+          what_they_miss: 'Requires a human to WATCH the replay to judge attention. No automated scoring. No per-section verification. Massive privacy concerns (records everything). Cannot scale.',
+          sws_advantage: 'SWS automatically scores per-section reading quality without recording any content. Privacy-safe, scalable, produces verifiable receipts.'
+        },
+        {
+          name: 'Chartbeat',
+          type: 'Content Analytics',
+          what_they_do: 'Real-time engaged time metrics. "Engaged time" requires mouse/scroll activity.',
+          what_they_miss: 'Still just a timer. Cannot distinguish active reading from idle scrolling. No per-section scoring. No reading pace verification. No cryptographic proof.',
+          sws_advantage: 'SWS computes reading pace (WPM), scroll velocity patterns, active signal density, and viewport coverage per section — producing a verdict of "thoroughly_read" vs "skimmed" vs "not_read".'
+        },
+        {
+          name: 'Parsely / WordPress Analytics',
+          type: 'Content Analytics',
+          what_they_do: 'Engaged time, scroll depth, recirculation rate.',
+          what_they_miss: 'Aggregate metrics only. Cannot verify an individual user read a specific document. No legal-grade proof.',
+          sws_advantage: 'SWS produces per-user, per-document, per-section verification with a cryptographic receipt that can be presented as evidence.'
+        }
+      ],
+      sws: {
+        signals: ['Per-section dwell time', 'Reading pace (WPM) computed from word count / dwell', 'Scroll velocity pattern (saccade-fixation)', 'Active signals per section (mouse/keyboard)', 'Viewport coverage (intersection ratio)', 'Re-reading detection'],
+        output: 'Document score (0-1) + per-section breakdown + verdict (thoroughly_read / partially_read / skimmed / not_read) + SHA-256 receipt',
+        unique: 'Only system that can verify "this specific person read this specific insurance policy" with cryptographic proof. Legal-grade attention verification.'
+      }
+    },
+
+    'video-attention': {
+      ga4: {
+        ...GA4,
+        for_this_vertical: 'Can track video_start, video_progress (25/50/75/100%), video_complete events. Records completion but not engagement quality.',
+        verdict: 'BLIND — Auto-played video with tab in background counts as "100% complete"'
+      },
+      competitors: [
+        {
+          name: 'YouTube Analytics',
+          type: 'Video Platform Analytics',
+          what_they_do: 'Watch time, retention curve, audience retention by segment.',
+          what_they_miss: 'Cannot detect tab-switched viewing. A video playing in a hidden tab counts as watched. No engagement scoring. Platform-locked (YouTube only).',
+          sws_advantage: 'SWS tracks tab visibility, mouse activity, pauses, seek-backs, and playback rate — works on ANY video player on ANY platform.'
+        },
+        {
+          name: 'Wistia',
+          type: 'Video Hosting + Analytics',
+          what_they_do: 'Engagement graphs, re-watches, drop-off points.',
+          what_they_miss: 'Still platform-locked. No behavioral proof of active watching. No distinction between "video played" and "human watched."',
+          sws_advantage: 'SWS produces a composite engagement score combining completion, focus time, pause behavior, seek-backs, and activity — with a tamper-proof receipt.'
+        },
+        {
+          name: 'SCORM / xAPI (LMS)',
+          type: 'Learning Management Standards',
+          what_they_do: 'Track completion status, time spent, quiz scores for training content.',
+          what_they_miss: 'Trivially cheatable. Play video at 2x, auto-advance, guess on quiz. "Completed" ≠ "learned." No behavioral verification.',
+          sws_advantage: 'SWS detects speed-watching (playback rate penalties), tab-switching, lack of interaction, and produces a genuine attention score that SCORM cannot.'
+        }
+      ],
+      sws: {
+        signals: ['Completion %', 'Focus time (tab visibility tracking)', 'Pause count and timing', 'Seek-back count (positive engagement signal)', 'Activity presence during playback', 'Playback rate detection'],
+        output: 'Video composite score (0-1) + engagement breakdown + verdict (genuine_viewer / partial_attention / background_play) + SHA-256 receipt',
+        unique: 'Only system that can verify "this employee actually WATCHED this safety training" with behavioral proof, not just "the video played to completion."'
+      }
+    },
+
+    'fatigue-detection': {
+      ga4: {
+        ...GA4,
+        for_this_vertical: 'No fatigue detection capability whatsoever. Cannot track performance over time within a session.',
+        verdict: 'NOT APPLICABLE — GA4 has zero capability here'
+      },
+      competitors: [
+        {
+          name: 'Cognitiv / Neurotrack',
+          type: 'Cognitive Assessment',
+          what_they_do: 'Dedicated cognitive testing apps. Measure reaction time, working memory, attention span via specific test protocols.',
+          what_they_miss: 'Requires a SEPARATE test. User must stop what they\'re doing and take a cognitive assessment. Cannot monitor continuously. Expensive specialized hardware/software.',
+          sws_advantage: 'SWS monitors behavioral signals continuously during normal work — no separate test needed. Fatigue detection happens in the background while the operator does their actual job.'
+        },
+        {
+          name: 'Fatigue Science / CIRCADIAN',
+          type: 'Workforce Fatigue Management',
+          what_they_do: 'Predict fatigue from work schedules, sleep data, and biomathematical models.',
+          what_they_miss: 'Predictions based on schedules, not actual real-time performance. Cannot detect that a well-rested soldier had a bad night. No behavioral measurement.',
+          sws_advantage: 'SWS measures ACTUAL performance degradation in real time — reaction time drift, click precision decline, interaction frequency changes. Facts, not predictions.'
+        },
+        {
+          name: 'Smartcap / OptalertDrowsiness Detection',
+          type: 'Wearable Fatigue Detection',
+          what_they_do: 'EEG headbands or glasses that detect drowsiness from brain waves or eye movements.',
+          what_they_miss: 'Requires dedicated hardware. Expensive ($500+ per unit). Not scalable to large workforces. Uncomfortable to wear.',
+          sws_advantage: 'SWS runs on any device with a screen. No hardware. No wearables. Just behavioral signals from normal interaction with existing work tools.'
+        }
+      ],
+      sws: {
+        signals: ['Reaction time baseline + drift', 'Click precision degradation', 'Scroll rhythm changes', 'Mouse jitter increase', 'Interaction frequency decline', 'Decision speed slowdown'],
+        output: 'Drift score (0-1) + level (normal/warning/alert/critical) + per-signal breakdown + recommendation',
+        unique: 'Only system that detects operator fatigue from behavioral signals alone — no wearables, no separate tests, no schedule models. Works on any device during normal operations.'
+      }
+    },
+
+    'session-integrity': {
+      ga4: {
+        ...GA4,
+        for_this_vertical: 'No session integrity validation. Accepts all incoming events at face value. A fabricated session looks identical to a real one.',
+        verdict: 'NOT APPLICABLE — GA4 cannot detect fabricated or replayed data'
+      },
+      competitors: [
+        {
+          name: 'Fraud Detection (Generic)',
+          type: 'Ad Fraud / Click Fraud',
+          what_they_do: 'IP blacklists, device fingerprinting, known bot user-agent detection.',
+          what_they_miss: 'Cannot detect fabricated behavioral data. If someone generates fake session JSON with plausible-looking timestamps, there\'s no way to catch it without behavioral analysis.',
+          sws_advantage: 'SWS validates 6 integrity dimensions: timestamp ordering, statistical plausibility, entropy, cross-signal coherence, volume sanity, and duplicate/replay detection.'
+        }
+      ],
+      sws: {
+        signals: ['Timestamp integrity (ordering, intervals)', 'Statistical plausibility (humanly possible response times)', 'Entropy check (timing regularity)', 'Cross-signal coherence (do different signals agree?)', 'Volume sanity (events per second within human range)', 'Duplicate/replay detection'],
+        output: 'Integrity verdict (valid / suspicious / likely_fabricated) + per-check results + specific findings',
+        unique: 'Multi-dimensional session validation that catches naive bots, smart bots with jitter, replay attacks, and manually fabricated data.'
+      }
+    },
+
+    'temporal-analysis': {
+      ga4: {
+        ...GA4,
+        for_this_vertical: 'Records total session duration. Cannot detect attention changes within a session. A 30-minute session where the user zoned out at minute 10 looks identical to 30 minutes of focus.',
+        verdict: 'BLIND — No within-session analysis capability'
+      },
+      competitors: [
+        {
+          name: 'Proctoring Software (ProctorU, Examity)',
+          type: 'Exam Proctoring',
+          what_they_do: 'Camera-based monitoring during exams. Human proctors or AI watch for suspicious behavior.',
+          what_they_miss: 'Privacy nightmare. Requires camera access. AI proctoring has high false positive rates. Cannot measure cognitive engagement, only physical presence.',
+          sws_advantage: 'SWS detects exam fatigue and disengagement from behavioral signals alone — no camera, no privacy invasion. Measures actual cognitive performance degradation.'
+        }
+      ],
+      sws: {
+        signals: ['Reaction time trend across time windows', 'Click precision trend', 'Interaction frequency trend', 'Mouse jitter trend', 'Overall degradation score'],
+        output: 'Verdict (sustained_attention / moderate_fatigue / significant_fatigue / disengaging) + per-metric trends + degradation %',
+        unique: 'Continuous within-session attention tracking that detects the MOMENT engagement drops — without cameras, proctors, or invasive monitoring.'
+      }
+    },
+
+    'vertical-profiles': {
+      ga4: {
+        ...GA4,
+        for_this_vertical: 'Same generic metrics regardless of industry. A military readiness check and a marketing campaign get identical "engagement time" numbers.',
+        verdict: 'ONE-SIZE-FITS-ALL — No industry-specific scoring'
+      },
+      competitors: [
+        {
+          name: 'Industry-Specific Tools',
+          type: 'Various',
+          what_they_do: 'Each industry has its own tools: military has readiness assessments, healthcare has compliance trackers, insurance has policy acknowledgment systems.',
+          what_they_miss: 'Siloed. Each tool works for one industry only. No unified behavioral measurement layer. Cannot compare across verticals. Each requires separate integration.',
+          sws_advantage: 'ONE SDK, SIX industries. Same behavioral signals, different scoring weights per vertical. Military weights fatigue resistance. Insurance weights document comprehension. Education weights sustained engagement. One integration, every vertical.'
+        }
+      ],
+      sws: {
+        signals: ['Same 6 core behavioral signals', 'Industry-specific weight profiles', 'Custom thresholds per vertical', 'Vertical-specific certifications'],
+        output: 'Per-vertical score + verdict (pass/marginal/fail) + certification if applicable',
+        unique: 'Only system where one JavaScript tag serves military readiness, insurance compliance, medical shift monitoring, education engagement, workplace productivity, and ad verification — with appropriate scoring for each.'
+      }
+    }
+  };
+
+  return comparisons[vertical] || null;
+}
+
+// ============================================================
 // MASTER RUNNER
 // ============================================================
 
@@ -778,6 +1010,12 @@ function runAllProofs() {
     'temporal-analysis': safeRun('temporal-analysis', runTemporalAnalysis),
     'vertical-profiles': safeRun('vertical-profiles', runVerticalProfiles),
   };
+
+  // Attach competitor comparisons to each vertical
+  Object.keys(verticals).forEach(key => {
+    const comparison = getCompetitorComparison(key);
+    if (comparison) verticals[key].comparison = comparison;
+  });
 
   const passed = Object.values(verticals).filter(v => v.verdict && v.verdict.startsWith('PASS')).length;
   const total = Object.keys(verticals).length;

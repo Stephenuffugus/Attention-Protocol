@@ -65,6 +65,29 @@
     th { text-align: left; padding: 8px 12px; color: #64748b; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #1e293b; }
     td { padding: 8px 12px; font-size: 13px; border-bottom: 1px solid #0f172a; }
 
+    .comparison-section { margin-top: 24px; border-top: 1px solid #1e293b; padding-top: 20px; }
+    .comparison-section h3 { color: #f59e0b; font-size: 15px; margin-bottom: 16px; }
+    .comp-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .comp-card { background: #0f172a; border-radius: 8px; padding: 16px; border: 1px solid #1e293b; }
+    .comp-card.ga4 { border-left: 3px solid #ef4444; }
+    .comp-card.sws { border-left: 3px solid #10b981; }
+    .comp-card.competitor { border-left: 3px solid #f59e0b; }
+    .comp-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; font-weight: 600; }
+    .comp-label.red { color: #ef4444; }
+    .comp-label.green { color: #10b981; }
+    .comp-label.yellow { color: #f59e0b; }
+    .comp-name { font-size: 14px; font-weight: 600; color: #e2e8f0; margin-bottom: 4px; }
+    .comp-type { font-size: 11px; color: #64748b; margin-bottom: 8px; }
+    .comp-text { font-size: 12px; color: #94a3b8; line-height: 1.6; }
+    .comp-verdict { font-size: 12px; font-weight: 600; margin-top: 8px; padding: 6px 10px; border-radius: 4px; display: inline-block; }
+    .comp-verdict.blind { background: rgba(239,68,68,0.15); color: #ef4444; }
+    .comp-verdict.capable { background: rgba(16,185,129,0.15); color: #10b981; }
+    .comp-list { list-style: none; padding: 0; margin: 8px 0; }
+    .comp-list li { font-size: 12px; color: #94a3b8; padding: 2px 0; padding-left: 16px; position: relative; }
+    .comp-list li:before { content: '+'; position: absolute; left: 0; color: #10b981; font-weight: 700; }
+    .comp-list.misses li:before { content: '×'; color: #ef4444; }
+    .comp-unique { background: rgba(6,182,212,0.1); border: 1px solid rgba(6,182,212,0.2); border-radius: 8px; padding: 12px; margin-top: 12px; font-size: 12px; color: #06b6d4; line-height: 1.6; }
+
     .footer { text-align: center; padding: 32px; color: #475569; font-size: 12px; border-top: 1px solid #1e293b; margin-top: 32px; }
     .footer a { color: #06b6d4; text-decoration: none; }
 
@@ -78,6 +101,7 @@
     <div class="subtitle">Proof Gallery — Behavioral Signal Discrimination Results</div>
     <div class="meta" id="run-meta">Loading...</div>
     <div class="status status-pass" id="run-status"></div>
+    <div style="margin-top:12px"><a href="demo.html" style="color:#06b6d4;text-decoration:none;font-size:14px;font-weight:600;padding:8px 20px;border:1px solid #06b6d4;border-radius:8px;">Try the Live Interactive Demo &rarr;</a></div>
   </div>
 
   <div class="container">
@@ -262,6 +286,9 @@
       else if (key === 'temporal-analysis') body = renderTemporalAnalysis(v);
       else if (key === 'vertical-profiles') body = renderVerticalProfiles(v);
       else body = '<pre>' + JSON.stringify(v, null, 2) + '</pre>';
+
+      // Append competitor comparison if available
+      if (v.comparison) body += renderComparison(v.comparison);
 
       return '<div class="vertical-card" onclick="this.classList.toggle(\'open\')">' +
         '<div class="vertical-header">' +
@@ -461,6 +488,72 @@
       });
       html += '</table>';
       html += '<div class="verdict-box verdict-pass">Same behavioral signals &rarr; Different scores per industry vertical</div>';
+      return html;
+    }
+
+    // ---- COMPETITOR COMPARISON RENDERER ----
+    function renderComparison(comp) {
+      if (!comp) return '';
+      var html = '<div class="comparison-section">';
+      html += '<h3>What Others See vs What SWS Sees — Same Session</h3>';
+
+      // GA4 vs SWS side by side
+      html += '<div class="comp-row">';
+
+      // GA4 card
+      html += '<div class="comp-card ga4">';
+      html += '<div class="comp-label red">Google Analytics 4</div>';
+      html += '<div class="comp-type">What GA4 captures for this scenario:</div>';
+      html += '<ul class="comp-list">';
+      comp.ga4.captures.forEach(function(c) { html += '<li>' + c + '</li>'; });
+      html += '</ul>';
+      html += '<div class="comp-text" style="margin-top:8px"><strong>For this vertical:</strong> ' + comp.ga4.for_this_vertical + '</div>';
+      html += '<div class="comp-verdict blind">' + comp.ga4.verdict + '</div>';
+      html += '</div>';
+
+      // SWS card
+      html += '<div class="comp-card sws">';
+      html += '<div class="comp-label green">SWS Attention Protocol</div>';
+      html += '<div class="comp-type">What SWS captures for this scenario:</div>';
+      html += '<ul class="comp-list">';
+      comp.sws.signals.forEach(function(s) { html += '<li>' + s + '</li>'; });
+      html += '</ul>';
+      html += '<div class="comp-text" style="margin-top:8px"><strong>Output:</strong> ' + comp.sws.output + '</div>';
+      html += '<div class="comp-verdict capable">FULL BEHAVIORAL PROOF</div>';
+      html += '</div>';
+
+      html += '</div>'; // end comp-row
+
+      // Competitor cards
+      if (comp.competitors && comp.competitors.length > 0) {
+        html += '<h3 style="color:#f59e0b;font-size:13px;margin: 16px 0 12px;">Industry Competitors</h3>';
+        comp.competitors.forEach(function(c) {
+          html += '<div class="comp-card competitor" style="margin-bottom:12px">';
+          html += '<div class="comp-row" style="margin-bottom:0">';
+
+          // What they do
+          html += '<div>';
+          html += '<div class="comp-label yellow">' + c.name + '</div>';
+          html += '<div class="comp-type">' + c.type + '</div>';
+          html += '<div class="comp-text"><strong>What they do:</strong> ' + c.what_they_do + '</div>';
+          html += '<div class="comp-text" style="color:#ef4444;margin-top:6px"><strong>What they miss:</strong> ' + c.what_they_miss + '</div>';
+          html += '</div>';
+
+          // SWS advantage
+          html += '<div>';
+          html += '<div class="comp-label green">SWS Advantage</div>';
+          html += '<div class="comp-text">' + c.sws_advantage + '</div>';
+          html += '</div>';
+
+          html += '</div>'; // end inner comp-row
+          html += '</div>'; // end comp-card
+        });
+      }
+
+      // Unique value prop
+      html += '<div class="comp-unique"><strong>What only SWS can do:</strong> ' + comp.sws.unique + '</div>';
+
+      html += '</div>'; // end comparison-section
       return html;
     }
 

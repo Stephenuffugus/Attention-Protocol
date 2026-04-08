@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS Attention Protocol — Live Demo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e2e8f0; min-height: 100vh; }
+
+    .header { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); padding: 24px; text-align: center; border-bottom: 2px solid #06b6d4; }
+    .header h1 { font-size: 24px; color: #06b6d4; margin-bottom: 4px; }
+    .header .subtitle { color: #94a3b8; font-size: 13px; }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+    .dual-panel { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
+    @media (max-width: 800px) { .dual-panel { grid-template-columns: 1fr; } }
+
+    .task-panel { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; }
+    .task-panel h2 { color: #06b6d4; font-size: 18px; margin-bottom: 8px; }
+    .task-panel p { color: #94a3b8; font-size: 13px; margin-bottom: 16px; line-height: 1.6; }
+
+    .live-panel { position: sticky; top: 20px; }
+    .live-card { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+    .live-card h3 { font-size: 13px; margin-bottom: 10px; letter-spacing: 1px; text-transform: uppercase; }
+    .live-card h3.ga4 { color: #ef4444; }
+    .live-card h3.sws { color: #10b981; }
+
+    .metric-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; }
+    .metric-name { color: #64748b; }
+    .metric-val { font-family: monospace; font-weight: 600; color: #e2e8f0; }
+    .metric-val.green { color: #10b981; }
+    .metric-val.red { color: #ef4444; }
+    .metric-val.yellow { color: #f59e0b; }
+    .metric-val.blue { color: #06b6d4; }
+
+    .signal-bar { height: 6px; background: #1e293b; border-radius: 3px; margin: 4px 0 8px; overflow: hidden; }
+    .signal-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+
+    .reading-area { font-size: 14px; color: #94a3b8; line-height: 1.8; max-height: 350px; overflow-y: auto; padding: 16px; background: #0f172a; border-radius: 8px; margin: 12px 0; }
+    .reading-area p { margin-bottom: 14px; }
+    .reading-area strong { color: #e2e8f0; }
+
+    .btn { padding: 12px 24px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; margin: 4px; transition: all 0.15s; }
+    .btn-primary { background: #06b6d4; color: #0a0e17; }
+    .btn-primary:hover { background: #22d3ee; }
+    .btn-secondary { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; }
+
+    .decision-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin: 12px 0; }
+    .decision-opt { padding: 12px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; cursor: pointer; font-size: 13px; text-align: center; transition: all 0.15s; }
+    .decision-opt:hover { border-color: #06b6d4; background: #1a2744; }
+    .decision-opt.selected { border-color: #10b981; background: rgba(16,185,129,0.1); }
+
+    .target-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; max-width: 300px; margin: 12px 0; }
+    .target { aspect-ratio: 1; background: #1e293b; border: 2px solid #334155; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.1s; }
+    .target.lit { background: #06b6d4; border-color: #22d3ee; }
+    .target.hit { background: #10b981; border-color: #34d399; }
+
+    .hash-display { font-family: monospace; font-size: 10px; color: #06b6d4; word-break: break-all; background: #0f172a; padding: 8px; border-radius: 4px; margin-top: 8px; }
+
+    .phase-nav { display: flex; gap: 4px; margin-bottom: 16px; }
+    .phase-btn { flex: 1; padding: 8px; text-align: center; font-size: 12px; border-radius: 6px; cursor: pointer; border: 1px solid #1e293b; background: #111827; color: #64748b; }
+    .phase-btn.active { background: #06b6d4; color: #0a0e17; border-color: #06b6d4; font-weight: 600; }
+    .phase-btn.done { background: #0f172a; color: #10b981; border-color: #10b981; }
+
+    .event-log { max-height: 150px; overflow-y: auto; font-family: monospace; font-size: 10px; color: #64748b; background: #0a0e17; border-radius: 4px; padding: 8px; margin-top: 8px; }
+    .event-log .evt { padding: 2px 0; border-bottom: 1px solid #111827; }
+    .event-log .evt .time { color: #475569; }
+    .event-log .evt .sws-evt { color: #10b981; }
+    .event-log .evt .ga4-evt { color: #ef4444; }
+
+    .receipt-box { background: #0f172a; border: 1px solid #10b981; border-radius: 8px; padding: 16px; margin-top: 16px; }
+    .receipt-box h4 { color: #10b981; font-size: 13px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Live Attention Verification Demo</h1>
+    <div class="subtitle">Complete the tasks below. Watch the right panel to see what GA4 captures vs what SWS captures in real time.</div>
+  </div>
+
+  <div class="container">
+    <div class="phase-nav">
+      <div class="phase-btn active" id="nav-1">1. Read</div>
+      <div class="phase-btn" id="nav-2">2. Decide</div>
+      <div class="phase-btn" id="nav-3">3. Click</div>
+      <div class="phase-btn" id="nav-4">4. Results</div>
+    </div>
+
+    <div class="dual-panel">
+      <!-- LEFT: Task area -->
+      <div>
+        <!-- Phase 1: Reading -->
+        <div class="task-panel" id="phase-1">
+          <h2>Task 1: Read This Policy Excerpt</h2>
+          <p>Scroll through and read. SWS is tracking your scroll pattern, reading pace, and engagement signals. GA4 will only know you visited this page.</p>
+          <div class="reading-area" id="reading-area">
+            <p><strong>Section 1: Coverage Overview</strong></p>
+            <p>This policy provides comprehensive liability coverage for all attention verification services deployed by the policyholder. Coverage includes but is not limited to: behavioral signal collection, cryptographic hash generation, quality tier classification, and attention receipt issuance across all supported platforms and devices.</p>
+            <p><strong>Section 2: Exclusions</strong></p>
+            <p>The following are explicitly excluded from coverage: (a) Services deployed without proper user consent mechanisms as defined in Section 7.2; (b) Attention data collected from minors under 13 years of age without COPPA-compliant parental consent; (c) Any use of attention verification technology for surveillance, employee monitoring without disclosure, or law enforcement profiling purposes.</p>
+            <p><strong>Section 3: Claims Process</strong></p>
+            <p>To file a claim under this policy, the policyholder must provide: (1) The cryptographic attention receipt chain for the disputed session; (2) Server-side verification logs showing receipt validation timestamps; (3) The behavioral signal breakdown demonstrating the quality tier classification that was applied. Claims must be filed within 90 days of the incident date. The insurer reserves the right to independently verify attention receipts using the protocol's public verification endpoint.</p>
+            <p><strong>Section 4: Premium Calculation</strong></p>
+            <p>Premiums are calculated based on: total monthly verified attention events, average quality tier distribution (policies with higher deep-focus ratios receive preferred rates), historical claim frequency, and the policyholder's session integrity score. Policyholders maintaining a 95%+ session integrity score for 12 consecutive months qualify for the Verified Attention Discount of 15%.</p>
+          </div>
+          <button class="btn btn-primary" onclick="completePhase(1)">Done Reading &rarr; Next Task</button>
+        </div>
+
+        <!-- Phase 2: Decisions -->
+        <div class="task-panel" id="phase-2" style="display:none">
+          <h2>Task 2: Answer These Questions</h2>
+          <p>Choose your answers. SWS measures whether your response time scales with the number of options (Hick's Law). Bots respond at constant speed regardless.</p>
+          <div id="decision-area"></div>
+        </div>
+
+        <!-- Phase 3: Targets -->
+        <div class="task-panel" id="phase-3" style="display:none">
+          <h2>Task 3: Click the Targets</h2>
+          <p>Click the highlighted square as fast as you can. SWS measures whether your movement time correlates with distance (Fitts' Law). Bots teleport instantly.</p>
+          <div id="target-timer" style="font-size:20px;font-weight:700;color:#06b6d4;text-align:center;margin:12px 0;">Click the lit square!</div>
+          <div class="target-grid" id="target-grid"></div>
+        </div>
+
+        <!-- Phase 4: Results -->
+        <div class="task-panel" id="phase-4" style="display:none">
+          <h2>Your Attention Verification Results</h2>
+          <p>Here's the side-by-side proof of what each system captured from your session.</p>
+
+          <div class="receipt-box">
+            <h4>Your Cryptographic Attention Receipt</h4>
+            <div class="metric-row"><span class="metric-name">Session Duration</span><span class="metric-val blue" id="r-duration">--</span></div>
+            <div class="metric-row"><span class="metric-name">Composite Score</span><span class="metric-val green" id="r-composite">--</span></div>
+            <div class="metric-row"><span class="metric-name">Quality Tier</span><span class="metric-val green" id="r-tier">--</span></div>
+            <div class="metric-row"><span class="metric-name">Hick's Law</span><span class="metric-val" id="r-hicks">--</span></div>
+            <div class="metric-row"><span class="metric-name">Timing Entropy</span><span class="metric-val" id="r-timing">--</span></div>
+            <div class="metric-row"><span class="metric-name">Scroll Saccade</span><span class="metric-val" id="r-scroll">--</span></div>
+            <div class="metric-row"><span class="metric-name">Micro-Pause</span><span class="metric-val" id="r-pause">--</span></div>
+            <div class="metric-row"><span class="metric-name">Fitts' Compliance</span><span class="metric-val" id="r-fitts">--</span></div>
+            <div class="metric-row"><span class="metric-name">Touch Variance</span><span class="metric-val" id="r-touch">--</span></div>
+            <div class="hash-display" id="r-hash">Receipt hash will appear here...</div>
+          </div>
+
+          <div style="margin-top:16px;padding:16px;background:#0f172a;border-radius:8px;border:1px solid #ef4444;">
+            <h4 style="color:#ef4444;font-size:13px;margin-bottom:8px;">What GA4 Captured (Same Session)</h4>
+            <div class="metric-row"><span class="metric-name">Event</span><span class="metric-val red">page_view</span></div>
+            <div class="metric-row"><span class="metric-name">Engagement Time</span><span class="metric-val red" id="r-ga4-time">--</span></div>
+            <div class="metric-row"><span class="metric-name">Scroll Depth</span><span class="metric-val red" id="r-ga4-scroll">--</span></div>
+            <div class="metric-row"><span class="metric-name">Behavioral Signals</span><span class="metric-val red">None</span></div>
+            <div class="metric-row"><span class="metric-name">Cryptographic Proof</span><span class="metric-val red">None</span></div>
+            <div class="metric-row"><span class="metric-name">Reading Verification</span><span class="metric-val red">None</span></div>
+            <div class="metric-row"><span class="metric-name">Bot Detection</span><span class="metric-val red">None</span></div>
+          </div>
+
+          <div style="text-align:center;margin-top:20px;">
+            <button class="btn btn-primary" onclick="location.reload()">Run Again</button>
+            <a href="gallery.html" class="btn btn-secondary" style="text-decoration:none;display:inline-block;">View Full Proof Gallery</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Live signal panel -->
+      <div class="live-panel">
+        <div class="live-card">
+          <h3 class="sws">SWS — Live Signals</h3>
+          <div class="metric-row"><span class="metric-name">Composite</span><span class="metric-val green" id="live-composite">0.000</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-composite" style="width:0%;background:#10b981;"></div></div>
+
+          <div class="metric-row"><span class="metric-name">Hick's Law</span><span class="metric-val" id="live-hicks">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-hicks" style="width:0%;background:#06b6d4;"></div></div>
+
+          <div class="metric-row"><span class="metric-name">Timing Entropy</span><span class="metric-val" id="live-timing">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-timing" style="width:0%;background:#06b6d4;"></div></div>
+
+          <div class="metric-row"><span class="metric-name">Scroll Saccade</span><span class="metric-val" id="live-scroll">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-scroll" style="width:0%;background:#06b6d4;"></div></div>
+
+          <div class="metric-row"><span class="metric-name">Fitts' Law</span><span class="metric-val" id="live-fitts">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-fitts" style="width:0%;background:#06b6d4;"></div></div>
+
+          <div class="metric-row"><span class="metric-name">Micro-Pause</span><span class="metric-val" id="live-pause">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-pause" style="width:0%;background:#06b6d4;"></div></div>
+
+          <div class="metric-row"><span class="metric-name">Hashes Earned</span><span class="metric-val blue" id="live-hashes">0</span></div>
+        </div>
+
+        <div class="live-card">
+          <h3 class="ga4">GA4 — What Google Sees</h3>
+          <div class="metric-row"><span class="metric-name">Page Views</span><span class="metric-val red">1</span></div>
+          <div class="metric-row"><span class="metric-name">Engagement Time</span><span class="metric-val red" id="live-ga4-time">0s</span></div>
+          <div class="metric-row"><span class="metric-name">Scroll Depth</span><span class="metric-val red" id="live-ga4-scroll">0%</span></div>
+          <div class="metric-row"><span class="metric-name">Events</span><span class="metric-val red" id="live-ga4-events">page_view</span></div>
+          <div class="metric-row"><span class="metric-name">Behavioral Signals</span><span class="metric-val red">N/A</span></div>
+          <div class="metric-row"><span class="metric-name">Crypto Receipt</span><span class="metric-val red">N/A</span></div>
+        </div>
+
+        <div class="live-card">
+          <h3 style="color:#64748b">Event Log</h3>
+          <div class="event-log" id="event-log"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="sdk/secure-config.js"></script>
+  <script src="sdk/attention-protocol.js"></script>
+  <script src="sdk/economy-engine.js"></script>
+
+  <script>
+    // ---- STATE ----
+    var sessionStart = Date.now();
+    var currentPhase = 1;
+    var maxScrollDepth = 0;
+    var ga4Events = ['page_view'];
+    var decisions = [];
+    var qIndex = 0;
+    var qShownAt = 0;
+    var targetCount = 0;
+    var maxTargets = 8;
+    var currentTarget = -1;
+    var targetLitAt = 0;
+
+    // ---- INIT SDK ----
+    SWSAttention.init({ gameId: 'live_demo', debug: false, enableBehavioralAnalysis: true });
+
+    // ---- LIVE UPDATE LOOP ----
+    var liveInterval = setInterval(function() {
+      var c = SWSAttention.getHumanConfidence();
+      var stats = SWSAttention.getStats();
+      var elapsed = Math.round((Date.now() - sessionStart) / 1000);
+
+      // SWS signals
+      document.getElementById('live-composite').textContent = c.composite.toFixed(3);
+      document.getElementById('bar-composite').style.width = (c.composite * 100) + '%';
+
+      updateSignal('hicks', c.hicks);
+      updateSignal('timing', c.timing);
+      updateSignal('scroll', c.scroll);
+      updateSignal('fitts', c.fitts);
+      updateSignal('pause', c.microPause);
+      document.getElementById('live-hashes').textContent = stats.totalHashes;
+
+      // GA4 "data"
+      document.getElementById('live-ga4-time').textContent = elapsed + 's';
+      document.getElementById('live-ga4-scroll').textContent = maxScrollDepth + '%';
+      document.getElementById('live-ga4-events').textContent = ga4Events.slice(-3).join(', ');
+    }, 500);
+
+    function updateSignal(name, val) {
+      var el = document.getElementById('live-' + name);
+      var bar = document.getElementById('bar-' + name);
+      if (el) el.textContent = val.toFixed(3);
+      if (bar) bar.style.width = (val * 100) + '%';
+    }
+
+    function logEvent(swsText, ga4Text) {
+      var log = document.getElementById('event-log');
+      var time = ((Date.now() - sessionStart) / 1000).toFixed(1);
+      var html = '<div class="evt"><span class="time">[' + time + 's]</span> ';
+      if (swsText) html += '<span class="sws-evt">SWS: ' + swsText + '</span> ';
+      if (ga4Text) html += '<span class="ga4-evt">GA4: ' + ga4Text + '</span>';
+      html += '</div>';
+      log.innerHTML = html + log.innerHTML;
+    }
+
+    // ---- SCROLL TRACKING ----
+    var readingArea = document.getElementById('reading-area');
+    if (readingArea) {
+      readingArea.addEventListener('scroll', function() {
+        var pct = Math.round((readingArea.scrollTop / (readingArea.scrollHeight - readingArea.clientHeight)) * 100);
+        if (pct > maxScrollDepth) {
+          maxScrollDepth = pct;
+          if (pct % 25 === 0 && pct > 0) {
+            ga4Events.push('scroll_' + pct);
+            logEvent('scroll saccade data point', 'scroll ' + pct + '%');
+          }
+        }
+      });
+    }
+
+    // ---- CLICK TRACKING ----
+    document.addEventListener('click', function(e) {
+      logEvent('tap recorded (' + e.clientX + ',' + e.clientY + ')', '');
+    });
+
+    // ---- PHASE MANAGEMENT ----
+    function completePhase(phase) {
+      document.getElementById('phase-' + phase).style.display = 'none';
+      document.getElementById('nav-' + phase).className = 'phase-btn done';
+
+      currentPhase = phase + 1;
+      if (currentPhase <= 4) {
+        document.getElementById('phase-' + currentPhase).style.display = 'block';
+        document.getElementById('nav-' + currentPhase).className = 'phase-btn active';
+      }
+
+      SWSAttention.earn('phase_complete', Date.now() - sessionStart, 10, 'deep');
+      logEvent('phase_complete + hash earned', 'event: user_engagement');
+      ga4Events.push('user_engagement');
+
+      if (currentPhase === 2) setupDecisions();
+      if (currentPhase === 3) setupTargets();
+      if (currentPhase === 4) showResults();
+    }
+
+    // ---- PHASE 2: DECISIONS ----
+    var questions = [
+      { q: 'What does this policy primarily cover?', opts: ['Auto insurance', 'Attention verification services'], correct: 1 },
+      { q: 'Which of these is excluded from coverage?', opts: ['Hash generation', 'Quality tier classification', 'Surveillance without disclosure', 'Receipt issuance'], correct: 2 },
+      { q: 'What must be provided to file a claim?', opts: ['Police report', 'Receipt chain + verification logs + signal breakdown', 'Doctor note', 'Photo evidence', 'Witness statement', 'Notarized affidavit', 'Social media post', 'Video recording'], correct: 1 },
+    ];
+
+    function setupDecisions() { showQuestion(); }
+
+    function showQuestion() {
+      if (qIndex >= questions.length) { completePhase(2); return; }
+      var q = questions[qIndex];
+      qShownAt = Date.now();
+      SWSAttention.recordContentRender(q.opts.length > 4 ? 'complex' : 'moderate');
+      logEvent('content render (' + q.opts.length + ' options)', '');
+
+      var html = '<p style="color:#e2e8f0;font-size:14px;margin-bottom:12px;">Q' + (qIndex+1) + ': ' + q.q + ' <span style="color:#64748b;font-size:11px;">(' + q.opts.length + ' options)</span></p>';
+      html += '<div class="decision-grid">';
+      q.opts.forEach(function(opt, i) {
+        html += '<div class="decision-opt" onclick="pickAnswer(' + i + ',this)">' + opt + '</div>';
+      });
+      html += '</div>';
+      document.getElementById('decision-area').innerHTML = html;
+    }
+
+    function pickAnswer(idx, el) {
+      var rt = Date.now() - qShownAt;
+      SWSAttention.recordDecision(questions[qIndex].opts.length, rt);
+      logEvent('decision: ' + rt + 'ms for ' + questions[qIndex].opts.length + ' options', 'event: select_content');
+      ga4Events.push('select_content');
+      el.classList.add('selected');
+      qIndex++;
+      setTimeout(showQuestion, 300);
+    }
+
+    // ---- PHASE 3: TARGETS ----
+    function setupTargets() {
+      var grid = document.getElementById('target-grid');
+      grid.innerHTML = '';
+      for (var i = 0; i < 25; i++) {
+        var div = document.createElement('div');
+        div.className = 'target';
+        div.dataset.i = i;
+        div.addEventListener('click', function() { hitTarget(parseInt(this.dataset.i)); });
+        grid.appendChild(div);
+      }
+      nextTarget();
+    }
+
+    function nextTarget() {
+      if (targetCount >= maxTargets) { completePhase(3); return; }
+      var targets = document.querySelectorAll('.target');
+      targets.forEach(function(t) { t.classList.remove('lit', 'hit'); });
+      currentTarget = Math.floor(Math.random() * 25);
+      targets[currentTarget].classList.add('lit');
+      targetLitAt = Date.now();
+      document.getElementById('target-timer').textContent = (targetCount + 1) + ' / ' + maxTargets;
+    }
+
+    function hitTarget(idx) {
+      if (idx !== currentTarget) return;
+      var rt = Date.now() - targetLitAt;
+      document.querySelectorAll('.target')[idx].classList.add('hit');
+      SWSAttention.recordDecision(25, rt);
+      logEvent('target hit: ' + rt + 'ms', '');
+      targetCount++;
+      setTimeout(nextTarget, 200);
+    }
+
+    // ---- PHASE 4: RESULTS ----
+    function showResults() {
+      clearInterval(liveInterval);
+      var c = SWSAttention.getHumanConfidence();
+      var stats = SWSAttention.getStats();
+      var elapsed = Math.round((Date.now() - sessionStart) / 1000);
+
+      document.getElementById('r-duration').textContent = elapsed + 's';
+      document.getElementById('r-composite').textContent = c.composite.toFixed(3);
+      document.getElementById('r-tier').textContent = c.composite >= 0.7 ? 'Deep Focus' : c.composite >= 0.5 ? 'Active' : c.composite >= 0.25 ? 'Passive' : 'Background';
+      document.getElementById('r-hicks').textContent = c.hicks.toFixed(3);
+      document.getElementById('r-timing').textContent = c.timing.toFixed(3);
+      document.getElementById('r-scroll').textContent = c.scroll.toFixed(3);
+      document.getElementById('r-pause').textContent = c.microPause.toFixed(3);
+      document.getElementById('r-fitts').textContent = c.fitts.toFixed(3);
+      document.getElementById('r-touch').textContent = c.touch.toFixed(3);
+
+      // Generate receipt hash
+      var receiptData = JSON.stringify({
+        session: 'demo_' + sessionStart,
+        composite: c.composite,
+        hicks: c.hicks,
+        timing: c.timing,
+        hashes: stats.totalHashes,
+        timestamp: Date.now()
+      });
+      // Simple hash display (actual SHA-256 happens in the SDK)
+      document.getElementById('r-hash').textContent = 'SHA-256: ' + (stats.lastHash || 'pending...');
+
+      // GA4 comparison
+      document.getElementById('r-ga4-time').textContent = elapsed + 's';
+      document.getElementById('r-ga4-scroll').textContent = maxScrollDepth + '%';
+    }
+  </script>
+</body>
+</html>

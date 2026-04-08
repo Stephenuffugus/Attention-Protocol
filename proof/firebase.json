@@ -3,16 +3,12 @@
     "public": ".",
     "ignore": [
       "firebase.json",
+      ".firebaserc",
       "**/node_modules/**",
       "run-proofs.js",
       "upload-to-firestore.js",
-      "firebase-config.js"
-    ],
-    "rewrites": [
-      {
-        "source": "**",
-        "destination": "/gallery.html"
-      }
+      "firebase-config.js",
+      "firestore.rules"
     ]
   },
   "firestore": {
