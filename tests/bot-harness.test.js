@@ -112,19 +112,23 @@ function naiveBotProfile() {
 // But noise is UNIFORM, not log-normal like real humans.
 
 function jitteredBotProfile() {
-  // Generate jittered times: base 150ms +/- 50ms uniform random
-  var decisions = [];
-  var optionCounts = [2, 2, 4, 4, 8, 8, 16, 16, 2, 4];
-  optionCounts.forEach(function(opts) {
-    // Uniform jitter — NOT correlated with option count (fails Hick's Law)
-    var jitter = 100 + Math.floor(Math.random() * 200);
-    decisions.push({ options: opts, responseTime: jitter });
-  });
-
+  // Deterministic jittered times — NOT correlated with option count (fails Hick's Law)
+  // A real jittered bot adds noise but doesn't scale with complexity
   return {
     name: 'Jittered Bot',
-    description: 'Random 100-300ms timing, uncorrelated with option count',
-    decisions: decisions,
+    description: 'Jittered 100-300ms timing, uncorrelated with option count',
+    decisions: [
+      { options: 2, responseTime: 230 },
+      { options: 2, responseTime: 150 },
+      { options: 4, responseTime: 180 },
+      { options: 4, responseTime: 270 },
+      { options: 8, responseTime: 120 },   // Should be ~800+ for human
+      { options: 8, responseTime: 200 },
+      { options: 16, responseTime: 160 },  // Should be ~1000+ for human
+      { options: 16, responseTime: 250 },
+      { options: 2, responseTime: 190 },
+      { options: 4, responseTime: 140 },
+    ],
     renders: [
       { complexity: 'simple' },
       { complexity: 'moderate' },

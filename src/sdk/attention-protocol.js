@@ -445,9 +445,9 @@
       var hicksScore = this.computeHicksCompliance();
 
       var composite = (
-        timingScore * 0.25 +
-        fittsScore * 0.20 +
-        hicksScore * 0.10 +
+        timingScore * 0.20 +
+        fittsScore * 0.15 +
+        hicksScore * 0.20 +
         scrollScore * 0.15 +
         microPauseScore * 0.15 +
         touchScore * 0.15

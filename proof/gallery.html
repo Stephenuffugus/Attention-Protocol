@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS Proof of Attention Protocol — Proof Gallery</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e2e8f0; min-height: 100vh; }
+
+    .header { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); padding: 32px; text-align: center; border-bottom: 2px solid #06b6d4; }
+    .header h1 { font-size: 28px; color: #06b6d4; margin-bottom: 8px; letter-spacing: -0.5px; }
+    .header .subtitle { color: #94a3b8; font-size: 14px; }
+    .header .meta { color: #64748b; font-size: 12px; margin-top: 12px; font-family: monospace; }
+    .header .status { display: inline-block; padding: 4px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; margin-top: 12px; }
+    .status-pass { background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+    .status-partial { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+
+    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+    .summary-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 32px; }
+    .summary-card { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 16px; text-align: center; }
+    .summary-val { font-size: 28px; font-weight: 700; font-family: monospace; color: #06b6d4; }
+    .summary-label { font-size: 11px; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+    .vertical-card { background: #111827; border: 1px solid #1e293b; border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+    .vertical-header { padding: 20px 24px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    .vertical-header:hover { background: #1a2234; }
+    .vertical-title { font-size: 17px; font-weight: 600; color: #e2e8f0; }
+    .vertical-desc { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+    .vertical-badge { padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+    .badge-pass { background: rgba(16,185,129,0.15); color: #10b981; }
+    .badge-warn { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .badge-fail { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+    .vertical-body { padding: 24px; display: none; }
+    .vertical-card.open .vertical-body { display: block; }
+
+    .comparison-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+    .profile-card { background: #0f172a; border-radius: 8px; padding: 16px; border: 1px solid #1e293b; }
+    .profile-name { font-size: 14px; font-weight: 600; color: #06b6d4; margin-bottom: 8px; }
+    .profile-desc { font-size: 11px; color: #64748b; margin-bottom: 12px; }
+
+    .signal-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; }
+    .signal-name { color: #94a3b8; }
+    .signal-value { font-family: monospace; font-weight: 600; }
+
+    .bar-container { height: 8px; background: #1e293b; border-radius: 4px; margin: 6px 0; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .bar-green { background: linear-gradient(90deg, #10b981, #34d399); }
+    .bar-yellow { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+    .bar-red { background: linear-gradient(90deg, #ef4444, #f87171); }
+    .bar-blue { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+
+    .verdict-box { text-align: center; padding: 16px; margin-top: 16px; border-radius: 8px; font-size: 14px; font-weight: 600; }
+    .verdict-pass { background: rgba(16,185,129,0.1); color: #10b981; border: 1px solid rgba(16,185,129,0.2); }
+    .verdict-warn { background: rgba(245,158,11,0.1); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
+
+    .key-stat { font-size: 36px; font-weight: 700; font-family: monospace; }
+    .key-stat.green { color: #10b981; }
+    .key-stat.red { color: #ef4444; }
+    .key-stat.blue { color: #06b6d4; }
+
+    table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+    th { text-align: left; padding: 8px 12px; color: #64748b; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #1e293b; }
+    td { padding: 8px 12px; font-size: 13px; border-bottom: 1px solid #0f172a; }
+
+    .footer { text-align: center; padding: 32px; color: #475569; font-size: 12px; border-top: 1px solid #1e293b; margin-top: 32px; }
+    .footer a { color: #06b6d4; text-decoration: none; }
+
+    #loading { text-align: center; padding: 60px; color: #64748b; }
+    #error { text-align: center; padding: 60px; color: #ef4444; display: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>SWS Proof of Attention Protocol</h1>
+    <div class="subtitle">Proof Gallery — Behavioral Signal Discrimination Results</div>
+    <div class="meta" id="run-meta">Loading...</div>
+    <div class="status status-pass" id="run-status"></div>
+  </div>
+
+  <div class="container">
+    <div class="summary-bar" id="summary-bar"></div>
+    <div id="verticals"></div>
+    <div id="loading">Loading proof data...</div>
+    <div id="error">Could not load proof data. Run: node proof/run-proofs.js</div>
+  </div>
+
+  <div class="footer">
+    (c) 2026 SWS Strategic Media LLC &mdash; Patent Pending SWS-PROV-001<br>
+    <a href="https://stevieweedseed.com">stevieweedseed.com</a>
+  </div>
+
+  <!-- Firebase SDK for hosted version -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    // Load results from Firestore (hosted) or local file (dev)
+    var DATA = null;
+
+    var FIREBASE_CONFIG = {
+      apiKey: "AIzaSyDbpqisJpnoh2OUYSJIdKIo17SdF0eGPiM",
+      authDomain: "sws-attention-proofs.firebaseapp.com",
+      databaseURL: "https://sws-attention-proofs-default-rtdb.firebaseio.com",
+      projectId: "sws-attention-proofs",
+      storageBucket: "sws-attention-proofs.firebasestorage.app",
+      messagingSenderId: "420661886092",
+      appId: "1:420661886092:web:a4c79cd07fc804428f4fa9"
+    };
+
+    function init() {
+      // Try local JSON first (works in dev), then Firestore (works when hosted)
+      fetch('results/latest.json')
+        .then(function(r) {
+          if (!r.ok) throw new Error('No local file');
+          return r.json();
+        })
+        .then(function(data) {
+          DATA = data;
+          render(data);
+        })
+        .catch(function() {
+          // Fall back to Firestore
+          loadFromFirestore();
+        });
+    }
+
+    function loadFromFirestore() {
+      try {
+        var app = firebase.initializeApp(FIREBASE_CONFIG);
+        var db = firebase.firestore(app);
+
+        // Read from latest/ collection (public read)
+        db.collection('latest').get().then(function(snapshot) {
+          if (snapshot.empty) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            return;
+          }
+
+          var verticals = {};
+          snapshot.forEach(function(doc) {
+            verticals[doc.id] = doc.data();
+          });
+
+          // Reconstruct the data structure
+          var passed = Object.values(verticals).filter(function(v) {
+            return v.verdict && v.verdict.indexOf('PASS') === 0;
+          }).length;
+
+          DATA = {
+            run_id: verticals[Object.keys(verticals)[0]]?.run_id || 'firestore-latest',
+            protocol: 'SWS Proof of Attention Protocol',
+            entity: 'SWS Strategic Media LLC',
+            patent: 'SWS-PROV-001',
+            generated: verticals[Object.keys(verticals)[0]]?.generated || new Date().toISOString(),
+            duration_ms: 0,
+            summary: {
+              verticals_passed: passed,
+              verticals_total: Object.keys(verticals).length,
+              pass_rate: passed / Object.keys(verticals).length,
+              all_passed: passed === Object.keys(verticals).length
+            },
+            verticals: verticals
+          };
+          render(DATA);
+        }).catch(function(err) {
+          document.getElementById('loading').style.display = 'none';
+          document.getElementById('error').innerHTML = 'No proof data found.<br>Run: <code>npm run proof</code> then <code>npm run proof:upload</code>';
+          document.getElementById('error').style.display = 'block';
+        });
+      } catch(e) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('error').style.display = 'block';
+      }
+    }
+
+    function render(data) {
+      document.getElementById('loading').style.display = 'none';
+
+      // Header
+      document.getElementById('run-meta').textContent =
+        'Run: ' + data.run_id + '  |  ' + data.generated + '  |  ' + data.duration_ms + 'ms';
+
+      var passed = data.summary.verticals_passed;
+      var total = data.summary.verticals_total;
+      var statusEl = document.getElementById('run-status');
+      statusEl.textContent = passed + '/' + total + ' Verticals Passed';
+      statusEl.className = 'status ' + (passed === total ? 'status-pass' : 'status-partial');
+
+      // Summary bar
+      var summaryHtml = '';
+      summaryHtml += card(passed + '/' + total, 'Verticals');
+      summaryHtml += card(countProfiles(data), 'Profiles Tested');
+      summaryHtml += card(data.duration_ms + 'ms', 'Run Time');
+      summaryHtml += card(data.patent, 'Patent Filing');
+      document.getElementById('summary-bar').innerHTML = summaryHtml;
+
+      // Verticals
+      var html = '';
+      Object.entries(data.verticals).forEach(function(entry) {
+        var key = entry[0];
+        var v = entry[1];
+        html += renderVertical(key, v);
+      });
+      document.getElementById('verticals').innerHTML = html;
+
+      // Open first card
+      var first = document.querySelector('.vertical-card');
+      if (first) first.classList.add('open');
+    }
+
+    function card(val, label) {
+      return '<div class="summary-card"><div class="summary-val">' + val + '</div><div class="summary-label">' + label + '</div></div>';
+    }
+
+    function countProfiles(data) {
+      var count = 0;
+      Object.values(data.verticals).forEach(function(v) {
+        if (v.profiles) {
+          if (v.profiles.bots) count += v.profiles.bots.length;
+          if (v.profiles.humans) count += v.profiles.humans.length;
+          if (v.profiles.genuine_reader) count++;
+          if (v.profiles.scroll_bot) count++;
+          if (v.profiles.skimmer) count++;
+          if (v.profiles.genuine_viewer) count++;
+          if (v.profiles.autoplay_bot) count++;
+          if (v.profiles.distracted_viewer) count++;
+        }
+        if (v.sessions) count += Object.keys(v.sessions).length;
+        if (v.scenarios) count += Object.keys(v.scenarios).length;
+        if (v.industry_scores) count += Object.keys(v.industry_scores).length;
+      });
+      return count;
+    }
+
+    function badgeClass(verdict) {
+      if (!verdict) return 'badge-warn';
+      if (verdict.indexOf('PASS') === 0) return 'badge-pass';
+      if (verdict.indexOf('ERROR') === 0) return 'badge-fail';
+      return 'badge-warn';
+    }
+
+    function barColor(val) {
+      if (val >= 0.7) return 'bar-green';
+      if (val >= 0.4) return 'bar-yellow';
+      return 'bar-red';
+    }
+
+    function renderVertical(key, v) {
+      var badge = '<span class="vertical-badge ' + badgeClass(v.verdict) + '">' + (v.verdict || 'No verdict').substring(0, 50) + '</span>';
+
+      var body = '';
+      if (key === 'bot-detection') body = renderBotDetection(v);
+      else if (key === 'content-reading') body = renderContentReading(v);
+      else if (key === 'video-attention') body = renderVideoAttention(v);
+      else if (key === 'fatigue-detection') body = renderFatigueDetection(v);
+      else if (key === 'session-integrity') body = renderSessionIntegrity(v);
+      else if (key === 'temporal-analysis') body = renderTemporalAnalysis(v);
+      else if (key === 'vertical-profiles') body = renderVerticalProfiles(v);
+      else body = '<pre>' + JSON.stringify(v, null, 2) + '</pre>';
+
+      return '<div class="vertical-card" onclick="this.classList.toggle(\'open\')">' +
+        '<div class="vertical-header">' +
+          '<div><div class="vertical-title">' + (v.title || key) + '</div>' +
+          '<div class="vertical-desc">' + (v.description || '') + '</div></div>' +
+          badge +
+        '</div>' +
+        '<div class="vertical-body" onclick="event.stopPropagation()">' + body + '</div>' +
+      '</div>';
+    }
+
+    // ---- BOT DETECTION ----
+    function renderBotDetection(v) {
+      var html = '<div class="comparison-grid">';
+
+      // Bots
+      html += '<div><h3 style="color:#ef4444;font-size:14px;margin-bottom:12px;">Bot Profiles</h3>';
+      v.profiles.bots.forEach(function(b) {
+        html += '<div class="profile-card">';
+        html += '<div class="profile-name">' + b.name + '</div>';
+        html += '<div class="profile-desc">' + b.description + '</div>';
+        html += '<div class="signal-row"><span class="signal-name">Composite</span><span class="signal-value" style="color:#ef4444">' + b.composite.toFixed(3) + '</span></div>';
+        html += '<div class="bar-container"><div class="bar-fill bar-red" style="width:' + (b.composite * 100) + '%"></div></div>';
+        html += renderSignals(b.signals);
+        html += '</div>';
+      });
+      html += '</div>';
+
+      // Humans
+      html += '<div><h3 style="color:#10b981;font-size:14px;margin-bottom:12px;">Human Profiles</h3>';
+      v.profiles.humans.forEach(function(h) {
+        html += '<div class="profile-card">';
+        html += '<div class="profile-name">' + h.name + '</div>';
+        html += '<div class="profile-desc">' + h.description + '</div>';
+        html += '<div class="signal-row"><span class="signal-name">Composite</span><span class="signal-value" style="color:#10b981">' + h.composite.toFixed(3) + '</span></div>';
+        html += '<div class="bar-container"><div class="bar-fill bar-green" style="width:' + (h.composite * 100) + '%"></div></div>';
+        html += renderSignals(h.signals);
+        html += '</div>';
+      });
+      html += '</div>';
+
+      html += '</div>';
+
+      // Summary
+      html += '<div class="verdict-box verdict-pass">';
+      html += 'Avg Human: ' + v.summary.avg_human_score.toFixed(3) + ' vs Avg Bot: ' + v.summary.avg_bot_score.toFixed(3);
+      html += ' &mdash; Separation Gap: ' + v.summary.separation_gap.toFixed(3);
+      html += '</div>';
+
+      return html;
+    }
+
+    function renderSignals(signals) {
+      if (!signals) return '';
+      var html = '';
+      Object.entries(signals).forEach(function(entry) {
+        var name = entry[0];
+        var val = entry[1];
+        html += '<div class="signal-row"><span class="signal-name">' + name + '</span><span class="signal-value">' + val.toFixed(2) + '</span></div>';
+      });
+      return html;
+    }
+
+    // ---- CONTENT READING ----
+    function renderContentReading(v) {
+      var html = '<div class="comparison-grid">';
+      ['genuine_reader', 'skimmer', 'scroll_bot'].forEach(function(key) {
+        var p = v.profiles[key];
+        if (!p) return;
+        var color = key === 'genuine_reader' ? '#10b981' : key === 'skimmer' ? '#f59e0b' : '#ef4444';
+        html += '<div class="profile-card">';
+        html += '<div class="profile-name" style="color:' + color + '">' + key.replace(/_/g, ' ').toUpperCase() + '</div>';
+        html += '<div class="signal-row"><span class="signal-name">Document Score</span><span class="signal-value" style="color:' + color + '">' + (p.document_score || 0).toFixed(3) + '</span></div>';
+        html += '<div class="bar-container"><div class="bar-fill" style="width:' + ((p.document_score || 0) * 100) + '%;background:' + color + '"></div></div>';
+        html += '<div class="signal-row"><span class="signal-name">Verdict</span><span class="signal-value">' + (p.verdict || 'N/A') + '</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Sections Read</span><span class="signal-value">' + (p.sections_read || 0) + '/' + (p.total_sections || 0) + '</span></div>';
+        html += '</div>';
+      });
+      html += '</div>';
+      html += '<div class="verdict-box verdict-pass">Genuine reader scores ' + (v.summary.genuine_vs_bot_ratio || 0).toFixed(1) + 'x higher than bot</div>';
+      return html;
+    }
+
+    // ---- VIDEO ATTENTION ----
+    function renderVideoAttention(v) {
+      var html = '<div class="comparison-grid">';
+      ['genuine_viewer', 'distracted_viewer', 'autoplay_bot'].forEach(function(key) {
+        var p = v.profiles[key];
+        if (!p) return;
+        var color = key === 'genuine_viewer' ? '#10b981' : key === 'distracted_viewer' ? '#f59e0b' : '#ef4444';
+        html += '<div class="profile-card">';
+        html += '<div class="profile-name" style="color:' + color + '">' + key.replace(/_/g, ' ').toUpperCase() + '</div>';
+        html += '<div class="signal-row"><span class="signal-name">Composite</span><span class="signal-value" style="color:' + color + '">' + (p.composite || 0).toFixed(3) + '</span></div>';
+        html += '<div class="bar-container"><div class="bar-fill" style="width:' + ((p.composite || 0) * 100) + '%;background:' + color + '"></div></div>';
+        html += '<div class="signal-row"><span class="signal-name">Verdict</span><span class="signal-value">' + (p.verdict || 'N/A') + '</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Completion</span><span class="signal-value">' + (p.completion_pct || 0) + '%</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Focus</span><span class="signal-value">' + (p.focus_pct || 0) + '%</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Pauses</span><span class="signal-value">' + (p.pauses || 0) + '</span></div>';
+        html += '<div class="signal-row"><span class="signal-name">Seek Backs</span><span class="signal-value">' + (p.seek_backs || 0) + '</span></div>';
+        html += '</div>';
+      });
+      html += '</div>';
+      html += '<div class="verdict-box verdict-pass">Genuine viewer scores ' + (v.summary.genuine_vs_bot_ratio || 0).toFixed(1) + 'x higher than auto-play bot</div>';
+      return html;
+    }
+
+    // ---- FATIGUE DETECTION ----
+    function renderFatigueDetection(v) {
+      var html = '<div class="comparison-grid">';
+
+      var fresh = v.scenarios.fresh_performance;
+      html += '<div class="profile-card">';
+      html += '<div class="profile-name" style="color:#10b981">FRESH (Start of Shift)</div>';
+      html += '<div class="signal-row"><span class="signal-name">Drift Level</span><span class="signal-value" style="color:#10b981">' + (fresh.drift_level || 'N/A') + '</span></div>';
+      html += '<div class="signal-row"><span class="signal-name">Drift Score</span><span class="signal-value">' + (fresh.drift_score || 0) + '</span></div>';
+      html += '<div class="signal-row"><span class="signal-name">Verdict</span><span class="signal-value" style="color:#10b981">' + (fresh.verdict || 'N/A') + '</span></div>';
+      html += '</div>';
+
+      var fatigued = v.scenarios.fatigued_6_hours;
+      html += '<div class="profile-card">';
+      html += '<div class="profile-name" style="color:#ef4444">FATIGUED (6 Hours In)</div>';
+      html += '<div class="signal-row"><span class="signal-name">Drift Level</span><span class="signal-value" style="color:#ef4444">' + (fatigued.drift_level || 'N/A') + '</span></div>';
+      html += '<div class="signal-row"><span class="signal-name">Drift Score</span><span class="signal-value">' + (fatigued.drift_score || 0) + '</span></div>';
+      html += '<div class="signal-row"><span class="signal-name">RT Baseline</span><span class="signal-value">' + (fatigued.rt_baseline || 'N/A') + 'ms</span></div>';
+      html += '<div class="signal-row"><span class="signal-name">RT Current</span><span class="signal-value" style="color:#ef4444">' + (fatigued.rt_current || 'N/A') + 'ms</span></div>';
+      html += '<div class="signal-row"><span class="signal-name">RT Drift</span><span class="signal-value" style="color:#ef4444">' + (fatigued.rt_drift_pct || 'N/A') + '</span></div>';
+      html += '<div class="signal-row"><span class="signal-name">Verdict</span><span class="signal-value" style="color:#ef4444">' + (fatigued.verdict || 'N/A') + '</span></div>';
+      html += '</div>';
+
+      html += '</div>';
+      return html;
+    }
+
+    // ---- SESSION INTEGRITY ----
+    function renderSessionIntegrity(v) {
+      var html = '<table>';
+      html += '<tr><th>Session</th><th>Integrity</th><th>Checks</th><th>Critical Findings</th></tr>';
+      Object.entries(v.sessions).forEach(function(entry) {
+        var name = entry[0];
+        var s = entry[1];
+        var color = s.integrity === 'valid' ? '#10b981' : '#ef4444';
+        html += '<tr>';
+        html += '<td style="font-weight:600">' + name.replace(/_/g, ' ') + '</td>';
+        html += '<td style="color:' + color + ';font-weight:600">' + (s.integrity || 'N/A') + '</td>';
+        html += '<td>' + (s.checks_passed || 'N/A') + '</td>';
+        html += '<td>' + (s.critical_findings || 0) + '</td>';
+        html += '</tr>';
+        if (s.findings && s.findings.length > 0) {
+          html += '<tr><td colspan="4" style="color:#94a3b8;font-size:11px;padding-left:24px">';
+          s.findings.forEach(function(f) { html += '&bull; ' + f + '<br>'; });
+          html += '</td></tr>';
+        }
+      });
+      html += '</table>';
+      return html;
+    }
+
+    // ---- TEMPORAL ANALYSIS ----
+    function renderTemporalAnalysis(v) {
+      var html = '<div class="comparison-grid">';
+
+      var sustained = v.scenarios.sustained_attention;
+      html += '<div class="profile-card">';
+      html += '<div class="profile-name" style="color:#10b981">SUSTAINED ATTENTION</div>';
+      html += '<div class="signal-row"><span class="signal-name">Verdict</span><span class="signal-value" style="color:#10b981">' + (sustained.verdict || 'N/A') + '</span></div>';
+      html += '<div class="signal-row"><span class="signal-name">Degradation</span><span class="signal-value">' + (sustained.degradation || 0) + '</span></div>';
+      html += '<div class="signal-row"><span class="signal-name">Windows</span><span class="signal-value">' + (sustained.windows || 0) + '</span></div>';
+      html += '</div>';
+
+      var fatigue = v.scenarios.exam_fatigue;
+      html += '<div class="profile-card">';
+      html += '<div class="profile-name" style="color:#ef4444">EXAM FATIGUE</div>';
+      html += '<div class="signal-row"><span class="signal-name">Verdict</span><span class="signal-value" style="color:#ef4444">' + (fatigue.verdict || 'N/A') + '</span></div>';
+      html += '<div class="signal-row"><span class="signal-name">Degradation</span><span class="signal-value" style="color:#ef4444">' + (fatigue.degradation || 0) + '</span></div>';
+      html += '<div class="signal-row"><span class="signal-name">RT Trend</span><span class="signal-value">' + (fatigue.rt_trend || 'N/A') + '</span></div>';
+      html += '<div class="signal-row"><span class="signal-name">RT Change</span><span class="signal-value">' + (fatigue.rt_change_pct || 0) + '%</span></div>';
+      html += '</div>';
+
+      html += '</div>';
+      return html;
+    }
+
+    // ---- VERTICAL PROFILES ----
+    function renderVerticalProfiles(v) {
+      var html = '<table>';
+      html += '<tr><th>Industry</th><th>Score</th><th>Verdict</th><th>Score Bar</th></tr>';
+      Object.entries(v.industry_scores).forEach(function(entry) {
+        var name = entry[0];
+        var s = entry[1];
+        var color = s.verdict === 'pass' ? '#10b981' : s.verdict === 'marginal' ? '#f59e0b' : '#ef4444';
+        html += '<tr>';
+        html += '<td style="font-weight:600;text-transform:capitalize">' + name + '</td>';
+        html += '<td style="font-family:monospace;font-weight:600">' + (s.composite || 0).toFixed(3) + '</td>';
+        html += '<td style="color:' + color + ';font-weight:600;text-transform:uppercase">' + (s.verdict || 'N/A') + '</td>';
+        html += '<td><div class="bar-container"><div class="bar-fill bar-blue" style="width:' + ((s.composite || 0) * 100) + '%"></div></div></td>';
+        html += '</tr>';
+      });
+      html += '</table>';
+      html += '<div class="verdict-box verdict-pass">Same behavioral signals &rarr; Different scores per industry vertical</div>';
+      return html;
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -230,7 +230,10 @@ describe('Data Collector: Full browser pipeline', () => {
       }
     }
 
-    await wait(1000);
+    // Complete phase 1 to trigger earn() and generate hashes
+    await page.click('.btn-primary');
+    await wait(500);
+
     const scores = await getScores(page);
 
     expect(scores).not.toBeNull();

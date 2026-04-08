@@ -12,7 +12,12 @@
     "test:api": "jest tests/api-server.test.js --verbose --forceExit",
     "server": "node server/index.js",
     "serve": "npx http-server public -p 8080 -c-1",
-    "dashboard": "npx http-server src/dashboard -p 3000 -c-1"
+    "dashboard": "npx http-server src/dashboard -p 3000 -c-1",
+    "proof": "node proof/run-proofs.js",
+    "proof:json": "node proof/run-proofs.js --json",
+    "proof:upload": "node proof/upload-to-firestore.js",
+    "proof:upload:dry": "node proof/upload-to-firestore.js --dry-run",
+    "proof:gallery": "npx http-server proof -p 4000 -c-1"
   },
   "author": "SWS Strategic Media LLC",
   "license": "UNLICENSED",

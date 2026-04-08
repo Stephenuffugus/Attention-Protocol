@@ -7,3 +7,4 @@ credentials.json
 firebase-debug.log
 .firebase/
 dist/
+proof/results/
