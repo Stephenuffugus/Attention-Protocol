@@ -342,6 +342,15 @@
     </div>
   </div>
 
+  <!-- GA4 — real Google Analytics running alongside SWS for side-by-side comparison -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5JFFYEJ6XP"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-5JFFYEJ6XP', { send_page_view: true });
+  </script>
+
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
@@ -555,6 +564,10 @@
       SWSAttention.takeTimelineSnapshot('phase_' + phase + '_complete');
       logEvent('phase ' + phase + ' complete + hash earned', 'user_engagement');
       ga4Events.push('user_engagement');
+      // Send real GA4 event for comparison
+      if (typeof gtag === 'function') {
+        gtag('event', 'phase_complete', { phase_number: phase, session_id: sessionId, source_type: sourceType });
+      }
 
       if (currentPhase === 2) setupDecisions();
       if (currentPhase === 3) setupTargets();
@@ -784,6 +797,19 @@
         uid: fbUser ? fbUser.uid : 'anonymous',
         source_type: sourceType
       };
+
+      // Send GA4 completion event with composite score for comparison
+      if (typeof gtag === 'function') {
+        gtag('event', 'attention_session_complete', {
+          session_id: sessionId,
+          composite_score: confidence.composite,
+          quality_tier: sessionData.quality_tier,
+          active_signals: confidence.activeSignals,
+          duration_sec: elapsed,
+          source_type: sourceType,
+          hashes_earned: stats.totalHashes
+        });
+      }
 
       db.collection('demos').doc(sessionId).set(sessionData)
         .then(function() {
