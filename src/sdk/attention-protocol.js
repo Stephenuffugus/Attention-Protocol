@@ -94,6 +94,19 @@
   var _lastRenderTime = 0;
   var _pendingRender = false;
 
+  // New behavioral signals (v2)
+  var _keystrokeLog = [];     // [{key, holdTime, flightTime, t}, ...]
+  var _keyDownTimes = {};     // {keyCode: timestamp} for hold time calc
+  var _lastKeyUpTime = 0;
+  var _hoverLog = [];         // [{element, enterTime, leaveTime, dwellMs}, ...]
+  var _currentHover = null;
+  var _tabVisLog = [];        // [{visible: bool, t: timestamp}, ...]
+  var _inactivityGaps = [];   // [{startTime, endTime, durationMs}, ...]
+  var _lastActivityTime = Date.now();
+  var _inactivityThreshold = 3000; // 3s of no interaction = gap
+  var _sectionTimings = [];   // [{sectionId, enterTime, exitTime, scrollPct}, ...]
+  var _timeline = [];         // [{t, composite, tier, signals, phase}, ...] every 10s
+
   // Daily cap tracking
   var _dailyCaps = {};
   var _dailyCapDate = '';
@@ -224,6 +237,27 @@
   // BEHAVIORAL SCIENCE ANALYSIS
   // ============================================================
 
+  // Asymptotic scoring: approaches but never reaches 1.0
+  // Maps [0, inf) -> [0, ~0.95] with configurable steepness
+  function _ascore(value, k) {
+    if (value <= 0) return 0;
+    return 1 - Math.exp(-value / (k || 1));
+  }
+
+  // Click coordinate variance for desktop fallback
+  var _clickCoords = [];
+  var _mobileInputTimes = [];
+
+  // Mousemove sampling for motor signals (Tier 2)
+  var _mouseMoveLog = [];    // [{x, y, t}, ...] sampled at ~60Hz
+  var _lastMouseSample = 0;
+  var _scrollReversals = []; // [{position, direction, t}, ...] for backtracking
+
+  // Device motion (accelerometer + gyroscope) for mobile physical presence
+  var _motionLog = [];       // [{ax, ay, az, gx, gy, gz, t}, ...]
+  var _lastMotionSample = 0;
+  var _motionPermissionGranted = false;
+
   var Behavioral = {
     // Pattern 1: Interaction Timing Entropy
     recordInteraction: function() {
@@ -232,7 +266,7 @@
     },
 
     computeTimingCV: function() {
-      if (_interactionTimestamps.length < 10) return 0.8; // insufficient data, assume human
+      if (_interactionTimestamps.length < 10) return 0; // insufficient data
       var intervals = [];
       for (var i = 1; i < _interactionTimestamps.length; i++) {
         intervals.push(_interactionTimestamps[i] - _interactionTimestamps[i - 1]);
@@ -253,7 +287,7 @@
     },
 
     computeFittsCompliance: function() {
-      if (_tapLog.length < 10) return 0.5;
+      if (_tapLog.length < 10) return -1; // insufficient data sentinel
       var distances = [], times = [];
       for (var i = 1; i < _tapLog.length; i++) {
         var dx = _tapLog[i].x - _tapLog[i - 1].x;
@@ -269,19 +303,27 @@
         sumX += x; sumY += y; sumXY += x * y; sumX2 += x * x; sumY2 += y * y;
       }
       var denom = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
-      if (denom === 0) return 0.5;
+      if (denom === 0) return 0.3;
       var r = (n * sumXY - sumX * sumY) / denom;
-      return isNaN(r) ? 0.5 : Math.max(0, Math.min(1, (r + 1) / 2));
+      if (isNaN(r)) return 0.3;
+      // Blend correlation with distance variance to handle small grids
+      var distMean = distances.reduce(function(a, b) { return a + b; }, 0) / distances.length;
+      var distVar = distances.reduce(function(a, b) { return a + Math.pow(b - distMean, 2); }, 0) / distances.length;
+      var distCV = distMean > 0 ? Math.sqrt(distVar) / distMean : 0;
+      var corrScore = _ascore(Math.max(0, (r + 1) / 2), 0.5);
+      var distScore = _ascore(distCV, 0.8);
+      return corrScore * 0.6 + distScore * 0.4;
     },
 
     // Pattern 4: Scroll Saccade Analysis
-    recordScroll: function() {
-      _scrollLog.push({ y: window.scrollY, t: Date.now() });
+    recordScroll: function(scrollY) {
+      var y = (scrollY !== undefined) ? scrollY : window.scrollY;
+      _scrollLog.push({ y: y, t: Date.now() });
       if (_scrollLog.length > 500) _scrollLog.shift();
     },
 
     computeScrollSaccade: function() {
-      if (_scrollLog.length < 20) return 0.5;
+      if (_scrollLog.length < 20) return -1; // insufficient data sentinel
       var fixations = 0;
       var pauseStart = null;
       for (var i = 1; i < _scrollLog.length; i++) {
@@ -295,7 +337,7 @@
           pauseStart = null;
         }
       }
-      return Math.min(1, fixations / 4);
+      return _ascore(fixations, 12);
     },
 
     // Pattern 6: Touch Pressure/Contact Area Variation
@@ -307,12 +349,32 @@
       }
     },
 
+    recordClickCoord: function(x, y) {
+      _clickCoords.push({ x: x, y: y, t: Date.now() });
+      if (_clickCoords.length > 100) _clickCoords.shift();
+    },
+
     computeTouchVariance: function() {
-      if (_touchRadii.length < 10) return 0.5;
-      var rxVals = _touchRadii.map(function(t) { return t.rx; });
-      var mean = rxVals.reduce(function(a, b) { return a + b; }, 0) / rxVals.length;
-      var variance = rxVals.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / rxVals.length;
-      return Math.min(1, variance / 2);
+      // Mobile: use touch radii
+      if (_touchRadii.length >= 10) {
+        var rxVals = _touchRadii.map(function(t) { return t.rx; });
+        var mean = rxVals.reduce(function(a, b) { return a + b; }, 0) / rxVals.length;
+        var variance = rxVals.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / rxVals.length;
+        return _ascore(variance, 18);
+      }
+      // Desktop fallback: use click coordinate timing variance
+      if (_clickCoords.length >= 10) {
+        var intervals = [];
+        for (var i = 1; i < _clickCoords.length; i++) {
+          intervals.push(_clickCoords[i].t - _clickCoords[i - 1].t);
+        }
+        var mean2 = intervals.reduce(function(a, b) { return a + b; }, 0) / intervals.length;
+        if (mean2 === 0) return 0.3;
+        var variance2 = intervals.reduce(function(a, b) { return a + Math.pow(b - mean2, 2); }, 0) / intervals.length;
+        var cv = Math.sqrt(variance2) / mean2;
+        return _ascore(cv, 1.2);
+      }
+      return -1; // insufficient data sentinel
     },
 
     // Pattern 3: Hick's Law Compliance (Decision Time Scaling)
@@ -360,11 +422,18 @@
       if (denom < 0.001) return 0.3; // Near-zero variance in RT = suspicious (bot-like constant timing)
       var r = (n * sumXY - sumX * sumY) / denom;
 
-      // Positive correlation = human (response time scales with choices per Hick's Law)
-      // Zero/negative = bot (constant or inverse time regardless of choices)
-      // Map: r <= 0 → 0.0 (definite bot), r >= 0.7 → 1.0 (definite human)
       if (isNaN(r)) return 0.5;
-      return Math.max(0, Math.min(1, r / 0.7));
+
+      var correlationScore = _ascore(Math.max(0, r + 0.3), 0.7);
+
+      var allRTs = [];
+      _decisionLog.forEach(function(d) { allRTs.push(d.responseTimeMs); });
+      var rtMean = allRTs.reduce(function(a, b) { return a + b; }, 0) / allRTs.length;
+      var rtVariance = allRTs.reduce(function(a, b) { return a + Math.pow(b - rtMean, 2); }, 0) / allRTs.length;
+      var rtCV = rtMean > 0 ? Math.sqrt(rtVariance) / rtMean : 0;
+      var varianceScore = _ascore(rtCV, 0.8);
+
+      return correlationScore * 0.6 + varianceScore * 0.4;
     },
 
     // Pattern 5: Micro-Pause Analysis (Cognitive Processing Delay)
@@ -427,41 +496,737 @@
       }
 
       var ratioScore = humanLikeCount / completed.length;
-      var varianceScore = Math.min(1, Math.sqrt(varianceSum) / 500); // High variance = human
+      var varianceScore = _ascore(Math.sqrt(varianceSum), 400);
 
-      // Combine: ratio of human-range delays + variance of delays
       return ratioScore * 0.6 + varianceScore * 0.4;
     },
 
-    // Composite Human Confidence Score
+    // Pattern 7: Keystroke Dynamics
+    recordKeyDown: function(event) {
+      _keyDownTimes[event.keyCode] = Date.now();
+    },
+
+    recordKeyUp: function(event) {
+      var now = Date.now();
+      var holdTime = _keyDownTimes[event.keyCode] ? now - _keyDownTimes[event.keyCode] : 0;
+      var flightTime = _lastKeyUpTime ? now - _lastKeyUpTime : 0;
+      _keystrokeLog.push({ holdTime: holdTime, flightTime: flightTime, t: now });
+      if (_keystrokeLog.length > 200) _keystrokeLog.shift();
+      _lastKeyUpTime = now;
+      delete _keyDownTimes[event.keyCode];
+    },
+
+    recordMobileInput: function(timestamp) {
+      _mobileInputTimes.push(timestamp);
+      if (_mobileInputTimes.length > 200) _mobileInputTimes.shift();
+    },
+
+    computeKeystrokeDynamics: function() {
+      // Desktop: use real keydown/keyup data
+      if (_keystrokeLog.length >= 8) {
+        var holdTimes = _keystrokeLog.map(function(k) { return k.holdTime; });
+        var flightTimes = _keystrokeLog.filter(function(k) { return k.flightTime > 0 && k.flightTime < 2000; }).map(function(k) { return k.flightTime; });
+        if (holdTimes.length >= 5 && flightTimes.length >= 5) {
+          function cv(arr) {
+            var mean = arr.reduce(function(a, b) { return a + b; }, 0) / arr.length;
+            if (mean === 0) return 0;
+            var variance = arr.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / arr.length;
+            return Math.sqrt(variance) / mean;
+          }
+          var holdCV = cv(holdTimes);
+          var flightCV = cv(flightTimes);
+          var holdInRange = holdTimes.filter(function(h) { return h >= 50 && h <= 300; }).length / holdTimes.length;
+          var rhythmScore = _ascore((holdCV + flightCV) / 2, 0.6);
+          return rhythmScore * 0.5 + holdInRange * 0.5;
+        }
+      }
+      // Mobile fallback: use input event timing
+      if (_mobileInputTimes.length >= 10) {
+        var intervals = [];
+        for (var i = 1; i < _mobileInputTimes.length; i++) {
+          intervals.push(_mobileInputTimes[i] - _mobileInputTimes[i - 1]);
+        }
+        var mean = intervals.reduce(function(a, b) { return a + b; }, 0) / intervals.length;
+        if (mean === 0) return 0.3;
+        var variance = intervals.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / intervals.length;
+        var mobileCV = Math.sqrt(variance) / mean;
+        var inRange = intervals.filter(function(t) { return t >= 30 && t <= 800; }).length / intervals.length;
+        return _ascore(mobileCV, 0.6) * 0.4 + inRange * 0.6;
+      }
+      return -1; // insufficient data sentinel
+    },
+
+    // Pattern 8: Reading Speed Inference
+    recordSectionEntry: function(sectionId) {
+      _sectionTimings.push({ sectionId: sectionId, enterTime: Date.now(), exitTime: null, scrollPct: 0 });
+    },
+
+    recordSectionExit: function(sectionId, scrollPct) {
+      for (var i = _sectionTimings.length - 1; i >= 0; i--) {
+        if (_sectionTimings[i].sectionId === sectionId && !_sectionTimings[i].exitTime) {
+          _sectionTimings[i].exitTime = Date.now();
+          _sectionTimings[i].scrollPct = scrollPct || 100;
+          break;
+        }
+      }
+    },
+
+    computeReadingSpeed: function() {
+      var completed = _sectionTimings.filter(function(s) { return s.exitTime; });
+      if (completed.length < 2) return -1; // insufficient data sentinel
+      var durations = completed.map(function(s) { return s.exitTime - s.enterTime; });
+      var mean = durations.reduce(function(a, b) { return a + b; }, 0) / durations.length;
+      if (mean < 200) return 0.2; // impossibly fast skim
+      if (mean > 60000) return 0.3; // suspiciously long per section
+      var variance = durations.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / durations.length;
+      var cv = mean > 0 ? Math.sqrt(variance) / mean : 0;
+      // Mobile users read sections in 1-8 seconds typically
+      var speedScore = _ascore(mean, 3000);
+      var varianceScore = _ascore(cv, 0.4);
+      return speedScore * 0.5 + varianceScore * 0.5;
+    },
+
+    // Pattern 9: Cursor/Hover Dwell Time
+    recordHoverEnter: function(elementId) {
+      _currentHover = { element: elementId, enterTime: Date.now() };
+    },
+
+    recordHoverLeave: function() {
+      if (_currentHover) {
+        var dwell = Date.now() - _currentHover.enterTime;
+        _currentHover.leaveTime = Date.now();
+        _currentHover.dwellMs = dwell;
+        _hoverLog.push(_currentHover);
+        if (_hoverLog.length > 100) _hoverLog.shift();
+        _currentHover = null;
+      }
+    },
+
+    recordTouchDwell: function(startTime) {
+      if (startTime) {
+        var dwell = Date.now() - startTime;
+        _hoverLog.push({ element: 'touch', enterTime: startTime, leaveTime: Date.now(), dwellMs: dwell });
+        if (_hoverLog.length > 100) _hoverLog.shift();
+      }
+    },
+
+    computeHoverDwell: function() {
+      if (_hoverLog.length < 5) return -1; // insufficient data sentinel
+      var dwells = _hoverLog.map(function(h) { return h.dwellMs; });
+      var humanLike = dwells.filter(function(d) { return d >= 80 && d <= 5000; }).length;
+      var mean = dwells.reduce(function(a, b) { return a + b; }, 0) / dwells.length;
+      var variance = dwells.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / dwells.length;
+      var cv = mean > 0 ? Math.sqrt(variance) / mean : 0;
+      var ratioScore = humanLike / dwells.length;
+      var varianceScore = _ascore(cv, 0.6);
+      return ratioScore * 0.5 + varianceScore * 0.5;
+    },
+
+    // Pattern 10: Tab Visibility
+    recordVisibilityChange: function(visible) {
+      _tabVisLog.push({ visible: visible, t: Date.now() });
+    },
+
+    computeTabVisibility: function() {
+      var totalTime = Date.now() - _sessionStartTime;
+      if (totalTime < 5000) return -1; // too short to judge
+      if (_tabVisLog.length === 0) {
+        // No visibility changes at all — suspicious if session is long
+        // Bots never leave; humans occasionally do
+        if (totalTime > 120000) return 0.6; // 2+ min with zero tab switches
+        return 0.75; // short session, no switches is normal
+      }
+      var visibleTime = 0;
+      var lastVisible = _sessionStartTime;
+      var switchCount = 0;
+      _tabVisLog.forEach(function(entry) {
+        if (!entry.visible && lastVisible) {
+          visibleTime += entry.t - lastVisible;
+          lastVisible = null;
+          switchCount++;
+        } else if (entry.visible) {
+          lastVisible = entry.t;
+        }
+      });
+      if (lastVisible) visibleTime += Date.now() - lastVisible;
+      var visibleRatio = visibleTime / totalTime;
+      // High visibility is good, but some switching is MORE human
+      // Sweet spot: 70-95% visible with 1-3 switches
+      if (visibleRatio > 0.95 && switchCount === 0) return 0.65; // suspiciously perfect
+      if (visibleRatio >= 0.7 && switchCount >= 1) return _ascore(visibleRatio, 0.85); // human-like
+      if (visibleRatio < 0.5) return 0.2; // mostly hidden — likely abandoned
+      return _ascore(visibleRatio * 0.8 + (switchCount > 0 ? 0.15 : 0), 0.7);
+    },
+
+    // Pattern 11: Inactivity Gap Analysis
+    recordActivity: function() {
+      var now = Date.now();
+      if (_lastActivityTime && (now - _lastActivityTime) > _inactivityThreshold) {
+        _inactivityGaps.push({
+          startTime: _lastActivityTime,
+          endTime: now,
+          durationMs: now - _lastActivityTime
+        });
+      }
+      _lastActivityTime = now;
+    },
+
+    computeInactivityPattern: function() {
+      var sessionDuration = Date.now() - _sessionStartTime;
+      if (sessionDuration < 10000) return -1; // too short
+      if (_inactivityGaps.length === 0) {
+        // No gaps at all — slightly suspicious for long sessions (bots are continuous)
+        if (sessionDuration > 60000) return 0.55;
+        return 0.7; // short session without gaps is fine
+      }
+      var totalGapTime = _inactivityGaps.reduce(function(sum, g) { return sum + g.durationMs; }, 0);
+      var gapRatio = totalGapTime / sessionDuration;
+      if (gapRatio > 0.7) return 0.1; // mostly idle
+      var gapDurations = _inactivityGaps.map(function(g) { return g.durationMs; });
+      var mean = gapDurations.reduce(function(a, b) { return a + b; }, 0) / gapDurations.length;
+      var variance = gapDurations.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / gapDurations.length;
+      var cv = mean > 0 ? Math.sqrt(variance) / mean : 0;
+
+      // Humans: moderate gap ratio (5-40%), variable gap lengths (high CV)
+      var gapRatioScore = 1 - Math.abs(gapRatio - 0.15) * 3; // peaks at 15% gap ratio
+      gapRatioScore = Math.max(0.1, Math.min(0.9, gapRatioScore));
+      var cvScore = _ascore(cv, 0.5);
+      return gapRatioScore * 0.5 + cvScore * 0.5;
+    },
+
+    // Timeline snapshot (called every 10s)
+    recordTimelineSnapshot: function(phase) {
+      var c = this.computeHumanConfidence();
+      var signals = {};
+      for (var k in c) {
+        if (k !== 'composite' && k !== 'activeSignals' && k !== 'totalSignals') signals[k] = c[k];
+      }
+      _timeline.push({
+        t: Math.round((Date.now() - _sessionStartTime) / 1000),
+        composite: c.composite,
+        tier: c.composite >= 0.7 ? 'deep' : c.composite >= 0.5 ? 'active' : c.composite >= 0.25 ? 'passive' : 'background',
+        signals: signals,
+        activeSignals: c.activeSignals,
+        phase: phase || 'unknown'
+      });
+    },
+
+    getTimeline: function() { return _timeline.slice(); },
+
+    // ============================================================
+    // TIER 1: NEW SIGNALS (zero new data needed)
+    // ============================================================
+
+    // Signal 12: RT Variability (Coefficient of Variation + Ex-Gaussian tau)
+    // Esterman et al. 2013, strongest single attention metric in cognitive science
+    computeRTVariability: function() {
+      if (_interactionTimestamps.length < 15) return -1;
+      var intervals = [];
+      for (var i = 1; i < _interactionTimestamps.length; i++) {
+        var dt = _interactionTimestamps[i] - _interactionTimestamps[i - 1];
+        if (dt > 50 && dt < 10000) intervals.push(dt);
+      }
+      if (intervals.length < 10) return -1;
+      var mean = intervals.reduce(function(a, b) { return a + b; }, 0) / intervals.length;
+      var variance = intervals.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / intervals.length;
+      var cv = Math.sqrt(variance) / mean;
+      // Humans: CV 0.15-0.50. Bots: CV < 0.05 or artificially high
+      // "In the zone" (low CV ~0.15) = deep focus. "Out of zone" (CV ~0.45) = distracted
+      // Ex-Gaussian tau approximation: skewness of the distribution
+      var sorted = intervals.slice().sort(function(a, b) { return a - b; });
+      var median = sorted[Math.floor(sorted.length / 2)];
+      var skewRatio = (mean - median) / (Math.sqrt(variance) || 1);
+      // Human attention: moderate CV with positive skew (occasional long lapses)
+      var cvScore = (cv >= 0.1 && cv <= 0.6) ? _ascore(1 - Math.abs(cv - 0.3) * 3, 0.8) : 0.2;
+      var skewScore = (skewRatio > 0 && skewRatio < 2) ? _ascore(skewRatio, 0.8) : 0.3;
+      return cvScore * 0.6 + skewScore * 0.4;
+    },
+
+    // Signal 13: Scroll Backtracking (comprehension proxy)
+    // Google Research (Khaokaew et al. 2024)
+    recordScrollReversal: function(position, direction) {
+      _scrollReversals.push({ position: position, direction: direction, t: Date.now() });
+      if (_scrollReversals.length > 200) _scrollReversals.shift();
+    },
+
+    computeScrollBacktracking: function() {
+      if (_scrollReversals.length < 2) return -1;
+      var upReversals = _scrollReversals.filter(function(r) { return r.direction === 'up'; });
+      if (_scrollLog.length < 10) return -1;
+      var totalScrollEvents = _scrollLog.length;
+      var backtrackRatio = upReversals.length / totalScrollEvents;
+      // Humans re-read: 5-15% backtrack ratio on medium-difficulty text
+      // Bots: 0% (never go back) or random
+      if (backtrackRatio === 0) return 0.15; // never went back = suspicious or very fast reader
+      var score = _ascore(backtrackRatio, 0.08);
+      // Also check if backtracks cluster at specific positions (comprehension difficulty)
+      if (upReversals.length >= 3) {
+        var positions = upReversals.map(function(r) { return r.position; });
+        var posMean = positions.reduce(function(a, b) { return a + b; }, 0) / positions.length;
+        var posVar = positions.reduce(function(a, b) { return a + Math.pow(b - posMean, 2); }, 0) / positions.length;
+        var clustering = Math.sqrt(posVar) > 50 ? 0.3 : 0; // spread out = genuine re-reading
+        score = Math.min(score + clustering, 0.95);
+      }
+      return score;
+    },
+
+    // Signal 14: Fractal Scaling via Detrended Fluctuation Analysis
+    // Gilden 2001, Wijnants 2009 — biological authenticity fingerprint
+    computeFractalScaling: function() {
+      if (_interactionTimestamps.length < 50) return -1;
+      var intervals = [];
+      for (var i = 1; i < _interactionTimestamps.length; i++) {
+        var dt = _interactionTimestamps[i] - _interactionTimestamps[i - 1];
+        if (dt > 10 && dt < 10000) intervals.push(dt);
+      }
+      if (intervals.length < 40) return -1;
+      var n = intervals.length;
+      var mean = intervals.reduce(function(a, b) { return a + b; }, 0) / n;
+      // Cumulative sum of deviations (integration)
+      var cumsum = [];
+      var running = 0;
+      for (var j = 0; j < n; j++) {
+        running += (intervals[j] - mean);
+        cumsum.push(running);
+      }
+      // DFA: compute fluctuation at multiple window sizes
+      var windowSizes = [4, 8, 16, 32];
+      var logSizes = [], logFluct = [];
+      windowSizes.forEach(function(ws) {
+        if (ws > n / 2) return;
+        var numWindows = Math.floor(n / ws);
+        var totalFluct = 0;
+        for (var w = 0; w < numWindows; w++) {
+          var segment = cumsum.slice(w * ws, (w + 1) * ws);
+          // Linear detrend
+          var sx = 0, sy = 0, sxy = 0, sx2 = 0;
+          for (var k = 0; k < segment.length; k++) {
+            sx += k; sy += segment[k]; sxy += k * segment[k]; sx2 += k * k;
+          }
+          var denom = segment.length * sx2 - sx * sx;
+          var slope = denom !== 0 ? (segment.length * sxy - sx * sy) / denom : 0;
+          var intercept = (sy - slope * sx) / segment.length;
+          var rms = 0;
+          for (var m = 0; m < segment.length; m++) {
+            var detrended = segment[m] - (slope * m + intercept);
+            rms += detrended * detrended;
+          }
+          totalFluct += Math.sqrt(rms / segment.length);
+        }
+        var avgFluct = totalFluct / numWindows;
+        if (avgFluct > 0) {
+          logSizes.push(Math.log(ws));
+          logFluct.push(Math.log(avgFluct));
+        }
+      });
+      if (logSizes.length < 3) return -1;
+      // Fit line to get alpha (Hurst exponent proxy)
+      var lsx = 0, lsy = 0, lsxy = 0, lsx2 = 0, ln = logSizes.length;
+      for (var p = 0; p < ln; p++) {
+        lsx += logSizes[p]; lsy += logFluct[p];
+        lsxy += logSizes[p] * logFluct[p]; lsx2 += logSizes[p] * logSizes[p];
+      }
+      var ldenom = ln * lsx2 - lsx * lsx;
+      if (ldenom === 0) return 0.3;
+      var alpha = (ln * lsxy - lsx * lsy) / ldenom;
+      // Human motor timing: alpha 0.6-0.9 (persistent pink noise)
+      // Random (white noise): alpha ~0.5. Over-correlated (brown): alpha ~1.5
+      // Bots: alpha near 0.5 (random delays) or near 0 (fixed intervals)
+      if (alpha >= 0.5 && alpha <= 1.1) {
+        return _ascore(1 - Math.abs(alpha - 0.75) * 3, 0.7);
+      }
+      return 0.2; // outside human range
+    },
+
+    // Signal 15: Cross-Signal Correlation Matrix
+    // Tsinghua research, adversarial team's #1 recommendation
+    computeCrossSignalCorrelation: function() {
+      // Correlate interaction timing with scroll timing and keystroke timing
+      // Real humans show correlated behavior across channels; bots simulate channels independently
+      var hasScroll = _scrollLog.length >= 10;
+      var hasKeys = _keystrokeLog.length >= 5 || _mobileInputTimes.length >= 5;
+      var hasTaps = _tapLog.length >= 5;
+      var channelCount = (hasScroll ? 1 : 0) + (hasKeys ? 1 : 0) + (hasTaps ? 1 : 0);
+      if (channelCount < 2) return -1;
+
+      var correlations = [];
+
+      // Correlation 1: When tapping happens, scroll should pause (anti-correlation)
+      if (hasTaps && hasScroll) {
+        var tapTimes = _tapLog.map(function(t) { return t.t; });
+        var scrollGaps = [];
+        tapTimes.forEach(function(tt) {
+          var nearestScroll = _scrollLog.reduce(function(best, s) {
+            var d = Math.abs(s.t - tt);
+            return d < Math.abs(best) ? d : best;
+          }, 99999);
+          scrollGaps.push(nearestScroll);
+        });
+        var avgGap = scrollGaps.reduce(function(a, b) { return a + b; }, 0) / scrollGaps.length;
+        // Humans: taps happen during scroll pauses, so gap should be > 200ms
+        correlations.push(avgGap > 200 ? _ascore(avgGap, 1000) : 0.2);
+      }
+
+      // Correlation 2: Keystroke bursts should coincide with scroll pauses
+      if (hasKeys && hasScroll) {
+        var keyTimes = _keystrokeLog.length > 0
+          ? _keystrokeLog.map(function(k) { return k.t; })
+          : _mobileInputTimes.slice();
+        if (keyTimes.length >= 5) {
+          var keyDuringScroll = 0;
+          keyTimes.forEach(function(kt) {
+            var scrollNear = _scrollLog.some(function(s) { return Math.abs(s.t - kt) < 500; });
+            if (scrollNear) keyDuringScroll++;
+          });
+          var keyScrollOverlap = keyDuringScroll / keyTimes.length;
+          // Humans: mostly type when not scrolling (low overlap)
+          correlations.push(keyScrollOverlap < 0.3 ? _ascore(1 - keyScrollOverlap, 0.6) : 0.3);
+        }
+      }
+
+      // Correlation 3: Interaction rate should change between phases/content sections
+      if (_interactionTimestamps.length >= 20) {
+        var half = Math.floor(_interactionTimestamps.length / 2);
+        var firstHalf = [], secondHalf = [];
+        for (var i = 1; i < half; i++) firstHalf.push(_interactionTimestamps[i] - _interactionTimestamps[i-1]);
+        for (var j = half + 1; j < _interactionTimestamps.length; j++) secondHalf.push(_interactionTimestamps[j] - _interactionTimestamps[j-1]);
+        var mean1 = firstHalf.reduce(function(a,b){return a+b;},0) / firstHalf.length;
+        var mean2 = secondHalf.reduce(function(a,b){return a+b;},0) / secondHalf.length;
+        var rateDiff = Math.abs(mean1 - mean2) / ((mean1 + mean2) / 2 || 1);
+        // Humans: interaction rate changes as they switch tasks. Bots: constant
+        correlations.push(_ascore(rateDiff, 0.5));
+      }
+
+      if (correlations.length === 0) return -1;
+      return correlations.reduce(function(a, b) { return a + b; }, 0) / correlations.length;
+    },
+
+    // ============================================================
+    // TIER 2: MOTOR SIGNALS (need mousemove sampling)
+    // ============================================================
+
+    recordMouseMove: function(x, y, t) {
+      if (t - _lastMouseSample < 16) return; // ~60Hz cap
+      _mouseMoveLog.push({ x: x, y: y, t: t });
+      if (_mouseMoveLog.length > 500) _mouseMoveLog.shift();
+      _lastMouseSample = t;
+    },
+
+    // Signal 16: Curvature Index (path efficiency)
+    // MacKenzie et al. 2001 — ratio of actual path to straight-line distance
+    computeCurvatureIndex: function() {
+      if (_mouseMoveLog.length < 20) return -1;
+      // Segment movements by velocity pauses (>100ms gap = new movement)
+      var movements = [];
+      var current = [_mouseMoveLog[0]];
+      for (var i = 1; i < _mouseMoveLog.length; i++) {
+        if (_mouseMoveLog[i].t - _mouseMoveLog[i-1].t > 300) {
+          if (current.length >= 5) movements.push(current);
+          current = [];
+        }
+        current.push(_mouseMoveLog[i]);
+      }
+      if (current.length >= 5) movements.push(current);
+      if (movements.length < 3) return -1;
+
+      var indices = [];
+      movements.forEach(function(m) {
+        var pathDist = 0;
+        for (var j = 1; j < m.length; j++) {
+          var dx = m[j].x - m[j-1].x, dy = m[j].y - m[j-1].y;
+          pathDist += Math.sqrt(dx*dx + dy*dy);
+        }
+        var euclidean = Math.sqrt(Math.pow(m[m.length-1].x - m[0].x, 2) + Math.pow(m[m.length-1].y - m[0].y, 2));
+        if (euclidean > 10) indices.push(pathDist / euclidean);
+      });
+      if (indices.length < 3) return -1;
+      var avgCI = indices.reduce(function(a,b){return a+b;},0) / indices.length;
+      // Human CI: 1.1-1.8. Bot CI: ~1.0 (straight lines) or >2.0 (random noise)
+      if (avgCI >= 1.0 && avgCI <= 2.5) {
+        return _ascore(1 - Math.abs(avgCI - 1.3) * 1.5, 0.7);
+      }
+      return 0.2;
+    },
+
+    // Signal 17: Cursor Jerk (LDLJ — Log Dimensionless Jerk)
+    // Flash & Hogan 1985, BeCAPTCHA-Mouse 98.7% bot detection
+    computeCursorJerk: function() {
+      if (_mouseMoveLog.length < 30) return -1;
+      var movements = [];
+      var current = [_mouseMoveLog[0]];
+      for (var i = 1; i < _mouseMoveLog.length; i++) {
+        if (_mouseMoveLog[i].t - _mouseMoveLog[i-1].t > 300) {
+          if (current.length >= 8) movements.push(current);
+          current = [];
+        }
+        current.push(_mouseMoveLog[i]);
+      }
+      if (current.length >= 8) movements.push(current);
+      if (movements.length < 2) return -1;
+
+      var jerkScores = [];
+      movements.forEach(function(m) {
+        // Compute velocity, acceleration, jerk
+        var jerks = [];
+        for (var j = 3; j < m.length; j++) {
+          var dt1 = (m[j].t - m[j-1].t) / 1000 || 0.016;
+          var dt2 = (m[j-1].t - m[j-2].t) / 1000 || 0.016;
+          var dt3 = (m[j-2].t - m[j-3].t) / 1000 || 0.016;
+          var v1 = Math.sqrt(Math.pow(m[j].x-m[j-1].x,2)+Math.pow(m[j].y-m[j-1].y,2))/dt1;
+          var v2 = Math.sqrt(Math.pow(m[j-1].x-m[j-2].x,2)+Math.pow(m[j-1].y-m[j-2].y,2))/dt2;
+          var v3 = Math.sqrt(Math.pow(m[j-2].x-m[j-3].x,2)+Math.pow(m[j-2].y-m[j-3].y,2))/dt3;
+          var a1 = (v1 - v2) / dt1;
+          var a2 = (v2 - v3) / dt2;
+          var jerk = (a1 - a2) / dt1;
+          jerks.push(Math.abs(jerk));
+        }
+        if (jerks.length < 3) return;
+        var meanJerk = jerks.reduce(function(a,b){return a+b;},0) / jerks.length;
+        var jerkVar = jerks.reduce(function(a,b){return a+Math.pow(b-meanJerk,2);},0) / jerks.length;
+        var jerkCV = meanJerk > 0 ? Math.sqrt(jerkVar) / meanJerk : 0;
+        // Human jerk: moderate and variable (CV 0.3-1.5)
+        // Bot jerk: near zero (perfectly smooth) or very high (random noise)
+        jerkScores.push(jerkCV);
+      });
+      if (jerkScores.length < 2) return -1;
+      var avgJerkCV = jerkScores.reduce(function(a,b){return a+b;},0) / jerkScores.length;
+      if (avgJerkCV >= 0.2 && avgJerkCV <= 2.0) {
+        return _ascore(1 - Math.abs(avgJerkCV - 0.8) * 1.0, 0.7);
+      }
+      return 0.2;
+    },
+
+    // Signal 18: Velocity Profile Bell-Shape Index
+    // Morasso 1981 — human movements produce bell-shaped velocity curves
+    computeVelocityProfile: function() {
+      if (_mouseMoveLog.length < 30) return -1;
+      var movements = [];
+      var current = [_mouseMoveLog[0]];
+      for (var i = 1; i < _mouseMoveLog.length; i++) {
+        if (_mouseMoveLog[i].t - _mouseMoveLog[i-1].t > 300) {
+          if (current.length >= 6) movements.push(current);
+          current = [];
+        }
+        current.push(_mouseMoveLog[i]);
+      }
+      if (current.length >= 6) movements.push(current);
+      if (movements.length < 2) return -1;
+
+      var symmetryScores = [];
+      movements.forEach(function(m) {
+        var velocities = [];
+        for (var j = 1; j < m.length; j++) {
+          var dt = (m[j].t - m[j-1].t) / 1000 || 0.016;
+          var dist = Math.sqrt(Math.pow(m[j].x-m[j-1].x,2)+Math.pow(m[j].y-m[j-1].y,2));
+          velocities.push(dist / dt);
+        }
+        if (velocities.length < 4) return;
+        var peakIdx = velocities.indexOf(Math.max.apply(null, velocities));
+        var symmetryRatio = (peakIdx + 1) / velocities.length;
+        // Human bell-shape: peak at 35-55% of movement (slight leftward skew)
+        // Bot linear: peak at end (ratio ~1.0) or flat (no clear peak)
+        if (symmetryRatio >= 0.2 && symmetryRatio <= 0.7) {
+          symmetryScores.push(_ascore(1 - Math.abs(symmetryRatio - 0.42) * 4, 0.6));
+        } else {
+          symmetryScores.push(0.2);
+        }
+      });
+      if (symmetryScores.length < 2) return -1;
+      return symmetryScores.reduce(function(a,b){return a+b;},0) / symmetryScores.length;
+    },
+
+    // Signal 19: Two-Thirds Power Law (velocity-curvature coupling)
+    // Lacquaniti, Terzuolo & Viviani 1983 — hardwired into human CNS since birth
+    computeTwoThirdsPowerLaw: function() {
+      if (_mouseMoveLog.length < 40) return -1;
+      // Need continuous curved movements
+      var logV = [], logK = [];
+      for (var i = 2; i < _mouseMoveLog.length - 1; i++) {
+        var dt = (_mouseMoveLog[i].t - _mouseMoveLog[i-1].t) / 1000 || 0.016;
+        if (dt > 0.2) continue; // skip gaps
+        var dx1 = _mouseMoveLog[i].x - _mouseMoveLog[i-1].x;
+        var dy1 = _mouseMoveLog[i].y - _mouseMoveLog[i-1].y;
+        var dx2 = _mouseMoveLog[i+1].x - _mouseMoveLog[i].x;
+        var dy2 = _mouseMoveLog[i+1].y - _mouseMoveLog[i].y;
+        var v = Math.sqrt(dx1*dx1 + dy1*dy1) / dt;
+        if (v < 5) continue; // skip near-stationary
+        // Curvature approximation: cross product / speed^3
+        var cross = Math.abs(dx1 * dy2 - dy1 * dx2);
+        var speed3 = Math.pow(v * dt, 3);
+        if (speed3 < 0.001) continue;
+        var kappa = cross / speed3;
+        if (kappa > 0.001 && v > 0) {
+          logV.push(Math.log(v));
+          logK.push(Math.log(kappa));
+        }
+      }
+      if (logV.length < 10) return -1;
+      // Fit log-log regression: logV = a + beta * logK
+      // Human beta should be near -1/3 (~-0.33)
+      var n = logV.length;
+      var sx = 0, sy = 0, sxy = 0, sx2 = 0;
+      for (var j = 0; j < n; j++) {
+        sx += logK[j]; sy += logV[j]; sxy += logK[j] * logV[j]; sx2 += logK[j] * logK[j];
+      }
+      var denom = n * sx2 - sx * sx;
+      if (Math.abs(denom) < 0.001) return 0.3;
+      var beta = (n * sxy - sx * sy) / denom;
+      // Human: beta near -0.33. Bot: beta near 0 (no coupling) or far from -0.33
+      var deviation = Math.abs(beta - (-0.333));
+      if (deviation < 0.3) {
+        return _ascore(1 - deviation * 3, 0.6);
+      }
+      return 0.2;
+    },
+
+    // ============================================================
+    // SIGNAL 20: Device Motion (accelerometer + gyroscope)
+    // BeCAPTCHA (Acien 2020), Stanford sensor research
+    // ============================================================
+
+    recordDeviceMotion: function(ax, ay, az, gx, gy, gz) {
+      var now = Date.now();
+      if (now - _lastMotionSample < 50) return; // ~20Hz cap
+      _motionLog.push({ ax: ax, ay: ay, az: az, gx: gx, gy: gy, gz: gz, t: now });
+      if (_motionLog.length > 500) _motionLog.shift();
+      _lastMotionSample = now;
+    },
+
+    computeDeviceMotion: function() {
+      if (_motionLog.length < 30) return -1; // need ~1.5s of data at 20Hz
+      // Human holding phone: constant micro-tremor (accelerometer noise CV 0.02-0.15)
+      // Bot/emulator: either zero motion or perfectly constant values
+      var axVals = _motionLog.map(function(m) { return m.ax; });
+      var ayVals = _motionLog.map(function(m) { return m.ay; });
+      var gzVals = _motionLog.map(function(m) { return m.gz; });
+
+      function stats(arr) {
+        var mean = arr.reduce(function(a,b){return a+b;},0) / arr.length;
+        var variance = arr.reduce(function(a,b){return a+Math.pow(b-mean,2);},0) / arr.length;
+        var sd = Math.sqrt(variance);
+        return { mean: mean, sd: sd, cv: mean !== 0 ? sd / Math.abs(mean) : 0 };
+      }
+
+      var axStats = stats(axVals);
+      var ayStats = stats(ayVals);
+      var gzStats = stats(gzVals);
+
+      // Check 1: Is there any motion at all? (emulators return all zeros)
+      if (axStats.sd < 0.001 && ayStats.sd < 0.001 && gzStats.sd < 0.001) return 0.05;
+
+      // Check 2: Human hand tremor produces characteristic SD ranges
+      // Accelerometer SD: 0.01-0.5 m/s² for stationary holding
+      // Gyroscope SD: 0.001-0.1 rad/s for stationary holding
+      var accelHumanLike = (axStats.sd > 0.005 && axStats.sd < 2.0) ? 1 : 0;
+      accelHumanLike += (ayStats.sd > 0.005 && ayStats.sd < 2.0) ? 1 : 0;
+      var gyroHumanLike = (gzStats.sd > 0.0005 && gzStats.sd < 0.5) ? 1 : 0;
+
+      // Check 3: Motion should correlate with touch events (hand moves when tapping)
+      var motionDuringTaps = 0;
+      if (_tapLog.length > 0) {
+        _tapLog.forEach(function(tap) {
+          var nearMotion = _motionLog.filter(function(m) { return Math.abs(m.t - tap.t) < 200; });
+          if (nearMotion.length > 0) {
+            var tapMotion = nearMotion.reduce(function(sum, m) {
+              return sum + Math.abs(m.ax) + Math.abs(m.ay);
+            }, 0) / nearMotion.length;
+            if (tapMotion > 0.1) motionDuringTaps++;
+          }
+        });
+      }
+      var tapCorrelation = _tapLog.length > 0 ? motionDuringTaps / _tapLog.length : 0.5;
+
+      // Check 4: Variability of motion over time (not constant)
+      var firstHalf = _motionLog.slice(0, Math.floor(_motionLog.length / 2));
+      var secondHalf = _motionLog.slice(Math.floor(_motionLog.length / 2));
+      var firstSD = stats(firstHalf.map(function(m){return m.ax;})).sd;
+      var secondSD = stats(secondHalf.map(function(m){return m.ax;})).sd;
+      var motionDrift = Math.abs(firstSD - secondSD) / ((firstSD + secondSD) / 2 || 1);
+      var driftScore = _ascore(motionDrift, 0.3);
+
+      var humanLikeRatio = (accelHumanLike + gyroHumanLike) / 3;
+      return humanLikeRatio * 0.3 + _ascore(tapCorrelation, 0.6) * 0.4 + driftScore * 0.3;
+    },
+
+    // Composite Human Confidence Score (20 signals)
     computeHumanConfidence: function() {
       var timingCV = this.computeTimingCV();
-      var timingScore = Math.min(1, Math.max(0, (timingCV - 0.1) / 1.0));
+      var timingScore = _ascore(Math.max(0, timingCV - 0.15), 1.2);
 
-      var fittsScore = this.computeFittsCompliance();
-      var scrollScore = this.computeScrollSaccade();
-      var touchScore = this.computeTouchVariance();
-      var microPauseScore = this.computeMicroPauseScore();
-      var hicksScore = this.computeHicksCompliance();
-
-      var composite = (
-        timingScore * 0.20 +
-        fittsScore * 0.15 +
-        hicksScore * 0.20 +
-        scrollScore * 0.15 +
-        microPauseScore * 0.15 +
-        touchScore * 0.15
-      );
-
-      return {
-        composite: composite,
+      var rawScores = {
         timing: timingScore,
-        fitts: fittsScore,
-        hicks: hicksScore,
-        scroll: scrollScore,
-        microPause: microPauseScore,
-        touch: touchScore
+        fitts: this.computeFittsCompliance(),
+        hicks: this.computeHicksCompliance(),
+        scroll: this.computeScrollSaccade(),
+        microPause: this.computeMicroPauseScore(),
+        touch: this.computeTouchVariance(),
+        keystroke: this.computeKeystrokeDynamics(),
+        readingSpeed: this.computeReadingSpeed(),
+        hoverDwell: this.computeHoverDwell(),
+        tabVisibility: this.computeTabVisibility(),
+        inactivity: this.computeInactivityPattern(),
+        rtVariability: this.computeRTVariability(),
+        scrollBacktrack: this.computeScrollBacktracking(),
+        fractalScaling: this.computeFractalScaling(),
+        crossCorrelation: this.computeCrossSignalCorrelation(),
+        curvatureIndex: this.computeCurvatureIndex(),
+        cursorJerk: this.computeCursorJerk(),
+        velocityProfile: this.computeVelocityProfile(),
+        twoThirdsPower: this.computeTwoThirdsPowerLaw(),
+        deviceMotion: this.computeDeviceMotion()
       };
+
+      // Base weights — cross-signal correlation + device motion highest
+      var baseWeights = {
+        timing: 0.06, fitts: 0.04, hicks: 0.06, scroll: 0.05,
+        microPause: 0.05, touch: 0.03, keystroke: 0.05,
+        readingSpeed: 0.04, hoverDwell: 0.03, tabVisibility: 0.03,
+        inactivity: 0.03,
+        rtVariability: 0.07, scrollBacktrack: 0.05, fractalScaling: 0.06,
+        crossCorrelation: 0.08, curvatureIndex: 0.04, cursorJerk: 0.05,
+        velocityProfile: 0.04, twoThirdsPower: 0.05,
+        deviceMotion: 0.09
+      };
+
+      // Identify active signals (returned real data, not -1 sentinel)
+      var activeSignals = {};
+      var inactiveWeight = 0;
+      var activeWeight = 0;
+      var activeCount = 0;
+
+      for (var key in rawScores) {
+        if (rawScores[key] === -1) {
+          // Signal had insufficient data — exclude from scoring
+          inactiveWeight += baseWeights[key];
+          rawScores[key] = 0; // display as 0, not -1
+        } else {
+          activeSignals[key] = true;
+          activeWeight += baseWeights[key];
+          activeCount++;
+        }
+      }
+
+      // Redistribute inactive weight proportionally across active signals
+      var composite = 0;
+      if (activeWeight > 0) {
+        var scale = 1.0 / activeWeight;
+        for (var sig in rawScores) {
+          if (activeSignals[sig]) {
+            composite += rawScores[sig] * baseWeights[sig] * scale;
+          }
+        }
+      }
+
+      // Confidence floor: scaled for 19 signals
+      if (activeCount < 4) composite = Math.min(composite, 0.30);
+      else if (activeCount < 7) composite = Math.min(composite, 0.50);
+      else if (activeCount < 10) composite = Math.min(composite, 0.70);
+      else if (activeCount < 14) composite = Math.min(composite, 0.85);
+      // 14+ active signals: uncapped
+
+      var result = { composite: composite, activeSignals: activeCount, totalSignals: 20 };
+      for (var rk in rawScores) result[rk] = rawScores[rk];
+      return result;
     },
 
     // Map confidence to max quality tier
@@ -862,11 +1627,16 @@
 
     if (_config.enableBehavioralAnalysis) {
       Behavioral.recordInteraction();
+      Behavioral.recordActivity();
+      Behavioral.recordFirstInteractionAfterRender();
       if (event.type === 'touchstart') {
         Behavioral.recordTap(event);
         Behavioral.recordTouch(event);
       } else if (event.type === 'click' || event.type === 'mousedown') {
         Behavioral.recordTap(event);
+        if (event.clientX !== undefined) {
+          Behavioral.recordClickCoord(event.clientX, event.clientY);
+        }
       }
     }
   }
@@ -983,11 +1753,53 @@
     document.addEventListener('keydown', function(e) {
       _lastInteractionTime = Date.now();
       _idleInteractionCount++;
-      if (_config.enableBehavioralAnalysis) Behavioral.recordInteraction();
+      if (_config.enableBehavioralAnalysis) {
+        Behavioral.recordInteraction();
+        Behavioral.recordKeyDown(e);
+        Behavioral.recordActivity();
+      }
     }, { passive: true });
-    document.addEventListener('mousemove', function() {
+    document.addEventListener('keyup', function(e) {
+      if (_config.enableBehavioralAnalysis) Behavioral.recordKeyUp(e);
+    }, { passive: true });
+    // Device motion (accelerometer + gyroscope) for mobile
+    function _startDeviceMotion() {
+      if (_motionPermissionGranted) return;
+      window.addEventListener('devicemotion', function(e) {
+        if (e.accelerationIncludingGravity && _config.enableBehavioralAnalysis) {
+          var a = e.accelerationIncludingGravity;
+          var r = e.rotationRate || { alpha: 0, beta: 0, gamma: 0 };
+          Behavioral.recordDeviceMotion(a.x || 0, a.y || 0, a.z || 0, r.alpha || 0, r.beta || 0, r.gamma || 0);
+        }
+      }, { passive: true });
+      _motionPermissionGranted = true;
+    }
+    // iOS 13+ requires permission request on user gesture
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      document.addEventListener('click', function _reqMotion() {
+        DeviceMotionEvent.requestPermission().then(function(state) {
+          if (state === 'granted') _startDeviceMotion();
+        }).catch(function() {});
+        document.removeEventListener('click', _reqMotion);
+      }, { once: true });
+    } else if (typeof DeviceMotionEvent !== 'undefined') {
+      _startDeviceMotion();
+    }
+
+    document.addEventListener('mousemove', function(e) {
       _lastInteractionTime = Date.now();
+      if (_config.enableBehavioralAnalysis) {
+        Behavioral.recordActivity();
+        if (e.clientX !== undefined) {
+          Behavioral.recordMouseMove(e.clientX, e.clientY, Date.now());
+        }
+      }
     }, { passive: true });
+    document.addEventListener('visibilitychange', function() {
+      if (_config.enableBehavioralAnalysis) {
+        Behavioral.recordVisibilityChange(!document.hidden);
+      }
+    });
 
     // Firebase
     if (options && options.firebaseConfig) {
@@ -1067,6 +1879,30 @@
     // Behavioral analysis hooks (for game/app integration)
     recordDecision: function(optionCount, responseTimeMs) { Behavioral.recordDecision(optionCount, responseTimeMs); },
     recordContentRender: function(complexity) { Behavioral.recordContentRender(complexity); },
+    recordElementScroll: function(scrollTop) {
+      Behavioral.recordScroll(scrollTop);
+      // Auto-detect scroll reversals for backtracking signal
+      if (_scrollLog.length >= 2) {
+        var prev = _scrollLog[_scrollLog.length - 2];
+        var curr = _scrollLog[_scrollLog.length - 1];
+        var dir = curr.y > prev.y ? 'down' : curr.y < prev.y ? 'up' : null;
+        if (dir && _scrollReversals.length > 0) {
+          var lastDir = _scrollReversals[_scrollReversals.length - 1].direction;
+          if (dir !== lastDir) Behavioral.recordScrollReversal(scrollTop, dir);
+        } else if (dir) {
+          Behavioral.recordScrollReversal(scrollTop, dir);
+        }
+      }
+    },
+    recordMobileInput: function(t) { Behavioral.recordMobileInput(t); },
+    recordTouchDwell: function(startTime) { Behavioral.recordTouchDwell(startTime); },
+    recordDeviceMotion: function(ax,ay,az,gx,gy,gz) { Behavioral.recordDeviceMotion(ax,ay,az,gx,gy,gz); },
+    recordSectionEntry: function(id) { Behavioral.recordSectionEntry(id); },
+    recordSectionExit: function(id, pct) { Behavioral.recordSectionExit(id, pct); },
+    recordHoverEnter: function(id) { Behavioral.recordHoverEnter(id); },
+    recordHoverLeave: function() { Behavioral.recordHoverLeave(); },
+    getTimeline: function() { return Behavioral.getTimeline(); },
+    takeTimelineSnapshot: function(phase) { Behavioral.recordTimelineSnapshot(phase); },
 
     // Session info
     getSessionId: function() { return _sessionId; },
@@ -1087,8 +1923,54 @@
     },
     forceSyncNow: function() { _drainSyncQueue(); },
 
+    // Cold storage receipt — generates a self-contained, offline-verifiable receipt
+    // Can be stored locally, on USB, in a SCIF, or anywhere without internet
+    // Later verified by re-hashing the payload and comparing to the stored hash
+    generateColdReceipt: function() {
+      var c = Behavioral.computeHumanConfidence();
+      var stats = getStats();
+      var timeline = Behavioral.getTimeline();
+      var payload = {
+        protocol: 'SWS-AP-v2',
+        patent: 'SWS-PROV-001',
+        entity: 'SWS Strategic Media LLC',
+        session_id: _sessionId,
+        generated: new Date().toISOString(),
+        generated_epoch: Date.now(),
+        duration_ms: Date.now() - _sessionStartTime,
+        signals: {
+          composite: c.composite,
+          timing: c.timing, fitts: c.fitts, hicks: c.hicks,
+          scroll: c.scroll, microPause: c.microPause, touch: c.touch,
+          keystroke: c.keystroke, readingSpeed: c.readingSpeed,
+          hoverDwell: c.hoverDwell, tabVisibility: c.tabVisibility,
+          inactivity: c.inactivity,
+          activeSignals: c.activeSignals, totalSignals: c.totalSignals
+        },
+        quality_tier: c.composite >= 0.7 ? 'deep_focus' : c.composite >= 0.5 ? 'active' : c.composite >= 0.25 ? 'passive' : 'background',
+        hashes_earned: stats.totalHashes,
+        timeline_summary: {
+          snapshots: timeline.length,
+          avg_composite: timeline.length > 0 ? timeline.reduce(function(s, t) { return s + t.composite; }, 0) / timeline.length : 0,
+          deep_pct: timeline.length > 0 ? Math.round(timeline.filter(function(t) { return t.tier === 'deep'; }).length / timeline.length * 100) : 0,
+          active_pct: timeline.length > 0 ? Math.round(timeline.filter(function(t) { return t.tier === 'active'; }).length / timeline.length * 100) : 0
+        },
+        offline: true,
+        requires_internet: false
+      };
+      // Deterministic JSON for reproducible hashing
+      var canonical = JSON.stringify(payload, Object.keys(payload).sort());
+      var receiptHash = _sha256(canonical);
+      return {
+        payload: payload,
+        hash: receiptHash,
+        canonical: canonical,
+        verification: 'To verify: JSON.stringify(payload, Object.keys(payload).sort()) then SHA-256. Must match hash.'
+      };
+    },
+
     // Version and meta
-    version: '1.0.0',
+    version: '2.0.0',
     patent: 'SWS-PROV-001',
     entity: 'SWS Strategic Media LLC'
   };

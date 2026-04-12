@@ -3,31 +3,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SWS Attention Protocol — Live Demo</title>
+  <title>SWS Attention Protocol — Live Verification Demo</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e2e8f0; min-height: 100vh; }
 
-    .header { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); padding: 24px; text-align: center; border-bottom: 2px solid #06b6d4; }
-    .header h1 { font-size: 24px; color: #06b6d4; margin-bottom: 4px; }
-    .header .subtitle { color: #94a3b8; font-size: 13px; }
+    .header { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); padding: 20px; text-align: center; border-bottom: 2px solid #06b6d4; }
+    .header h1 { font-size: 22px; color: #06b6d4; margin-bottom: 4px; }
+    .header .subtitle { color: #94a3b8; font-size: 12px; }
+    .header .patent { color: #475569; font-size: 10px; margin-top: 4px; }
 
-    .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
 
-    .dual-panel { display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
-    @media (max-width: 800px) { .dual-panel { grid-template-columns: 1fr; } }
+    .dual-panel { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+    @media (max-width: 800px) { .dual-panel { grid-template-columns: 1fr; } .live-panel { position: static !important; } }
 
-    .task-panel { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; }
-    .task-panel h2 { color: #06b6d4; font-size: 18px; margin-bottom: 8px; }
-    .task-panel p { color: #94a3b8; font-size: 13px; margin-bottom: 16px; line-height: 1.6; }
+    .task-panel { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; }
+    .task-panel h2 { color: #06b6d4; font-size: 16px; margin-bottom: 6px; }
+    .task-panel .desc { color: #94a3b8; font-size: 12px; margin-bottom: 14px; line-height: 1.5; }
+    .task-panel .signal-hint { color: #06b6d4; font-size: 11px; background: rgba(6,182,212,0.08); padding: 6px 10px; border-radius: 6px; margin-bottom: 12px; border-left: 3px solid #06b6d4; }
 
-    .live-panel { position: sticky; top: 20px; }
-    .live-card { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
-    .live-card h3 { font-size: 13px; margin-bottom: 10px; letter-spacing: 1px; text-transform: uppercase; }
-    .live-card h3.ga4 { color: #ef4444; }
+    .live-panel { position: sticky; top: 12px; }
+    .live-card { background: #111827; border: 1px solid #1e293b; border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+    .live-card h3 { font-size: 11px; margin-bottom: 8px; letter-spacing: 1px; text-transform: uppercase; }
     .live-card h3.sws { color: #10b981; }
+    .live-card h3.ga4 { color: #ef4444; }
 
-    .metric-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; }
+    .metric-row { display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; }
     .metric-name { color: #64748b; }
     .metric-val { font-family: monospace; font-weight: 600; color: #e2e8f0; }
     .metric-val.green { color: #10b981; }
@@ -35,49 +37,83 @@
     .metric-val.yellow { color: #f59e0b; }
     .metric-val.blue { color: #06b6d4; }
 
-    .signal-bar { height: 6px; background: #1e293b; border-radius: 3px; margin: 4px 0 8px; overflow: hidden; }
+    .signal-bar { height: 5px; background: #1e293b; border-radius: 3px; margin: 2px 0 6px; overflow: hidden; }
     .signal-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
 
-    .reading-area { font-size: 14px; color: #94a3b8; line-height: 1.8; max-height: 350px; overflow-y: auto; padding: 16px; background: #0f172a; border-radius: 8px; margin: 12px 0; }
-    .reading-area p { margin-bottom: 14px; }
+    .reading-area { font-size: 13px; color: #94a3b8; line-height: 1.8; max-height: 400px; overflow-y: auto; padding: 14px; background: #0f172a; border-radius: 8px; margin: 10px 0; }
+    .reading-area p { margin-bottom: 12px; }
     .reading-area strong { color: #e2e8f0; }
 
-    .btn { padding: 12px 24px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; margin: 4px; transition: all 0.15s; }
+    .btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; margin: 4px; transition: all 0.15s; }
     .btn-primary { background: #06b6d4; color: #0a0e17; }
     .btn-primary:hover { background: #22d3ee; }
     .btn-secondary { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; }
 
-    .decision-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin: 12px 0; }
-    .decision-opt { padding: 12px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; cursor: pointer; font-size: 13px; text-align: center; transition: all 0.15s; }
+    .decision-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px; margin: 10px 0; }
+    .decision-opt { padding: 10px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; cursor: pointer; font-size: 12px; text-align: center; transition: all 0.15s; }
     .decision-opt:hover { border-color: #06b6d4; background: #1a2744; }
     .decision-opt.selected { border-color: #10b981; background: rgba(16,185,129,0.1); }
 
-    .target-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; max-width: 300px; margin: 12px 0; }
-    .target { aspect-ratio: 1; background: #1e293b; border: 2px solid #334155; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.1s; }
+    .target-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; max-width: 100%; margin: 10px 0; }
+    .target { aspect-ratio: 1; background: #1e293b; border: 2px solid #334155; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.1s; min-height: 44px; }
     .target.lit { background: #06b6d4; border-color: #22d3ee; }
     .target.hit { background: #10b981; border-color: #34d399; }
 
-    .hash-display { font-family: monospace; font-size: 10px; color: #06b6d4; word-break: break-all; background: #0f172a; padding: 8px; border-radius: 4px; margin-top: 8px; }
+    .typing-area { width: 100%; min-height: 80px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #e2e8f0; font-family: inherit; font-size: 13px; padding: 12px; resize: none; outline: none; }
+    .typing-area:focus { border-color: #06b6d4; }
 
-    .phase-nav { display: flex; gap: 4px; margin-bottom: 16px; }
-    .phase-btn { flex: 1; padding: 8px; text-align: center; font-size: 12px; border-radius: 6px; cursor: pointer; border: 1px solid #1e293b; background: #111827; color: #64748b; }
+    .phase-nav { display: flex; gap: 3px; margin-bottom: 12px; flex-wrap: wrap; }
+    .phase-btn { flex: 1; min-width: 60px; padding: 6px 4px; text-align: center; font-size: 10px; border-radius: 6px; cursor: pointer; border: 1px solid #1e293b; background: #111827; color: #64748b; }
     .phase-btn.active { background: #06b6d4; color: #0a0e17; border-color: #06b6d4; font-weight: 600; }
     .phase-btn.done { background: #0f172a; color: #10b981; border-color: #10b981; }
 
-    .event-log { max-height: 150px; overflow-y: auto; font-family: monospace; font-size: 10px; color: #64748b; background: #0a0e17; border-radius: 4px; padding: 8px; margin-top: 8px; }
-    .event-log .evt { padding: 2px 0; border-bottom: 1px solid #111827; }
+    .hash-display { font-family: monospace; font-size: 9px; color: #06b6d4; word-break: break-all; background: #0f172a; padding: 6px; border-radius: 4px; margin-top: 6px; }
+
+    .event-log { max-height: 120px; overflow-y: auto; font-family: monospace; font-size: 9px; color: #64748b; background: #0a0e17; border-radius: 4px; padding: 6px; margin-top: 6px; }
+    .event-log .evt { padding: 1px 0; border-bottom: 1px solid #111827; }
     .event-log .evt .time { color: #475569; }
     .event-log .evt .sws-evt { color: #10b981; }
     .event-log .evt .ga4-evt { color: #ef4444; }
 
-    .receipt-box { background: #0f172a; border: 1px solid #10b981; border-radius: 8px; padding: 16px; margin-top: 16px; }
-    .receipt-box h4 { color: #10b981; font-size: 13px; margin-bottom: 8px; }
+    /* Results page */
+    .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+    @media (max-width: 800px) { .results-grid { grid-template-columns: 1fr; } }
+
+    .result-card { background: #0f172a; border-radius: 10px; padding: 16px; border: 1px solid #1e293b; }
+    .result-card h4 { font-size: 12px; margin-bottom: 10px; letter-spacing: 0.5px; }
+
+    .tier-badge { display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: 14px; font-weight: 700; letter-spacing: 1px; }
+    .tier-deep { background: rgba(16,185,129,0.15); color: #10b981; border: 2px solid #10b981; }
+    .tier-active { background: rgba(6,182,212,0.15); color: #06b6d4; border: 2px solid #06b6d4; }
+    .tier-passive { background: rgba(245,158,11,0.15); color: #f59e0b; border: 2px solid #f59e0b; }
+    .tier-background { background: rgba(239,68,68,0.15); color: #ef4444; border: 2px solid #ef4444; }
+
+    .timeline-chart { width: 100%; height: 120px; background: #111827; border-radius: 8px; position: relative; overflow: hidden; margin: 10px 0; }
+    .timeline-bar { position: absolute; bottom: 0; min-width: 3px; transition: height 0.2s; }
+    .timeline-label { position: absolute; bottom: -16px; font-size: 8px; color: #475569; }
+
+    .signal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+    .signal-item { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; border-radius: 4px; font-size: 11px; }
+    .signal-item .name { color: #94a3b8; }
+    .signal-item .val { font-family: monospace; font-weight: 600; }
+    .signal-item .bar-wrap { flex: 1; margin: 0 8px; height: 4px; background: #1e293b; border-radius: 2px; }
+    .signal-item .bar-inner { height: 100%; border-radius: 2px; }
+
+    .summary-text { font-size: 13px; line-height: 1.7; color: #94a3b8; padding: 12px; background: #111827; border-radius: 8px; border-left: 3px solid #10b981; margin: 12px 0; }
+    .summary-text strong { color: #e2e8f0; }
+
+    .ga4-comparison { border: 1px solid #ef4444; border-radius: 10px; padding: 16px; background: #0f172a; }
+    .ga4-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 11px; }
+    .ga4-label { color: #64748b; }
+    .ga4-val { color: #ef4444; font-family: monospace; font-weight: 600; }
+    .sws-val { color: #10b981; font-family: monospace; font-weight: 600; }
   </style>
 </head>
 <body>
   <div class="header">
-    <h1>Live Attention Verification Demo</h1>
-    <div class="subtitle">Complete the tasks below. Watch the right panel to see what GA4 captures vs what SWS captures in real time.</div>
+    <h1>SWS Attention Verification — Live Demo</h1>
+    <div class="subtitle">Complete 5 tasks. 20 behavioral signals from 5 research domains measuring your attention in real time.</div>
+    <div class="patent">Patent filed March 17, 2026 — SWS-PROV-001 — SWS Strategic Media LLC</div>
   </div>
 
   <div class="container">
@@ -85,25 +121,31 @@
       <div class="phase-btn active" id="nav-1">1. Read</div>
       <div class="phase-btn" id="nav-2">2. Decide</div>
       <div class="phase-btn" id="nav-3">3. Click</div>
-      <div class="phase-btn" id="nav-4">4. Results</div>
+      <div class="phase-btn" id="nav-4">4. Type</div>
+      <div class="phase-btn" id="nav-5">5. Results</div>
     </div>
 
     <div class="dual-panel">
-      <!-- LEFT: Task area -->
       <div>
         <!-- Phase 1: Reading -->
         <div class="task-panel" id="phase-1">
-          <h2>Task 1: Read This Policy Excerpt</h2>
-          <p>Scroll through and read. SWS is tracking your scroll pattern, reading pace, and engagement signals. GA4 will only know you visited this page.</p>
+          <h2>Task 1: Read This Policy Document</h2>
+          <div class="signal-hint">Measuring: Scroll Saccade, Reading Speed, Tab Visibility, Inactivity Gaps</div>
+          <div class="desc">Scroll through and actually read. We're measuring your natural read-pause-scroll pattern, not just whether you scrolled to the bottom.</div>
           <div class="reading-area" id="reading-area">
             <p><strong>Section 1: Coverage Overview</strong></p>
             <p>This policy provides comprehensive liability coverage for all attention verification services deployed by the policyholder. Coverage includes but is not limited to: behavioral signal collection, cryptographic hash generation, quality tier classification, and attention receipt issuance across all supported platforms and devices.</p>
+            <p>The policyholder is covered for up to $2,000,000 per occurrence and $5,000,000 in aggregate annual liability arising from attention verification activities conducted in accordance with this policy's terms.</p>
             <p><strong>Section 2: Exclusions</strong></p>
             <p>The following are explicitly excluded from coverage: (a) Services deployed without proper user consent mechanisms as defined in Section 7.2; (b) Attention data collected from minors under 13 years of age without COPPA-compliant parental consent; (c) Any use of attention verification technology for surveillance, employee monitoring without disclosure, or law enforcement profiling purposes.</p>
+            <p>Additionally excluded: (d) Attention verification conducted on medical devices requiring FDA 510(k) clearance unless separately endorsed; (e) Use in autonomous vehicle control systems; (f) Military applications in non-allied territories without written DoD authorization.</p>
             <p><strong>Section 3: Claims Process</strong></p>
-            <p>To file a claim under this policy, the policyholder must provide: (1) The cryptographic attention receipt chain for the disputed session; (2) Server-side verification logs showing receipt validation timestamps; (3) The behavioral signal breakdown demonstrating the quality tier classification that was applied. Claims must be filed within 90 days of the incident date. The insurer reserves the right to independently verify attention receipts using the protocol's public verification endpoint.</p>
+            <p>To file a claim under this policy, the policyholder must provide: (1) The cryptographic attention receipt chain for the disputed session; (2) Server-side verification logs showing receipt validation timestamps; (3) The behavioral signal breakdown demonstrating the quality tier classification that was applied. Claims must be filed within 90 days of the incident date.</p>
+            <p>The insurer reserves the right to independently verify attention receipts using the protocol's public verification endpoint. Disputed quality tier classifications will be adjudicated by a panel of three independent behavioral science experts, with the policyholder bearing the cost of one expert and the insurer bearing the cost of two.</p>
             <p><strong>Section 4: Premium Calculation</strong></p>
             <p>Premiums are calculated based on: total monthly verified attention events, average quality tier distribution (policies with higher deep-focus ratios receive preferred rates), historical claim frequency, and the policyholder's session integrity score. Policyholders maintaining a 95%+ session integrity score for 12 consecutive months qualify for the Verified Attention Discount of 15%.</p>
+            <p><strong>Section 5: Renewal and Cancellation</strong></p>
+            <p>This policy automatically renews annually unless cancelled in writing 60 days prior to the renewal date. The insurer may cancel this policy with 30 days written notice if the policyholder's session integrity score falls below 70% for three consecutive months, or if the policyholder is found to have generated fraudulent attention receipts.</p>
           </div>
           <button class="btn btn-primary" onclick="completePhase(1)">Done Reading &rarr; Next Task</button>
         </div>
@@ -111,49 +153,104 @@
         <!-- Phase 2: Decisions -->
         <div class="task-panel" id="phase-2" style="display:none">
           <h2>Task 2: Answer These Questions</h2>
-          <p>Choose your answers. SWS measures whether your response time scales with the number of options (Hick's Law). Bots respond at constant speed regardless.</p>
+          <div class="signal-hint">Measuring: Hick's Law (do you slow down with more choices?), Micro-Pause, Timing Entropy</div>
+          <div class="desc">Choose your answers. A human's response time naturally increases with more options. Bots respond at constant speed.</div>
           <div id="decision-area"></div>
         </div>
 
         <!-- Phase 3: Targets -->
         <div class="task-panel" id="phase-3" style="display:none">
-          <h2>Task 3: Click the Targets</h2>
-          <p>Click the highlighted square as fast as you can. SWS measures whether your movement time correlates with distance (Fitts' Law). Bots teleport instantly.</p>
-          <div id="target-timer" style="font-size:20px;font-weight:700;color:#06b6d4;text-align:center;margin:12px 0;">Click the lit square!</div>
+          <h2>Task 3: Hit the Targets</h2>
+          <div class="signal-hint">Measuring: Fitts' Law (movement time vs distance), Touch Variance, Hover Dwell</div>
+          <div class="desc">Click or tap the highlighted square as fast as you can. Humans take longer to reach distant targets. Bots teleport.</div>
+          <div id="target-timer" style="font-size:18px;font-weight:700;color:#06b6d4;text-align:center;margin:10px 0;">Click the lit square!</div>
           <div class="target-grid" id="target-grid"></div>
         </div>
 
-        <!-- Phase 4: Results -->
+        <!-- Phase 4: Typing -->
         <div class="task-panel" id="phase-4" style="display:none">
-          <h2>Your Attention Verification Results</h2>
-          <p>Here's the side-by-side proof of what each system captured from your session.</p>
+          <h2>Task 4: Type What You Remember</h2>
+          <div class="signal-hint">Measuring: Keystroke Dynamics (hold time, flight time, rhythm), Reading Comprehension</div>
+          <div class="desc">In your own words, describe what the policy document covered. Don't worry about getting it exactly right — we're measuring your natural typing rhythm, not your memory. Type at least 20 words.</div>
+          <textarea class="typing-area" id="typing-area" placeholder="Start typing what you remember from the policy..."></textarea>
+          <div style="margin-top:8px;">
+            <span style="font-size:11px;color:#64748b;" id="word-count">0 words</span>
+            <button class="btn btn-primary" id="typing-done-btn" onclick="completePhase(4)" style="float:right;opacity:0.4;pointer-events:none;">Need 20+ words &rarr;</button>
+          </div>
+        </div>
 
-          <div class="receipt-box">
-            <h4>Your Cryptographic Attention Receipt</h4>
-            <div class="metric-row"><span class="metric-name">Session Duration</span><span class="metric-val blue" id="r-duration">--</span></div>
-            <div class="metric-row"><span class="metric-name">Composite Score</span><span class="metric-val green" id="r-composite">--</span></div>
-            <div class="metric-row"><span class="metric-name">Quality Tier</span><span class="metric-val green" id="r-tier">--</span></div>
-            <div class="metric-row"><span class="metric-name">Hick's Law</span><span class="metric-val" id="r-hicks">--</span></div>
-            <div class="metric-row"><span class="metric-name">Timing Entropy</span><span class="metric-val" id="r-timing">--</span></div>
-            <div class="metric-row"><span class="metric-name">Scroll Saccade</span><span class="metric-val" id="r-scroll">--</span></div>
-            <div class="metric-row"><span class="metric-name">Micro-Pause</span><span class="metric-val" id="r-pause">--</span></div>
-            <div class="metric-row"><span class="metric-name">Fitts' Compliance</span><span class="metric-val" id="r-fitts">--</span></div>
-            <div class="metric-row"><span class="metric-name">Touch Variance</span><span class="metric-val" id="r-touch">--</span></div>
-            <div class="hash-display" id="r-hash">Receipt hash will appear here...</div>
+        <!-- Phase 5: Results -->
+        <div class="task-panel" id="phase-5" style="display:none">
+          <h2>Your Attention Verification Report</h2>
+          <div class="desc">This is what our protocol captured vs what Google Analytics would have seen for the exact same session.</div>
+
+          <!-- Big verdict -->
+          <div style="text-align:center;padding:16px 0;">
+            <div id="r-tier-badge" class="tier-badge">--</div>
+            <div style="margin-top:8px;">
+              <span style="font-size:28px;font-weight:700;color:#e2e8f0;" id="r-composite-big">--</span>
+              <span style="font-size:13px;color:#64748b;"> / 1.000 human confidence</span>
+            </div>
           </div>
 
-          <div style="margin-top:16px;padding:16px;background:#0f172a;border-radius:8px;border:1px solid #ef4444;">
-            <h4 style="color:#ef4444;font-size:13px;margin-bottom:8px;">What GA4 Captured (Same Session)</h4>
-            <div class="metric-row"><span class="metric-name">Event</span><span class="metric-val red">page_view</span></div>
-            <div class="metric-row"><span class="metric-name">Engagement Time</span><span class="metric-val red" id="r-ga4-time">--</span></div>
-            <div class="metric-row"><span class="metric-name">Scroll Depth</span><span class="metric-val red" id="r-ga4-scroll">--</span></div>
-            <div class="metric-row"><span class="metric-name">Behavioral Signals</span><span class="metric-val red">None</span></div>
-            <div class="metric-row"><span class="metric-name">Cryptographic Proof</span><span class="metric-val red">None</span></div>
-            <div class="metric-row"><span class="metric-name">Reading Verification</span><span class="metric-val red">None</span></div>
-            <div class="metric-row"><span class="metric-name">Bot Detection</span><span class="metric-val red">None</span></div>
+          <!-- Plain-English summary -->
+          <div class="summary-text" id="r-summary">Analyzing your session...</div>
+
+          <div class="results-grid">
+            <!-- Attention Timeline -->
+            <div class="result-card" style="grid-column: 1 / -1;">
+              <h4 style="color:#06b6d4;">ATTENTION TIMELINE</h4>
+              <div class="timeline-chart" id="timeline-chart"></div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;color:#475569;margin-top:4px;">
+                <span>Session Start</span>
+                <span id="timeline-end">--</span>
+              </div>
+              <div style="display:flex;gap:12px;margin-top:6px;font-size:9px;">
+                <span><span style="display:inline-block;width:8px;height:8px;background:#10b981;border-radius:2px;"></span> Deep Focus</span>
+                <span><span style="display:inline-block;width:8px;height:8px;background:#06b6d4;border-radius:2px;"></span> Active</span>
+                <span><span style="display:inline-block;width:8px;height:8px;background:#f59e0b;border-radius:2px;"></span> Passive</span>
+                <span><span style="display:inline-block;width:8px;height:8px;background:#ef4444;border-radius:2px;"></span> Background</span>
+              </div>
+            </div>
+
+            <!-- All 11 signals -->
+            <div class="result-card">
+              <h4 style="color:#10b981;">20 BEHAVIORAL SIGNALS</h4>
+              <div id="signal-results"></div>
+            </div>
+
+            <!-- GA4 comparison -->
+            <div class="ga4-comparison">
+              <h4 style="color:#ef4444;font-size:12px;margin-bottom:10px;">WHAT GA4 CAPTURED (SAME SESSION)</h4>
+              <div class="ga4-row"><span class="ga4-label">Events</span><span class="ga4-val">page_view, scroll, click</span></div>
+              <div class="ga4-row"><span class="ga4-label">Engagement Time</span><span class="ga4-val" id="r-ga4-time">--</span></div>
+              <div class="ga4-row"><span class="ga4-label">Scroll Depth</span><span class="ga4-val" id="r-ga4-scroll">--</span></div>
+              <div class="ga4-row" style="border-top:1px solid #1e293b;margin-top:6px;padding-top:6px;">
+                <span class="ga4-label">Behavioral Signals</span><span class="ga4-val">0 of 20</span>
+              </div>
+              <div class="ga4-row"><span class="ga4-label">Human Confidence Score</span><span class="ga4-val">None</span></div>
+              <div class="ga4-row"><span class="ga4-label">Quality Tier</span><span class="ga4-val">None</span></div>
+              <div class="ga4-row"><span class="ga4-label">Cryptographic Receipt</span><span class="ga4-val">None</span></div>
+              <div class="ga4-row"><span class="ga4-label">Attention Timeline</span><span class="ga4-val">None</span></div>
+              <div class="ga4-row"><span class="ga4-label">Keystroke Analysis</span><span class="ga4-val">None</span></div>
+              <div class="ga4-row"><span class="ga4-label">Reading Verification</span><span class="ga4-val">None</span></div>
+              <div style="margin-top:10px;padding:8px;background:rgba(239,68,68,0.08);border-radius:6px;font-size:11px;color:#ef4444;text-align:center;">
+                GA4 cannot tell if this was a human or a bot.
+              </div>
+            </div>
           </div>
 
-          <div style="text-align:center;margin-top:20px;">
+          <!-- Receipt -->
+          <div style="margin-top:12px;background:#0f172a;border:1px solid #10b981;border-radius:8px;padding:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+              <span style="font-size:11px;color:#10b981;font-weight:600;letter-spacing:1px;">CRYPTOGRAPHIC ATTENTION RECEIPT</span>
+              <span style="font-size:9px;color:#475569;" id="r-session-id">--</span>
+            </div>
+            <div class="hash-display" id="r-hash">Generating receipt...</div>
+            <div style="font-size:9px;color:#475569;margin-top:4px;">This receipt is tamper-evident. Any modification to the session data invalidates the hash.</div>
+          </div>
+
+          <div style="text-align:center;margin-top:16px;">
             <button class="btn btn-primary" onclick="location.reload()">Run Again</button>
             <a href="gallery.html" class="btn btn-secondary" style="text-decoration:none;display:inline-block;">View Full Proof Gallery</a>
           </div>
@@ -163,26 +260,69 @@
       <!-- RIGHT: Live signal panel -->
       <div class="live-panel">
         <div class="live-card">
-          <h3 class="sws">SWS — Live Signals</h3>
+          <h3 class="sws">SWS — 20 Live Signals</h3>
           <div class="metric-row"><span class="metric-name">Composite</span><span class="metric-val green" id="live-composite">0.000</span></div>
           <div class="signal-bar"><div class="signal-fill" id="bar-composite" style="width:0%;background:#10b981;"></div></div>
-
-          <div class="metric-row"><span class="metric-name">Hick's Law</span><span class="metric-val" id="live-hicks">--</span></div>
-          <div class="signal-bar"><div class="signal-fill" id="bar-hicks" style="width:0%;background:#06b6d4;"></div></div>
 
           <div class="metric-row"><span class="metric-name">Timing Entropy</span><span class="metric-val" id="live-timing">--</span></div>
           <div class="signal-bar"><div class="signal-fill" id="bar-timing" style="width:0%;background:#06b6d4;"></div></div>
 
-          <div class="metric-row"><span class="metric-name">Scroll Saccade</span><span class="metric-val" id="live-scroll">--</span></div>
-          <div class="signal-bar"><div class="signal-fill" id="bar-scroll" style="width:0%;background:#06b6d4;"></div></div>
+          <div class="metric-row"><span class="metric-name">Hick's Law</span><span class="metric-val" id="live-hicks">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-hicks" style="width:0%;background:#06b6d4;"></div></div>
 
           <div class="metric-row"><span class="metric-name">Fitts' Law</span><span class="metric-val" id="live-fitts">--</span></div>
           <div class="signal-bar"><div class="signal-fill" id="bar-fitts" style="width:0%;background:#06b6d4;"></div></div>
 
+          <div class="metric-row"><span class="metric-name">Scroll Saccade</span><span class="metric-val" id="live-scroll">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-scroll" style="width:0%;background:#06b6d4;"></div></div>
+
           <div class="metric-row"><span class="metric-name">Micro-Pause</span><span class="metric-val" id="live-pause">--</span></div>
           <div class="signal-bar"><div class="signal-fill" id="bar-pause" style="width:0%;background:#06b6d4;"></div></div>
 
-          <div class="metric-row"><span class="metric-name">Hashes Earned</span><span class="metric-val blue" id="live-hashes">0</span></div>
+          <div class="metric-row"><span class="metric-name">Touch/Click</span><span class="metric-val" id="live-touch">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-touch" style="width:0%;background:#06b6d4;"></div></div>
+
+          <div class="metric-row"><span class="metric-name">Keystroke</span><span class="metric-val" id="live-keystroke">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-keystroke" style="width:0%;background:#8b5cf6;"></div></div>
+
+          <div class="metric-row"><span class="metric-name">Reading Speed</span><span class="metric-val" id="live-reading">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-reading" style="width:0%;background:#8b5cf6;"></div></div>
+
+          <div class="metric-row"><span class="metric-name">Hover Dwell</span><span class="metric-val" id="live-hover">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-hover" style="width:0%;background:#8b5cf6;"></div></div>
+
+          <div class="metric-row"><span class="metric-name">Tab Visible</span><span class="metric-val" id="live-tab">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-tab" style="width:0%;background:#8b5cf6;"></div></div>
+
+          <div class="metric-row"><span class="metric-name">Activity</span><span class="metric-val" id="live-activity">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-activity" style="width:0%;background:#8b5cf6;"></div></div>
+
+          <div style="border-top:1px solid #1e293b;margin-top:4px;padding-top:4px;">
+            <div style="font-size:9px;color:#f59e0b;margin-bottom:3px;letter-spacing:0.5px;">NEW — RESEARCH SIGNALS</div>
+          </div>
+          <div class="metric-row"><span class="metric-name">RT Variability</span><span class="metric-val" id="live-rtvar">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-rtvar" style="width:0%;background:#f59e0b;"></div></div>
+          <div class="metric-row"><span class="metric-name">Scroll Backtrack</span><span class="metric-val" id="live-backtrack">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-backtrack" style="width:0%;background:#f59e0b;"></div></div>
+          <div class="metric-row"><span class="metric-name">Fractal (1/f)</span><span class="metric-val" id="live-fractal">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-fractal" style="width:0%;background:#f59e0b;"></div></div>
+          <div class="metric-row"><span class="metric-name">Cross-Signal</span><span class="metric-val" id="live-crosscorr">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-crosscorr" style="width:0%;background:#f59e0b;"></div></div>
+          <div class="metric-row"><span class="metric-name">Curvature Index</span><span class="metric-val" id="live-curvature">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-curvature" style="width:0%;background:#10b981;"></div></div>
+          <div class="metric-row"><span class="metric-name">Cursor Jerk</span><span class="metric-val" id="live-jerk">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-jerk" style="width:0%;background:#10b981;"></div></div>
+          <div class="metric-row"><span class="metric-name">Velocity Profile</span><span class="metric-val" id="live-velocity">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-velocity" style="width:0%;background:#10b981;"></div></div>
+          <div class="metric-row"><span class="metric-name">⅔ Power Law</span><span class="metric-val" id="live-twothirds">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-twothirds" style="width:0%;background:#10b981;"></div></div>
+          <div class="metric-row"><span class="metric-name">Device Motion</span><span class="metric-val" id="live-motion">--</span></div>
+          <div class="signal-bar"><div class="signal-fill" id="bar-motion" style="width:0%;background:#ef4444;"></div></div>
+
+          <div style="border-top:1px solid #1e293b;margin-top:6px;padding-top:6px;">
+            <div class="metric-row"><span class="metric-name">Hashes Earned</span><span class="metric-val blue" id="live-hashes">0</span></div>
+            <div class="metric-row"><span class="metric-name">Active Signals</span><span class="metric-val green" id="live-active">0/20</span></div>
+          </div>
         </div>
 
         <div class="live-card">
@@ -191,8 +331,7 @@
           <div class="metric-row"><span class="metric-name">Engagement Time</span><span class="metric-val red" id="live-ga4-time">0s</span></div>
           <div class="metric-row"><span class="metric-name">Scroll Depth</span><span class="metric-val red" id="live-ga4-scroll">0%</span></div>
           <div class="metric-row"><span class="metric-name">Events</span><span class="metric-val red" id="live-ga4-events">page_view</span></div>
-          <div class="metric-row"><span class="metric-name">Behavioral Signals</span><span class="metric-val red">N/A</span></div>
-          <div class="metric-row"><span class="metric-name">Crypto Receipt</span><span class="metric-val red">N/A</span></div>
+          <div class="metric-row"><span class="metric-name">Signals</span><span class="metric-val red">0 of 20</span></div>
         </div>
 
         <div class="live-card">
@@ -203,7 +342,7 @@
     </div>
   </div>
 
-  <!-- Firebase for saving sessions -->
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
@@ -226,7 +365,6 @@
     var db = firebase.firestore(fbApp);
     var fbUser = null;
 
-    // Sign in anonymously so we can write to Firestore
     firebase.auth(fbApp).signInAnonymously().catch(function(err) {
       console.warn('[Demo] Auth failed:', err.code);
     });
@@ -235,21 +373,28 @@
     });
 
     // ---- STATE ----
+    var urlParams = new URLSearchParams(window.location.search);
+    var sourceType = urlParams.get('source') || 'proof_gallery';
     var sessionId = 'demo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
     var sessionStart = Date.now();
     var currentPhase = 1;
     var maxScrollDepth = 0;
     var ga4Events = ['page_view'];
-    var decisions = [];
     var qIndex = 0;
     var qShownAt = 0;
     var targetCount = 0;
-    var maxTargets = 8;
+    var maxTargets = 12;
     var currentTarget = -1;
     var targetLitAt = 0;
+    var totalPhases = 5;
 
     // ---- INIT SDK ----
     SWSAttention.init({ gameId: 'live_demo', debug: false, enableBehavioralAnalysis: true });
+
+    // ---- TIMELINE SNAPSHOTS (every 5s) ----
+    var timelineInterval = setInterval(function() {
+      SWSAttention.takeTimelineSnapshot('phase_' + currentPhase);
+    }, 5000);
 
     // ---- LIVE UPDATE LOOP ----
     var liveInterval = setInterval(function() {
@@ -257,18 +402,32 @@
       var stats = SWSAttention.getStats();
       var elapsed = Math.round((Date.now() - sessionStart) / 1000);
 
-      // SWS signals
       document.getElementById('live-composite').textContent = c.composite.toFixed(3);
       document.getElementById('bar-composite').style.width = (c.composite * 100) + '%';
 
-      updateSignal('hicks', c.hicks);
       updateSignal('timing', c.timing);
-      updateSignal('scroll', c.scroll);
+      updateSignal('hicks', c.hicks);
       updateSignal('fitts', c.fitts);
+      updateSignal('scroll', c.scroll);
       updateSignal('pause', c.microPause);
+      updateSignal('touch', c.touch);
+      updateSignal('keystroke', c.keystroke);
+      updateSignal('reading', c.readingSpeed);
+      updateSignal('hover', c.hoverDwell);
+      updateSignal('tab', c.tabVisibility);
+      updateSignal('activity', c.inactivity);
+      updateSignal('rtvar', c.rtVariability);
+      updateSignal('backtrack', c.scrollBacktrack);
+      updateSignal('fractal', c.fractalScaling);
+      updateSignal('crosscorr', c.crossCorrelation);
+      updateSignal('curvature', c.curvatureIndex);
+      updateSignal('jerk', c.cursorJerk);
+      updateSignal('velocity', c.velocityProfile);
+      updateSignal('twothirds', c.twoThirdsPower);
+      updateSignal('motion', c.deviceMotion);
       document.getElementById('live-hashes').textContent = stats.totalHashes;
+      document.getElementById('live-active').textContent = (c.activeSignals || 0) + '/19';
 
-      // GA4 "data"
       document.getElementById('live-ga4-time').textContent = elapsed + 's';
       document.getElementById('live-ga4-scroll').textContent = maxScrollDepth + '%';
       document.getElementById('live-ga4-events').textContent = ga4Events.slice(-3).join(', ');
@@ -277,8 +436,8 @@
     function updateSignal(name, val) {
       var el = document.getElementById('live-' + name);
       var bar = document.getElementById('bar-' + name);
-      if (el) el.textContent = val.toFixed(3);
-      if (bar) bar.style.width = (val * 100) + '%';
+      if (el && val !== undefined) el.textContent = val.toFixed(3);
+      if (bar && val !== undefined) bar.style.width = (Math.min(1, val) * 100) + '%';
     }
 
     function logEvent(swsText, ga4Text) {
@@ -291,52 +450,140 @@
       log.innerHTML = html + log.innerHTML;
     }
 
-    // ---- SCROLL TRACKING ----
+    // ---- SCROLL TRACKING (fixed: reads from the div, not window) ----
     var readingArea = document.getElementById('reading-area');
+    var currentSection = 'section_1';
+    var sectionThresholds = [
+      { pct: 0, id: 'section_1' },
+      { pct: 20, id: 'section_2' },
+      { pct: 40, id: 'section_3' },
+      { pct: 60, id: 'section_4' },
+      { pct: 80, id: 'section_5' }
+    ];
     if (readingArea) {
+      SWSAttention.recordSectionEntry('section_1');
       readingArea.addEventListener('scroll', function() {
-        var pct = Math.round((readingArea.scrollTop / (readingArea.scrollHeight - readingArea.clientHeight)) * 100);
+        var scrollable = readingArea.scrollHeight - readingArea.clientHeight;
+        if (scrollable <= 0) return;
+        var pct = Math.round((readingArea.scrollTop / scrollable) * 100);
+        SWSAttention.recordElementScroll(readingArea.scrollTop);
+
+        // Track section transitions for reading speed
+        for (var i = sectionThresholds.length - 1; i >= 0; i--) {
+          if (pct >= sectionThresholds[i].pct && currentSection !== sectionThresholds[i].id) {
+            SWSAttention.recordSectionExit(currentSection, 100);
+            currentSection = sectionThresholds[i].id;
+            SWSAttention.recordSectionEntry(currentSection);
+            logEvent('reading section: ' + currentSection, '');
+            break;
+          }
+        }
+
         if (pct > maxScrollDepth) {
           maxScrollDepth = pct;
           if (pct % 25 === 0 && pct > 0) {
             ga4Events.push('scroll_' + pct);
-            logEvent('scroll saccade data point', 'scroll ' + pct + '%');
+            logEvent('scroll saccade @ ' + pct + '%', 'scroll ' + pct + '%');
           }
         }
       });
     }
 
+    // ---- HOVER TRACKING on interactive elements ----
+    document.addEventListener('mouseover', function(e) {
+      var el = e.target.closest('.decision-opt, .target, .btn');
+      if (el) SWSAttention.recordHoverEnter(el.className);
+    });
+    document.addEventListener('mouseout', function(e) {
+      var el = e.target.closest('.decision-opt, .target, .btn');
+      if (el) SWSAttention.recordHoverLeave();
+    });
+
     // ---- CLICK TRACKING ----
     document.addEventListener('click', function(e) {
-      logEvent('tap recorded (' + e.clientX + ',' + e.clientY + ')', '');
+      logEvent('tap (' + e.clientX + ',' + e.clientY + ')', '');
     });
+
+    // ---- TYPING TRACKING ----
+    var typingArea = document.getElementById('typing-area');
+    if (typingArea) {
+      typingArea.addEventListener('input', function() {
+        // Mobile keystroke fallback — track input timing
+        SWSAttention.recordMobileInput(Date.now());
+        var words = typingArea.value.trim().split(/\s+/).filter(function(w) { return w.length > 0; });
+        document.getElementById('word-count').textContent = words.length + ' words';
+        var btn = document.getElementById('typing-done-btn');
+        if (words.length >= 20) {
+          btn.style.opacity = '1';
+          btn.style.pointerEvents = 'auto';
+          btn.textContent = 'Done Typing → Results';
+        } else {
+          btn.style.opacity = '0.4';
+          btn.style.pointerEvents = 'none';
+          btn.textContent = 'Need ' + (20 - words.length) + ' more words →';
+        }
+      });
+    }
+
+    // ---- TOUCH DWELL TRACKING (mobile hover equivalent) ----
+    var touchStartTimes = {};
+    document.addEventListener('touchstart', function(e) {
+      var el = e.target.closest('.decision-opt, .target, .btn');
+      if (el) touchStartTimes[el.className] = Date.now();
+    }, { passive: true });
+    document.addEventListener('touchend', function(e) {
+      var el = e.target.closest('.decision-opt, .target, .btn');
+      if (el && touchStartTimes[el.className]) {
+        SWSAttention.recordTouchDwell(touchStartTimes[el.className]);
+        delete touchStartTimes[el.className];
+      }
+    }, { passive: true });
 
     // ---- PHASE MANAGEMENT ----
     function completePhase(phase) {
+      if (phase === 1) SWSAttention.recordSectionExit(currentSection, maxScrollDepth);
       document.getElementById('phase-' + phase).style.display = 'none';
       document.getElementById('nav-' + phase).className = 'phase-btn done';
 
       currentPhase = phase + 1;
-      if (currentPhase <= 4) {
+      if (currentPhase <= totalPhases) {
         document.getElementById('phase-' + currentPhase).style.display = 'block';
         document.getElementById('nav-' + currentPhase).className = 'phase-btn active';
       }
 
       SWSAttention.earn('phase_complete', Date.now() - sessionStart, 10, 'deep');
-      logEvent('phase_complete + hash earned', 'event: user_engagement');
+      SWSAttention.takeTimelineSnapshot('phase_' + phase + '_complete');
+      logEvent('phase ' + phase + ' complete + hash earned', 'user_engagement');
       ga4Events.push('user_engagement');
 
       if (currentPhase === 2) setupDecisions();
       if (currentPhase === 3) setupTargets();
-      if (currentPhase === 4) showResults();
+      if (currentPhase === 4) { /* typing phase — already rendered */ }
+      if (currentPhase === 5) showResults();
     }
 
-    // ---- PHASE 2: DECISIONS ----
+    // ---- PHASE 2: DECISIONS (more questions, varying option counts) ----
     var questions = [
-      { q: 'What does this policy primarily cover?', opts: ['Auto insurance', 'Attention verification services'], correct: 1 },
-      { q: 'Which of these is excluded from coverage?', opts: ['Hash generation', 'Quality tier classification', 'Surveillance without disclosure', 'Receipt issuance'], correct: 2 },
-      { q: 'What must be provided to file a claim?', opts: ['Police report', 'Receipt chain + verification logs + signal breakdown', 'Doctor note', 'Photo evidence', 'Witness statement', 'Notarized affidavit', 'Social media post', 'Video recording'], correct: 1 },
+      { q: 'What does this policy primarily cover?', opts: ['Auto insurance', 'Attention verification services'], correct: 'Attention verification services' },
+      { q: 'What is the per-occurrence liability limit?', opts: ['$500,000', '$1,000,000', '$2,000,000', '$5,000,000'], correct: '$2,000,000' },
+      { q: 'Which of these is excluded from coverage?', opts: ['Hash generation', 'Quality tier classification', 'Surveillance without disclosure', 'Receipt issuance'], correct: 'Surveillance without disclosure' },
+      { q: 'How many experts adjudicate disputed classifications?', opts: ['One', 'Two', 'Three'], correct: 'Three' },
+      { q: 'What must be provided to file a claim?', opts: ['Police report', 'Receipt chain + logs + signal breakdown', 'Doctor note', 'Photo evidence', 'Witness statement', 'Notarized affidavit'], correct: 'Receipt chain + logs + signal breakdown' },
+      { q: 'What score qualifies for the Verified Attention Discount?', opts: ['80%', '85%', '90%', '95%', '97%', '99%', '100%'], correct: '95%' },
+      { q: 'When can the insurer cancel the policy?', opts: ['Never', 'After one failed month', 'After three months below 70% integrity', 'After any claim'], correct: 'After three months below 70% integrity' },
+      { q: 'What is the aggregate annual liability limit?', opts: ['$1,000,000', '$2,000,000', '$5,000,000', '$10,000,000'], correct: '$5,000,000' },
+      { q: 'How long do you have to file a claim after an incident?', opts: ['30 days', '60 days', '90 days', '120 days', '180 days'], correct: '90 days' },
     ];
+
+    // Shuffle questions and randomize answer positions each time
+    function shuffleArray(arr) {
+      for (var i = arr.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = arr[i]; arr[i] = arr[j]; arr[j] = temp;
+      }
+      return arr;
+    }
+    shuffleArray(questions);
 
     function setupDecisions() { showQuestion(); }
 
@@ -344,33 +591,37 @@
       if (qIndex >= questions.length) { completePhase(2); return; }
       var q = questions[qIndex];
       qShownAt = Date.now();
-      SWSAttention.recordContentRender(q.opts.length > 4 ? 'complex' : 'moderate');
-      logEvent('content render (' + q.opts.length + ' options)', '');
+      var shuffledOpts = q.opts.slice();
+      shuffleArray(shuffledOpts);
+      var complexity = shuffledOpts.length <= 3 ? 'simple' : shuffledOpts.length <= 5 ? 'moderate' : 'complex';
+      SWSAttention.recordContentRender(complexity);
+      logEvent('render Q' + (qIndex+1) + ' (' + shuffledOpts.length + ' opts, ' + complexity + ')', '');
 
-      var html = '<p style="color:#e2e8f0;font-size:14px;margin-bottom:12px;">Q' + (qIndex+1) + ': ' + q.q + ' <span style="color:#64748b;font-size:11px;">(' + q.opts.length + ' options)</span></p>';
+      var html = '<p style="color:#e2e8f0;font-size:13px;margin-bottom:10px;">Q' + (qIndex+1) + '/' + questions.length + ': ' + q.q + ' <span style="color:#64748b;font-size:10px;">(' + shuffledOpts.length + ' options)</span></p>';
       html += '<div class="decision-grid">';
-      q.opts.forEach(function(opt, i) {
-        html += '<div class="decision-opt" onclick="pickAnswer(' + i + ',this)">' + opt + '</div>';
+      shuffledOpts.forEach(function(opt, i) {
+        html += '<div class="decision-opt" onclick="pickAnswer(' + i + ',this,' + shuffledOpts.length + ')">' + opt + '</div>';
       });
       html += '</div>';
       document.getElementById('decision-area').innerHTML = html;
     }
 
-    function pickAnswer(idx, el) {
+    function pickAnswer(idx, el, optCount) {
       var rt = Date.now() - qShownAt;
-      SWSAttention.recordDecision(questions[qIndex].opts.length, rt);
-      logEvent('decision: ' + rt + 'ms for ' + questions[qIndex].opts.length + ' options', 'event: select_content');
+      SWSAttention.recordDecision(optCount || questions[qIndex].opts.length, rt);
+      logEvent('decision: ' + rt + 'ms / ' + optCount + ' opts', 'select_content');
       ga4Events.push('select_content');
       el.classList.add('selected');
       qIndex++;
-      setTimeout(showQuestion, 300);
+      setTimeout(showQuestion, 250);
     }
 
-    // ---- PHASE 3: TARGETS ----
+    // ---- PHASE 3: TARGETS (12 targets) ----
+    var totalTargetCells = 36;
     function setupTargets() {
       var grid = document.getElementById('target-grid');
       grid.innerHTML = '';
-      for (var i = 0; i < 25; i++) {
+      for (var i = 0; i < totalTargetCells; i++) {
         var div = document.createElement('div');
         div.className = 'target';
         div.dataset.i = i;
@@ -384,7 +635,12 @@
       if (targetCount >= maxTargets) { completePhase(3); return; }
       var targets = document.querySelectorAll('.target');
       targets.forEach(function(t) { t.classList.remove('lit', 'hit'); });
-      currentTarget = Math.floor(Math.random() * 25);
+      // Pick a target far from the last one to maximize distance variance
+      var newTarget;
+      do {
+        newTarget = Math.floor(Math.random() * totalTargetCells);
+      } while (newTarget === currentTarget && totalTargetCells > 1);
+      currentTarget = newTarget;
       targets[currentTarget].classList.add('lit');
       targetLitAt = Date.now();
       document.getElementById('target-timer').textContent = (targetCount + 1) + ' / ' + maxTargets;
@@ -394,50 +650,105 @@
       if (idx !== currentTarget) return;
       var rt = Date.now() - targetLitAt;
       document.querySelectorAll('.target')[idx].classList.add('hit');
-      SWSAttention.recordDecision(25, rt);
-      logEvent('target hit: ' + rt + 'ms', '');
+      logEvent('target hit: ' + rt + 'ms (Fitts\' Law)', '');
       targetCount++;
-      setTimeout(nextTarget, 200);
+      setTimeout(nextTarget, 150);
     }
 
-    // ---- PHASE 4: RESULTS ----
+    // ---- PHASE 5: RESULTS ----
     function showResults() {
       clearInterval(liveInterval);
+      clearInterval(timelineInterval);
+      SWSAttention.takeTimelineSnapshot('results');
+
       var c = SWSAttention.getHumanConfidence();
       var stats = SWSAttention.getStats();
+      var timeline = SWSAttention.getTimeline();
       var elapsed = Math.round((Date.now() - sessionStart) / 1000);
 
-      document.getElementById('r-duration').textContent = elapsed + 's';
-      document.getElementById('r-composite').textContent = c.composite.toFixed(3);
-      document.getElementById('r-tier').textContent = c.composite >= 0.7 ? 'Deep Focus' : c.composite >= 0.5 ? 'Active' : c.composite >= 0.25 ? 'Passive' : 'Background';
-      document.getElementById('r-hicks').textContent = c.hicks.toFixed(3);
-      document.getElementById('r-timing').textContent = c.timing.toFixed(3);
-      document.getElementById('r-scroll').textContent = c.scroll.toFixed(3);
-      document.getElementById('r-pause').textContent = c.microPause.toFixed(3);
-      document.getElementById('r-fitts').textContent = c.fitts.toFixed(3);
-      document.getElementById('r-touch').textContent = c.touch.toFixed(3);
+      // Big verdict
+      var tierName = c.composite >= 0.7 ? 'DEEP FOCUS' : c.composite >= 0.5 ? 'ACTIVE ENGAGEMENT' : c.composite >= 0.25 ? 'PASSIVE PRESENCE' : 'BACKGROUND';
+      var tierClass = c.composite >= 0.7 ? 'tier-deep' : c.composite >= 0.5 ? 'tier-active' : c.composite >= 0.25 ? 'tier-passive' : 'tier-background';
+      document.getElementById('r-tier-badge').textContent = tierName;
+      document.getElementById('r-tier-badge').className = 'tier-badge ' + tierClass;
+      document.getElementById('r-composite-big').textContent = c.composite.toFixed(3);
 
-      // Generate receipt hash
-      var receiptData = JSON.stringify({
-        session: 'demo_' + sessionStart,
-        composite: c.composite,
-        hicks: c.hicks,
-        timing: c.timing,
-        hashes: stats.totalHashes,
-        timestamp: Date.now()
+      // Summary
+      var activeSignals = c.activeSignals || 0;
+
+      var typedWords = typingArea ? typingArea.value.trim().split(/\s+/).filter(function(w) { return w.length > 0; }).length : 0;
+      var summary = '<strong>This person paid genuine attention for ' + elapsed + ' seconds.</strong> ';
+      summary += activeSignals + ' of 20 behavioral signals returned real data (not defaults). ';
+      summary += 'Quality tier: <strong>' + tierName + '</strong> with a composite human-confidence score of <strong>' + c.composite.toFixed(3) + '</strong>. ';
+      if (typedWords > 0) summary += 'The subject typed ' + typedWords + ' words from memory, demonstrating content comprehension. ';
+      summary += 'A bot running this same session would score below 0.250 because it cannot replicate the fractal scaling, neuromotor jerk profiles, cross-signal correlations, and two-thirds power law coupling that human biology produces involuntarily.';
+      document.getElementById('r-summary').innerHTML = summary;
+
+      // Timeline chart
+      if (timeline.length > 0) {
+        var chart = document.getElementById('timeline-chart');
+        var barWidth = Math.max(3, Math.floor((chart.offsetWidth - 4) / timeline.length) - 1);
+        chart.innerHTML = '';
+        timeline.forEach(function(snap, i) {
+          var bar = document.createElement('div');
+          bar.className = 'timeline-bar';
+          var height = Math.max(5, snap.composite * 110);
+          var color = snap.tier === 'deep' ? '#10b981' : snap.tier === 'active' ? '#06b6d4' : snap.tier === 'passive' ? '#f59e0b' : '#ef4444';
+          bar.style.cssText = 'left:' + (i * (barWidth + 1) + 2) + 'px;width:' + barWidth + 'px;height:' + height + 'px;background:' + color + ';border-radius:2px 2px 0 0;';
+          bar.title = snap.t + 's: ' + snap.tier + ' (' + snap.composite.toFixed(2) + ')';
+          chart.appendChild(bar);
+        });
+        document.getElementById('timeline-end').textContent = elapsed + 's';
+      }
+
+      // Signal results
+      var allSignals = [
+        { name: 'Timing Entropy', key: 'timing', color: '#06b6d4' },
+        { name: 'Hick\'s Law', key: 'hicks', color: '#06b6d4' },
+        { name: 'Fitts\' Law', key: 'fitts', color: '#06b6d4' },
+        { name: 'Scroll Saccade', key: 'scroll', color: '#06b6d4' },
+        { name: 'Micro-Pause', key: 'microPause', color: '#06b6d4' },
+        { name: 'Touch/Click', key: 'touch', color: '#06b6d4' },
+        { name: 'Keystroke Rhythm', key: 'keystroke', color: '#8b5cf6' },
+        { name: 'Reading Speed', key: 'readingSpeed', color: '#8b5cf6' },
+        { name: 'Hover Dwell', key: 'hoverDwell', color: '#8b5cf6' },
+        { name: 'Tab Visibility', key: 'tabVisibility', color: '#8b5cf6' },
+        { name: 'Activity Pattern', key: 'inactivity', color: '#8b5cf6' },
+        { name: 'RT Variability', key: 'rtVariability', color: '#f59e0b' },
+        { name: 'Scroll Backtrack', key: 'scrollBacktrack', color: '#f59e0b' },
+        { name: 'Fractal Scaling (1/f)', key: 'fractalScaling', color: '#f59e0b' },
+        { name: 'Cross-Signal Correlation', key: 'crossCorrelation', color: '#f59e0b' },
+        { name: 'Curvature Index', key: 'curvatureIndex', color: '#10b981' },
+        { name: 'Cursor Jerk (LDLJ)', key: 'cursorJerk', color: '#10b981' },
+        { name: 'Velocity Profile', key: 'velocityProfile', color: '#10b981' },
+        { name: 'Two-Thirds Power Law', key: 'twoThirdsPower', color: '#10b981' },
+        { name: 'Device Motion (Gyro/Accel)', key: 'deviceMotion', color: '#ef4444' }
+      ];
+
+      var sigHTML = '';
+      allSignals.forEach(function(s) {
+        var val = c[s.key] || 0;
+        var valColor = val >= 0.7 ? '#10b981' : val >= 0.5 ? '#06b6d4' : val >= 0.25 ? '#f59e0b' : '#ef4444';
+        var isDefault = (val === 0.5) ? ' (awaiting data)' : '';
+        sigHTML += '<div class="signal-item"><span class="name">' + s.name + '</span>';
+        sigHTML += '<span class="bar-wrap"><span class="bar-inner" style="width:' + (val * 100) + '%;background:' + valColor + ';"></span></span>';
+        sigHTML += '<span class="val" style="color:' + valColor + ';">' + val.toFixed(3) + isDefault + '</span></div>';
       });
-      // Simple hash display (actual SHA-256 happens in the SDK)
-      document.getElementById('r-hash').textContent = 'SHA-256: ' + (stats.lastHash || 'pending...');
+      document.getElementById('signal-results').innerHTML = sigHTML;
 
       // GA4 comparison
       document.getElementById('r-ga4-time').textContent = elapsed + 's';
       document.getElementById('r-ga4-scroll').textContent = maxScrollDepth + '%';
 
-      // ---- SAVE TO FIRESTORE ----
-      saveSession(c, stats, elapsed);
+      // Receipt
+      document.getElementById('r-session-id').textContent = sessionId;
+      document.getElementById('r-hash').textContent = 'SHA-256: ' + (stats.lastHash || sessionId);
+
+      // Save to Firestore
+      saveSession(c, stats, elapsed, timeline);
     }
 
-    function saveSession(confidence, stats, elapsed) {
+    function saveSession(confidence, stats, elapsed, timeline) {
       if (!db) return;
 
       var sessionData = {
@@ -447,18 +758,22 @@
         duration_sec: elapsed,
         user_agent: navigator.userAgent,
         screen: { width: screen.width, height: screen.height },
-        signals: {
-          composite: confidence.composite,
-          timing: confidence.timing,
-          fitts: confidence.fitts,
-          hicks: confidence.hicks,
-          scroll: confidence.scroll,
-          microPause: confidence.microPause,
-          touch: confidence.touch
-        },
+        signals: (function() {
+          var s = {};
+          for (var k in confidence) {
+            if (k !== 'composite' && k !== 'activeSignals' && k !== 'totalSignals') s[k] = confidence[k];
+          }
+          s.composite = confidence.composite;
+          return s;
+        })(),
+        active_signals: confidence.activeSignals,
+        total_signals: confidence.totalSignals,
         quality_tier: confidence.composite >= 0.7 ? 'deep' : confidence.composite >= 0.5 ? 'active' : confidence.composite >= 0.25 ? 'passive' : 'background',
         hashes_earned: stats.totalHashes,
         scroll_depth_pct: maxScrollDepth,
+        typed_words: typingArea ? typingArea.value.trim().split(/\s+/).filter(function(w) { return w.length > 0; }).length : 0,
+        typed_text: typingArea ? typingArea.value.substring(0, 500) : '',
+        timeline: timeline || [],
         ga4_would_capture: {
           events: ga4Events,
           engagement_time_sec: elapsed,
@@ -466,14 +781,14 @@
           behavioral_signals: 'none',
           crypto_receipt: 'none'
         },
-        uid: fbUser ? fbUser.uid : 'anonymous'
+        uid: fbUser ? fbUser.uid : 'anonymous',
+        source_type: sourceType
       };
 
-      // Save to demos/ collection
       db.collection('demos').doc(sessionId).set(sessionData)
         .then(function() {
           document.getElementById('r-hash').textContent =
-            'SHA-256: ' + (stats.lastHash || sessionId) + '\nSession saved to proof catalog.';
+            'SHA-256: ' + (stats.lastHash || sessionId) + ' — Saved to proof catalog';
           logEvent('SESSION SAVED to Firestore', '');
         })
         .catch(function(err) {

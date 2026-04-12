@@ -80,6 +80,8 @@
       <a href="gallery.html">Proof Gallery</a>
       <a href="demo.html">Live Demo</a>
       <a href="results-dashboard.html">Results</a>
+      <a href="pilot-report.html">Pilot Report</a>
+      <a href="export.html">Export</a>
     </div>
   </div>
 
@@ -194,12 +196,17 @@
           html += '<div class="signals-grid">';
           var sigs = [
             ['Composite', s.signals.composite, '#10b981'],
-            ['Hick\'s Law', s.signals.hicks, '#06b6d4'],
             ['Timing', s.signals.timing, '#06b6d4'],
+            ['Hick\'s Law', s.signals.hicks, '#06b6d4'],
             ['Fitts\' Law', s.signals.fitts, '#06b6d4'],
             ['Scroll', s.signals.scroll, '#06b6d4'],
             ['Micro-Pause', s.signals.microPause, '#06b6d4'],
-            ['Touch', s.signals.touch, '#06b6d4']
+            ['Touch', s.signals.touch, '#06b6d4'],
+            ['Keystroke', s.signals.keystroke, '#8b5cf6'],
+            ['Reading Speed', s.signals.readingSpeed, '#8b5cf6'],
+            ['Hover Dwell', s.signals.hoverDwell, '#8b5cf6'],
+            ['Tab Visible', s.signals.tabVisibility, '#8b5cf6'],
+            ['Activity', s.signals.inactivity, '#8b5cf6']
           ];
           sigs.forEach(function(sig) {
             var val = sig[1] || 0;
@@ -217,7 +224,7 @@
 
         html += '<div class="compare-card">';
         html += '<h4 class="sws">SWS Captured</h4>';
-        html += compareItem('Behavioral Signals', '6 signals');
+        html += compareItem('Behavioral Signals', '11 signals');
         html += compareItem('Composite Score', (s.signals?.composite || 0).toFixed(3));
         html += compareItem('Quality Tier', s.quality_tier || '?');
         html += compareItem('Hashes Earned', s.hashes_earned || 0);
@@ -238,6 +245,34 @@
         html += '</div>';
 
         html += '</div>';
+
+        // Timeline
+        if (s.timeline && s.timeline.length > 0) {
+          html += '<div style="margin-top:12px;">';
+          html += '<div style="font-size:11px;color:#06b6d4;font-weight:600;margin-bottom:6px;letter-spacing:0.5px;">ATTENTION TIMELINE</div>';
+          html += '<div style="display:flex;align-items:flex-end;gap:1px;height:60px;background:#0a0e17;border-radius:6px;padding:4px;">';
+          s.timeline.forEach(function(snap) {
+            var h = Math.max(3, snap.composite * 55);
+            var c = snap.tier === 'deep' ? '#10b981' : snap.tier === 'active' ? '#06b6d4' : snap.tier === 'passive' ? '#f59e0b' : '#ef4444';
+            html += '<div style="flex:1;height:' + h + 'px;background:' + c + ';border-radius:2px 2px 0 0;" title="' + snap.t + 's: ' + snap.tier + ' (' + snap.composite.toFixed(2) + ')"></div>';
+          });
+          html += '</div>';
+          html += '<div style="display:flex;justify-content:space-between;font-size:8px;color:#475569;margin-top:2px;"><span>0s</span><span>' + s.timeline[s.timeline.length-1].t + 's</span></div>';
+          html += '</div>';
+        }
+
+        // Typed text (if available)
+        if (s.typed_text) {
+          html += '<div style="margin-top:10px;padding:10px;background:#0f172a;border-radius:6px;border-left:3px solid #8b5cf6;">';
+          html += '<div style="font-size:10px;color:#8b5cf6;font-weight:600;margin-bottom:4px;">TYPED FROM MEMORY (' + (s.typed_words || 0) + ' words)</div>';
+          html += '<div style="font-size:12px;color:#94a3b8;font-style:italic;">"' + s.typed_text + '"</div>';
+          html += '</div>';
+        }
+
+        // Source type
+        if (s.source_type) {
+          html += '<div style="margin-top:6px;font-size:10px;color:#475569;">Source: <span style="color:#06b6d4;">' + s.source_type + '</span></div>';
+        }
 
         // Device info
         if (s.user_agent) {

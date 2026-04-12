@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS — Data Export</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e2e8f0; min-height: 100vh; padding: 32px; }
+    .container { max-width: 700px; margin: 0 auto; }
+    h1 { color: #06b6d4; font-size: 22px; margin-bottom: 8px; }
+    .desc { color: #94a3b8; font-size: 13px; margin-bottom: 24px; }
+    .controls { background: #111827; border: 1px solid #1e293b; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+    label { font-size: 12px; color: #64748b; display: block; margin-bottom: 4px; }
+    select, input { padding: 8px 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; font-size: 13px; width: 100%; margin-bottom: 12px; }
+    .btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; margin-right: 8px; }
+    .btn-primary { background: #06b6d4; color: #0a0e17; }
+    .btn-secondary { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; }
+    #status { margin-top: 12px; font-size: 12px; color: #94a3b8; }
+    #preview { margin-top: 16px; background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 10px; max-height: 300px; overflow: auto; white-space: pre; color: #64748b; }
+    .nav { margin-bottom: 24px; }
+    .nav a { color: #06b6d4; text-decoration: none; font-size: 12px; margin-right: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="nav">
+      <a href="index.html">Home</a>
+      <a href="demo.html">Demo</a>
+      <a href="results-dashboard.html">Dashboard</a>
+      <a href="pilot-report.html">Pilot Report</a>
+    </div>
+
+    <h1>Export Session Data</h1>
+    <div class="desc">Download session data as CSV for patent attorney briefings, buyer presentations, or data analysis.</div>
+
+    <div class="controls">
+      <label>Filter by source type:</label>
+      <select id="source-filter">
+        <option value="">All sessions</option>
+        <option value="beta_ff">Friends & Family Beta</option>
+        <option value="pilot_restaurant">Restaurant Pilot</option>
+        <option value="pilot_mktres">Market Research Pilot</option>
+        <option value="pilot_nursing">Nursing Home Pilot</option>
+        <option value="pilot_training">Training/LMS Pilot</option>
+        <option value="proof_gallery">Proof Gallery</option>
+        <option value="dev">Development</option>
+      </select>
+
+      <label>Max sessions:</label>
+      <input type="number" id="max-sessions" value="200" min="1" max="1000">
+
+      <button class="btn btn-primary" onclick="exportCSV()">Export CSV</button>
+      <button class="btn btn-secondary" onclick="exportJSON()">Export JSON</button>
+    </div>
+
+    <div id="status"></div>
+    <div id="preview"></div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    var app = firebase.initializeApp({
+      apiKey: "AIzaSyDbpqisJpnoh2OUYSJIdKIo17SdF0eGPiM",
+      authDomain: "sws-attention-proofs.firebaseapp.com",
+      projectId: "sws-attention-proofs",
+      storageBucket: "sws-attention-proofs.firebasestorage.app",
+      messagingSenderId: "420661886092",
+      appId: "1:420661886092:web:a4c79cd07fc804428f4fa9"
+    });
+    var db = firebase.firestore(app);
+    firebase.auth(app).signInAnonymously();
+
+    function fetchSessions(callback) {
+      var source = document.getElementById('source-filter').value;
+      var limit = parseInt(document.getElementById('max-sessions').value) || 200;
+      document.getElementById('status').textContent = 'Fetching sessions...';
+
+      var query = db.collection('demos').orderBy('timestamp', 'desc').limit(limit);
+      if (source) query = db.collection('demos').where('source_type', '==', source).orderBy('timestamp', 'desc').limit(limit);
+
+      query.get().then(function(snapshot) {
+        var sessions = [];
+        snapshot.forEach(function(doc) { sessions.push(doc.data()); });
+        document.getElementById('status').textContent = sessions.length + ' sessions loaded.';
+        callback(sessions);
+      }).catch(function(err) {
+        document.getElementById('status').textContent = 'Error: ' + err.message;
+      });
+    }
+
+    function exportCSV() {
+      fetchSessions(function(sessions) {
+        if (sessions.length === 0) { document.getElementById('status').textContent = 'No data.'; return; }
+
+        var headers = [
+          'session_id', 'timestamp', 'generated', 'duration_sec', 'quality_tier', 'source_type',
+          'composite', 'timing', 'hicks', 'fitts', 'scroll', 'microPause', 'touch',
+          'keystroke', 'readingSpeed', 'hoverDwell', 'tabVisibility', 'inactivity',
+          'hashes_earned', 'scroll_depth_pct', 'typed_words', 'device', 'screen_width', 'screen_height'
+        ];
+
+        var rows = [headers.join(',')];
+        sessions.forEach(function(s) {
+          var device = (s.user_agent || '').indexOf('Mobile') > -1 ? 'Mobile' : 'Desktop';
+          var row = [
+            s.session_id || '', s.timestamp || '', s.generated || '', s.duration_sec || 0, s.quality_tier || '', s.source_type || '',
+            (s.signals?.composite || 0).toFixed(4),
+            (s.signals?.timing || 0).toFixed(4),
+            (s.signals?.hicks || 0).toFixed(4),
+            (s.signals?.fitts || 0).toFixed(4),
+            (s.signals?.scroll || 0).toFixed(4),
+            (s.signals?.microPause || 0).toFixed(4),
+            (s.signals?.touch || 0).toFixed(4),
+            (s.signals?.keystroke || 0).toFixed(4),
+            (s.signals?.readingSpeed || 0).toFixed(4),
+            (s.signals?.hoverDwell || 0).toFixed(4),
+            (s.signals?.tabVisibility || 0).toFixed(4),
+            (s.signals?.inactivity || 0).toFixed(4),
+            s.hashes_earned || 0, s.scroll_depth_pct || 0, s.typed_words || 0,
+            device, s.screen?.width || '', s.screen?.height || ''
+          ];
+          rows.push(row.map(function(v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(','));
+        });
+
+        var csv = rows.join('\n');
+        document.getElementById('preview').textContent = rows.slice(0, 6).join('\n') + '\n... (' + sessions.length + ' total rows)';
+        download('sws_attention_data.csv', csv, 'text/csv');
+        document.getElementById('status').textContent = sessions.length + ' sessions exported as CSV.';
+      });
+    }
+
+    function exportJSON() {
+      fetchSessions(function(sessions) {
+        if (sessions.length === 0) { document.getElementById('status').textContent = 'No data.'; return; }
+        var json = JSON.stringify(sessions, null, 2);
+        document.getElementById('preview').textContent = json.substring(0, 1000) + '\n... (' + sessions.length + ' sessions)';
+        download('sws_attention_data.json', json, 'application/json');
+        document.getElementById('status').textContent = sessions.length + ' sessions exported as JSON.';
+      });
+    }
+
+    function download(filename, content, mimeType) {
+      var blob = new Blob([content], { type: mimeType });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>

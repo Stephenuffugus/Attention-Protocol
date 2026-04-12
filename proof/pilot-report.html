@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SWS Attention Protocol — Pilot Report</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1a1a2e; min-height: 100vh; }
+
+    .header { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%); padding: 32px; color: white; }
+    .header h1 { font-size: 24px; color: #06b6d4; margin-bottom: 4px; }
+    .header .subtitle { color: #94a3b8; font-size: 14px; }
+    .header .meta { color: #64748b; font-size: 11px; margin-top: 8px; }
+
+    .container { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
+
+    .filter-bar { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .filter-bar label { font-size: 13px; color: #475569; font-weight: 600; }
+    .filter-bar select, .filter-bar input { padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; background: white; }
+    .filter-bar button { padding: 8px 16px; background: #06b6d4; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+    .filter-bar button:hover { background: #0891b2; }
+
+    .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .s-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; text-align: center; }
+    .s-card .val { font-size: 28px; font-weight: 700; color: #0f172a; font-family: monospace; }
+    .s-card .label { font-size: 11px; color: #64748b; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .s-card.green .val { color: #059669; }
+    .s-card.blue .val { color: #0284c7; }
+    .s-card.amber .val { color: #d97706; }
+
+    .section { margin-bottom: 32px; }
+    .section h2 { font-size: 16px; color: #0f172a; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #06b6d4; }
+
+    .tier-dist { display: flex; height: 40px; border-radius: 8px; overflow: hidden; margin: 12px 0; }
+    .tier-seg { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: white; min-width: 30px; }
+    .tier-deep { background: #059669; }
+    .tier-active { background: #0284c7; }
+    .tier-passive { background: #d97706; }
+    .tier-background { background: #dc2626; }
+    .tier-legend { display: flex; gap: 16px; font-size: 11px; color: #64748b; margin-top: 4px; }
+    .tier-legend span::before { content: ''; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+
+    .signal-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .signal-table th { text-align: left; padding: 8px 12px; background: #f1f5f9; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #e2e8f0; }
+    .signal-table td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+    .signal-table .bar-cell { width: 120px; }
+    .signal-table .bar-wrap { height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+    .signal-table .bar-fill { height: 100%; border-radius: 4px; }
+    .signal-table .val-cell { font-family: monospace; font-weight: 600; text-align: right; }
+
+    .timeline-agg { display: flex; align-items: flex-end; gap: 2px; height: 100px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; margin: 12px 0; }
+    .t-bar { flex: 1; border-radius: 3px 3px 0 0; min-width: 4px; }
+
+    .comparison-table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+    .comparison-table th, .comparison-table td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+    .comparison-table th { background: #f1f5f9; font-size: 11px; text-transform: uppercase; color: #475569; }
+    .comparison-table .sws { color: #059669; font-weight: 600; }
+    .comparison-table .ga4 { color: #dc2626; }
+
+    .sessions-list { font-size: 12px; }
+    .sessions-list table { width: 100%; border-collapse: collapse; }
+    .sessions-list th { text-align: left; padding: 8px; background: #f1f5f9; font-size: 10px; text-transform: uppercase; color: #475569; border-bottom: 1px solid #e2e8f0; }
+    .sessions-list td { padding: 6px 8px; border-bottom: 1px solid #f8fafc; font-family: monospace; font-size: 11px; }
+
+    .footer { text-align: center; padding: 24px; color: #94a3b8; font-size: 11px; border-top: 1px solid #e2e8f0; margin-top: 32px; }
+    .footer strong { color: #475569; }
+
+    .print-btn { background: #1e293b; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 12px; cursor: pointer; margin-left: 8px; }
+    @media print { .filter-bar, .print-btn { display: none; } body { background: white; } }
+
+    #loading { text-align: center; padding: 60px; color: #94a3b8; }
+    #no-data { text-align: center; padding: 60px; color: #94a3b8; display: none; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>SWS Attention Verification — Pilot Report</h1>
+    <div class="subtitle" id="report-subtitle">Loading...</div>
+    <div class="meta">Patent Pending SWS-PROV-001 | SWS Strategic Media LLC | Generated <span id="report-date"></span></div>
+  </div>
+
+  <div class="container">
+    <div class="filter-bar">
+      <label>Source:</label>
+      <select id="source-filter">
+        <option value="">All sessions</option>
+        <option value="beta_ff">Friends & Family Beta</option>
+        <option value="pilot_restaurant">Restaurant Pilot</option>
+        <option value="pilot_mktres">Market Research Pilot</option>
+        <option value="pilot_nursing">Nursing Home Pilot</option>
+        <option value="pilot_training">Training/LMS Pilot</option>
+        <option value="proof_gallery">Proof Gallery</option>
+        <option value="dev">Development</option>
+      </select>
+      <button onclick="loadReport()">Generate Report</button>
+      <button class="print-btn" onclick="window.print()">Print / Save PDF</button>
+    </div>
+
+    <div id="loading">Loading data from Firestore...</div>
+    <div id="no-data">No sessions found for this filter. <a href="demo.html">Run the demo</a> to generate data.</div>
+    <div id="report-content" style="display:none;">
+
+      <!-- Executive Summary -->
+      <div class="section">
+        <h2>Executive Summary</h2>
+        <div class="summary-cards" id="summary-cards"></div>
+        <p id="exec-summary" style="font-size:14px;line-height:1.7;color:#334155;margin-top:12px;"></p>
+      </div>
+
+      <!-- Quality Tier Distribution -->
+      <div class="section">
+        <h2>Quality Tier Distribution</h2>
+        <div class="tier-dist" id="tier-dist"></div>
+        <div class="tier-legend">
+          <span style="color:#059669;">&#9632; Deep Focus</span>
+          <span style="color:#0284c7;">&#9632; Active</span>
+          <span style="color:#d97706;">&#9632; Passive</span>
+          <span style="color:#dc2626;">&#9632; Background</span>
+        </div>
+        <p id="tier-summary" style="font-size:13px;color:#475569;margin-top:8px;"></p>
+      </div>
+
+      <!-- Aggregate Timeline -->
+      <div class="section">
+        <h2>Average Attention Over Time</h2>
+        <p style="font-size:12px;color:#64748b;margin-bottom:8px;">Averaged across all sessions in this report. Shows how attention typically evolves during the demo.</p>
+        <div class="timeline-agg" id="agg-timeline"></div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;"><span>Session Start</span><span>Session End</span></div>
+      </div>
+
+      <!-- Signal Breakdown -->
+      <div class="section">
+        <h2>Behavioral Signal Averages (11 Signals)</h2>
+        <table class="signal-table" id="signal-table">
+          <thead><tr><th>Signal</th><th>Average Score</th><th></th><th>Interpretation</th></tr></thead>
+          <tbody id="signal-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- SWS vs GA4 -->
+      <div class="section">
+        <h2>SWS Protocol vs Google Analytics 4 — Capability Comparison</h2>
+        <table class="comparison-table">
+          <thead><tr><th>Capability</th><th>SWS Protocol</th><th>Google Analytics 4</th></tr></thead>
+          <tbody>
+            <tr><td>Behavioral signals</td><td class="sws">11 signals, real-time</td><td class="ga4">None</td></tr>
+            <tr><td>Human confidence score</td><td class="sws">0-1.000 composite</td><td class="ga4">Not available</td></tr>
+            <tr><td>Attention quality tier</td><td class="sws">Deep / Active / Passive / Background</td><td class="ga4">Not available</td></tr>
+            <tr><td>Per-moment attention timeline</td><td class="sws">5-second granularity</td><td class="ga4">Not available</td></tr>
+            <tr><td>Keystroke analysis</td><td class="sws">Hold time, flight time, rhythm</td><td class="ga4">Not available</td></tr>
+            <tr><td>Reading verification</td><td class="sws">Per-section speed + comprehension</td><td class="ga4">Scroll depth only</td></tr>
+            <tr><td>Bot detection</td><td class="sws">11-signal composite</td><td class="ga4">Not available</td></tr>
+            <tr><td>Cryptographic receipt</td><td class="sws">SHA-256 tamper-evident</td><td class="ga4">Not available</td></tr>
+            <tr><td>COPPA compliant by design</td><td class="sws">No PII in payload</td><td class="ga4">Requires configuration</td></tr>
+            <tr><td>SCIF / classified compatible</td><td class="sws">Zero content data</td><td class="ga4">Requires internet</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Individual Sessions -->
+      <div class="section">
+        <h2>Individual Sessions</h2>
+        <div class="sessions-list" id="sessions-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <strong>SWS Proof of Attention Protocol</strong> — Patent Pending SWS-PROV-001<br>
+    SWS Strategic Media LLC | Inventor: Stephen Furpahs<br>
+    This report contains proprietary behavioral data. Distribution authorized by the pilot agreement.
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <script>
+    var app = firebase.initializeApp({
+      apiKey: "AIzaSyDbpqisJpnoh2OUYSJIdKIo17SdF0eGPiM",
+      authDomain: "sws-attention-proofs.firebaseapp.com",
+      projectId: "sws-attention-proofs",
+      storageBucket: "sws-attention-proofs.firebasestorage.app",
+      messagingSenderId: "420661886092",
+      appId: "1:420661886092:web:a4c79cd07fc804428f4fa9"
+    });
+    var db = firebase.firestore(app);
+    firebase.auth(app).signInAnonymously();
+
+    document.getElementById('report-date').textContent = new Date().toLocaleDateString();
+
+    var urlSource = new URLSearchParams(window.location.search).get('source');
+    if (urlSource) document.getElementById('source-filter').value = urlSource;
+
+    function loadReport() {
+      var source = document.getElementById('source-filter').value;
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('no-data').style.display = 'none';
+      document.getElementById('report-content').style.display = 'none';
+
+      var query = db.collection('demos').orderBy('timestamp', 'desc').limit(200);
+      if (source) query = db.collection('demos').where('source_type', '==', source).orderBy('timestamp', 'desc').limit(200);
+
+      query.get().then(function(snapshot) {
+        document.getElementById('loading').style.display = 'none';
+        if (snapshot.empty) {
+          document.getElementById('no-data').style.display = 'block';
+          return;
+        }
+
+        var sessions = [];
+        snapshot.forEach(function(doc) { sessions.push(doc.data()); });
+        renderReport(sessions, source);
+      }).catch(function(err) {
+        document.getElementById('loading').textContent = 'Error: ' + err.message + '. The Firestore index may need to be created — check the browser console for a link.';
+      });
+    }
+
+    function renderReport(sessions, source) {
+      document.getElementById('report-content').style.display = 'block';
+      var sourceLabel = source ? document.getElementById('source-filter').options[document.getElementById('source-filter').selectedIndex].text : 'All Sessions';
+      document.getElementById('report-subtitle').textContent = sourceLabel + ' — ' + sessions.length + ' sessions analyzed';
+
+      var count = sessions.length;
+      var avgComp = avg(sessions.map(function(s) { return s.signals?.composite || 0; }));
+      var avgDur = avg(sessions.map(function(s) { return s.duration_sec || 0; }));
+      var deepPct = Math.round(sessions.filter(function(s) { return s.quality_tier === 'deep'; }).length / count * 100);
+      var activePct = Math.round(sessions.filter(function(s) { return s.quality_tier === 'active'; }).length / count * 100);
+      var passivePct = Math.round(sessions.filter(function(s) { return s.quality_tier === 'passive'; }).length / count * 100);
+      var bgPct = 100 - deepPct - activePct - passivePct;
+      var devices = {};
+      sessions.forEach(function(s) {
+        var d = (s.user_agent || '').indexOf('Mobile') > -1 ? 'Mobile' : 'Desktop';
+        devices[d] = (devices[d] || 0) + 1;
+      });
+
+      // Summary cards
+      document.getElementById('summary-cards').innerHTML =
+        sCard(count, 'Total Sessions', '') +
+        sCard(avgComp.toFixed(3), 'Avg Composite', avgComp >= 0.5 ? 'green' : 'amber') +
+        sCard(Math.round(avgDur) + 's', 'Avg Duration', 'blue') +
+        sCard(deepPct + '%', 'Deep Focus Rate', deepPct >= 20 ? 'green' : 'amber') +
+        sCard((deepPct + activePct) + '%', 'Active+ Rate', '') +
+        sCard(Object.keys(devices).join(', '), 'Devices', '');
+
+      // Executive summary
+      document.getElementById('exec-summary').innerHTML =
+        'Across <strong>' + count + ' sessions</strong>, the SWS Attention Protocol measured an average human-confidence score of <strong>' + avgComp.toFixed(3) + '</strong>. ' +
+        '<strong>' + (deepPct + activePct) + '%</strong> of sessions demonstrated Active engagement or better. ' +
+        'Average session duration was <strong>' + Math.round(avgDur) + ' seconds</strong>. ' +
+        'Each session was verified by <strong>11 independent behavioral signals</strong> producing a cryptographic attention receipt. ' +
+        'Google Analytics 4, running on the same sessions, would have captured only page views, time-on-page, and scroll depth — zero behavioral verification.';
+
+      // Tier distribution
+      document.getElementById('tier-dist').innerHTML =
+        (deepPct > 0 ? '<div class="tier-seg tier-deep" style="flex:' + deepPct + '">' + deepPct + '%</div>' : '') +
+        (activePct > 0 ? '<div class="tier-seg tier-active" style="flex:' + activePct + '">' + activePct + '%</div>' : '') +
+        (passivePct > 0 ? '<div class="tier-seg tier-passive" style="flex:' + passivePct + '">' + passivePct + '%</div>' : '') +
+        (bgPct > 0 ? '<div class="tier-seg tier-background" style="flex:' + bgPct + '">' + bgPct + '%</div>' : '');
+
+      document.getElementById('tier-summary').textContent =
+        'Deep Focus: ' + deepPct + '% | Active: ' + activePct + '% | Passive: ' + passivePct + '% | Background: ' + bgPct + '%. ' +
+        'A healthy distribution shows the majority of sessions at Active or above.';
+
+      // Aggregate timeline
+      var maxT = Math.max.apply(null, sessions.map(function(s) { return (s.timeline || []).length; }));
+      if (maxT > 0) {
+        var aggData = [];
+        for (var t = 0; t < maxT; t++) {
+          var vals = sessions.map(function(s) { return (s.timeline && s.timeline[t]) ? s.timeline[t].composite : null; }).filter(function(v) { return v !== null; });
+          aggData.push(vals.length > 0 ? avg(vals) : 0);
+        }
+        var html = '';
+        aggData.forEach(function(v) {
+          var h = Math.max(3, v * 90);
+          var c = v >= 0.7 ? '#059669' : v >= 0.5 ? '#0284c7' : v >= 0.25 ? '#d97706' : '#dc2626';
+          html += '<div class="t-bar" style="height:' + h + 'px;background:' + c + ';"></div>';
+        });
+        document.getElementById('agg-timeline').innerHTML = html;
+      }
+
+      // Signal breakdown
+      var allSigs = [
+        { name: 'Timing Entropy', key: 'timing', desc: 'Variation in interaction intervals. Humans are variable; bots are constant.' },
+        { name: 'Hick\'s Law', key: 'hicks', desc: 'Decision time increases with options. Validated since 1952.' },
+        { name: 'Fitts\' Law', key: 'fitts', desc: 'Movement time correlates with target distance. Motor physics of the human hand.' },
+        { name: 'Scroll Saccade', key: 'scroll', desc: 'Natural read-pause-scroll patterns. Humans fixate; bots scroll linearly.' },
+        { name: 'Micro-Pause', key: 'microPause', desc: 'Cognitive processing delay between content render and first interaction.' },
+        { name: 'Touch/Click Variance', key: 'touch', desc: 'Physical variation in tap position, pressure, and contact area.' },
+        { name: 'Keystroke Dynamics', key: 'keystroke', desc: 'Typing rhythm — unique to each individual. Hold time, flight time, cadence.' },
+        { name: 'Reading Speed', key: 'readingSpeed', desc: 'Time spent per content section correlated with text complexity.' },
+        { name: 'Hover Dwell', key: 'hoverDwell', desc: 'Pre-click deliberation time. Humans hover and decide; bots click instantly.' },
+        { name: 'Tab Visibility', key: 'tabVisibility', desc: 'Whether the browser tab was actually in the foreground during the session.' },
+        { name: 'Inactivity Pattern', key: 'inactivity', desc: 'Natural breaks (water, phone, stretch). Real humans have irregular gaps.' }
+      ];
+
+      var sigHTML = '';
+      allSigs.forEach(function(sig) {
+        var vals = sessions.map(function(s) { return s.signals?.[sig.key] || 0; });
+        var a = avg(vals);
+        var c = a >= 0.7 ? '#059669' : a >= 0.5 ? '#0284c7' : a >= 0.25 ? '#d97706' : '#dc2626';
+        sigHTML += '<tr><td><strong>' + sig.name + '</strong><br><span style="font-size:10px;color:#94a3b8;">' + sig.desc + '</span></td>';
+        sigHTML += '<td class="val-cell" style="color:' + c + ';">' + a.toFixed(3) + '</td>';
+        sigHTML += '<td class="bar-cell"><div class="bar-wrap"><div class="bar-fill" style="width:' + (a * 100) + '%;background:' + c + ';"></div></div></td>';
+        sigHTML += '<td style="font-size:11px;color:#64748b;">' + (a >= 0.7 ? 'Strong human signal' : a >= 0.5 ? 'Moderate signal' : a > 0.5 ? 'Weak — needs more data' : a === 0.5 ? 'Default (insufficient data)' : 'Low — investigate') + '</td></tr>';
+      });
+      document.getElementById('signal-tbody').innerHTML = sigHTML;
+
+      // Individual sessions table
+      var listHTML = '<table><thead><tr><th>Session</th><th>Date</th><th>Duration</th><th>Composite</th><th>Tier</th><th>Signals Active</th><th>Words Typed</th><th>Device</th></tr></thead><tbody>';
+      sessions.forEach(function(s) {
+        var comp = s.signals?.composite || 0;
+        var compColor = comp >= 0.7 ? '#059669' : comp >= 0.5 ? '#0284c7' : comp >= 0.25 ? '#d97706' : '#dc2626';
+        var active = 0;
+        allSigs.forEach(function(sig) { if (s.signals?.[sig.key] !== undefined && s.signals[sig.key] !== 0.5) active++; });
+        var device = (s.user_agent || '').indexOf('Mobile') > -1 ? 'Mobile' : 'Desktop';
+        listHTML += '<tr>';
+        listHTML += '<td>' + (s.session_id || '?').substring(0, 20) + '</td>';
+        listHTML += '<td>' + (s.generated ? new Date(s.generated).toLocaleString() : '?') + '</td>';
+        listHTML += '<td>' + (s.duration_sec || 0) + 's</td>';
+        listHTML += '<td style="color:' + compColor + ';font-weight:700;">' + comp.toFixed(3) + '</td>';
+        listHTML += '<td>' + (s.quality_tier || '?') + '</td>';
+        listHTML += '<td>' + active + '/11</td>';
+        listHTML += '<td>' + (s.typed_words || 0) + '</td>';
+        listHTML += '<td>' + device + '</td>';
+        listHTML += '</tr>';
+      });
+      listHTML += '</tbody></table>';
+      document.getElementById('sessions-list').innerHTML = listHTML;
+    }
+
+    function sCard(val, label, cls) {
+      return '<div class="s-card ' + cls + '"><div class="val">' + val + '</div><div class="label">' + label + '</div></div>';
+    }
+
+    function avg(arr) {
+      if (arr.length === 0) return 0;
+      return arr.reduce(function(a, b) { return a + b; }, 0) / arr.length;
+    }
+
+    firebase.auth(app).onAuthStateChanged(function(user) {
+      if (user) loadReport();
+    });
+  </script>
+</body>
+</html>
