@@ -35,8 +35,8 @@ describe('Core SDK — Module Loading', () => {
     });
   });
 
-  test('version is 1.0.0', () => {
-    expect(SWSAttention.version).toBe('1.0.0');
+  test('version is 2.0.0', () => {
+    expect(SWSAttention.version).toBe('2.0.0');
   });
 
   test('patent reference is SWS-PROV-001', () => {
@@ -96,7 +96,7 @@ describe('Core SDK — Initialization', () => {
       const testHash = hashes.find(h => h.event_type === 'test_event');
       expect(testHash).toBeDefined();
       expect(testHash.hash).toMatch(/^[0-9a-f]{64}$/); // SHA-256 = 64 hex chars
-      expect(testHash.quality_tier).toBe('active');
+      expect(testHash.quality_tier).toBe('passive');
       done();
     }, 100);
   });

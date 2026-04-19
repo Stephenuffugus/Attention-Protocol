@@ -36,10 +36,10 @@ beforeEach(() => { freshSDK(); });
 // ============================================================
 
 describe('Timing Entropy Edge Cases', () => {
-  test('zero interactions returns default (0.7 range)', () => {
-    // No interactions recorded — should return safe default
+  test('zero interactions returns 0 (insufficient data sentinel)', () => {
+    // No interactions recorded — returns 0 from -1 sentinel
     const c = SWSAttention.getHumanConfidence();
-    expect(c.timing).toBeGreaterThan(0.3);
+    expect(c.timing).toBeGreaterThanOrEqual(0);
     expect(c.timing).toBeLessThan(1.0);
     expect(isNaN(c.timing)).toBe(false);
   });
@@ -159,18 +159,18 @@ describe('Hick\'s Law Edge Cases', () => {
 // ============================================================
 
 describe('Fitts\' Law Edge Cases', () => {
-  test('no tap data returns 0.5', () => {
+  test('no tap data returns 0 (sentinel)', () => {
     const c = SWSAttention.getHumanConfidence();
-    expect(c.fitts).toBe(0.5);
+    expect(c.fitts).toBe(0);
   });
 
-  test('all taps at same position returns 0.5 (zero distance)', () => {
+  test('all taps at same position returns 0 (insufficient data)', () => {
     // This would make log2(0 + 1) = 0 for all distances
     // and times would vary — but distance is constant
     // Denominator could be 0
     const c = SWSAttention.getHumanConfidence();
     expect(isNaN(c.fitts)).toBe(false);
-    expect(c.fitts).toBe(0.5); // insufficient data
+    expect(c.fitts).toBe(0); // insufficient data
   });
 });
 
@@ -179,9 +179,9 @@ describe('Fitts\' Law Edge Cases', () => {
 // ============================================================
 
 describe('Scroll Saccade Edge Cases', () => {
-  test('no scroll data returns 0.5', () => {
+  test('no scroll data returns 0 (sentinel)', () => {
     const c = SWSAttention.getHumanConfidence();
-    expect(c.scroll).toBe(0.5);
+    expect(c.scroll).toBe(0);
   });
 
   test('score never exceeds 1.0', () => {
@@ -223,9 +223,9 @@ describe('Micro-Pause Edge Cases', () => {
 // ============================================================
 
 describe('Touch Variance Edge Cases', () => {
-  test('no touch data returns 0.5', () => {
+  test('no touch data returns 0 (sentinel)', () => {
     const c = SWSAttention.getHumanConfidence();
-    expect(c.touch).toBe(0.5);
+    expect(c.touch).toBe(0);
   });
 });
 
@@ -401,7 +401,7 @@ describe('Hash Generation Edge Cases', () => {
       const hashes = SWSAttention.getHashes();
       const latest = hashes.find(h => h.event_type === 'tier_test');
       if (latest) {
-        expect(latest.quality_tier).toBe('active'); // defaults
+        expect(latest.quality_tier).toBe('passive'); // defaults
       }
       done();
     }, 100);

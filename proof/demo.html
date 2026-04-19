@@ -140,7 +140,7 @@
             <p>The following are explicitly excluded from coverage: (a) Services deployed without proper user consent mechanisms as defined in Section 7.2; (b) Attention data collected from minors under 13 years of age without COPPA-compliant parental consent; (c) Any use of attention verification technology for surveillance, employee monitoring without disclosure, or law enforcement profiling purposes.</p>
             <p>Additionally excluded: (d) Attention verification conducted on medical devices requiring FDA 510(k) clearance unless separately endorsed; (e) Use in autonomous vehicle control systems; (f) Military applications in non-allied territories without written DoD authorization.</p>
             <p><strong>Section 3: Claims Process</strong></p>
-            <p>To file a claim under this policy, the policyholder must provide: (1) The cryptographic attention receipt chain for the disputed session; (2) Server-side verification logs showing receipt validation timestamps; (3) The behavioral signal breakdown demonstrating the quality tier classification that was applied. Claims must be filed within 90 days of the incident date.</p>
+            <p>To file a claim under this policy, the policyholder must provide: (1) The cryptographic attention receipts for the disputed session; (2) Server-side verification logs showing receipt validation timestamps; (3) The behavioral signal breakdown demonstrating the quality tier classification that was applied. Claims must be filed within 90 days of the incident date.</p>
             <p>The insurer reserves the right to independently verify attention receipts using the protocol's public verification endpoint. Disputed quality tier classifications will be adjudicated by a panel of three independent behavioral science experts, with the policyholder bearing the cost of one expert and the insurer bearing the cost of two.</p>
             <p><strong>Section 4: Premium Calculation</strong></p>
             <p>Premiums are calculated based on: total monthly verified attention events, average quality tier distribution (policies with higher deep-focus ratios receive preferred rates), historical claim frequency, and the policyholder's session integrity score. Policyholders maintaining a 95%+ session integrity score for 12 consecutive months qualify for the Verified Attention Discount of 15%.</p>
@@ -213,7 +213,7 @@
               </div>
             </div>
 
-            <!-- All 11 signals -->
+            <!-- All 20 signals -->
             <div class="result-card">
               <h4 style="color:#10b981;">20 BEHAVIORAL SIGNALS</h4>
               <div id="signal-results"></div>
@@ -342,14 +342,7 @@
     </div>
   </div>
 
-  <!-- GA4 — real Google Analytics running alongside SWS for side-by-side comparison -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5JFFYEJ6XP"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-5JFFYEJ6XP', { send_page_view: true });
-  </script>
+  <!-- GA4 already loaded in <head> — no duplicate needed -->
 
   <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -581,7 +574,7 @@
       { q: 'What is the per-occurrence liability limit?', opts: ['$500,000', '$1,000,000', '$2,000,000', '$5,000,000'], correct: '$2,000,000' },
       { q: 'Which of these is excluded from coverage?', opts: ['Hash generation', 'Quality tier classification', 'Surveillance without disclosure', 'Receipt issuance'], correct: 'Surveillance without disclosure' },
       { q: 'How many experts adjudicate disputed classifications?', opts: ['One', 'Two', 'Three'], correct: 'Three' },
-      { q: 'What must be provided to file a claim?', opts: ['Police report', 'Receipt chain + logs + signal breakdown', 'Doctor note', 'Photo evidence', 'Witness statement', 'Notarized affidavit'], correct: 'Receipt chain + logs + signal breakdown' },
+      { q: 'What must be provided to file a claim?', opts: ['Police report', 'Receipts + logs + signal breakdown', 'Doctor note', 'Photo evidence', 'Witness statement', 'Notarized affidavit'], correct: 'Receipts + logs + signal breakdown' },
       { q: 'What score qualifies for the Verified Attention Discount?', opts: ['80%', '85%', '90%', '95%', '97%', '99%', '100%'], correct: '95%' },
       { q: 'When can the insurer cancel the policy?', opts: ['Never', 'After one failed month', 'After three months below 70% integrity', 'After any claim'], correct: 'After three months below 70% integrity' },
       { q: 'What is the aggregate annual liability limit?', opts: ['$1,000,000', '$2,000,000', '$5,000,000', '$10,000,000'], correct: '$5,000,000' },

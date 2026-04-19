@@ -102,4 +102,13 @@ function resetState() {
   // Reset initialized state by reloading modules
 }
 
-module.exports = { loadSDK, resetState, localStorageMock, store };
+/**
+ * Helper: Dispatch a mock event to document listeners
+ */
+function dispatchDocEvent(type, eventObj) {
+  if (listeners[type]) {
+    listeners[type].forEach(fn => fn(eventObj || {}));
+  }
+}
+
+module.exports = { loadSDK, resetState, localStorageMock, store, dispatchDocEvent };

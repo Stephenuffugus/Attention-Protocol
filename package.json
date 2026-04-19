@@ -4,6 +4,7 @@
   "description": "SWS Proof of Attention Protocol — Cryptographic verification of genuine human attention",
   "main": "src/sdk/attention-protocol.js",
   "scripts": {
+    "start": "node server/index.js",
     "test": "node --max-old-space-size=4096 node_modules/.bin/jest --verbose --forceExit",
     "test:core": "jest tests/sdk-core.test.js --verbose",
     "test:algorithms": "jest tests/behavioral-algorithms.test.js --verbose",

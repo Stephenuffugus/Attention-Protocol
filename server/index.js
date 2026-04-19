@@ -89,9 +89,18 @@ function checkRateLimit(clientId, plan) {
   // Clean old entries every 100 requests
   if (minuteCount % 100 === 0) {
     const cutoff = Math.floor(now / 60000) - 2;
+    const today = new Date().toISOString().split('T')[0];
     rateLimits.forEach((v, k) => {
-      if (k.includes('_') && !k.includes('-') && parseInt(k.split('_')[1]) < cutoff) {
-        rateLimits.delete(k);
+      if (!k.includes('_')) return;
+      const parts = k.split('_');
+      const suffix = parts[parts.length - 1];
+      // Day-keyed entries (contain hyphens like 2026-04-19): remove if not today
+      if (suffix.includes('-')) {
+        const dateStr = parts.slice(1).join('_');
+        if (dateStr !== today) rateLimits.delete(k);
+      } else {
+        // Minute-keyed entries: remove if older than cutoff
+        if (parseInt(suffix) < cutoff) rateLimits.delete(k);
       }
     });
   }

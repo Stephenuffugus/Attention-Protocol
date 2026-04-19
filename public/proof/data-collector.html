@@ -83,7 +83,7 @@
           <p>A background tab counts the same as focused reading. A bot clicking through a survey generates the same data as a thoughtful respondent. An employee who speed-clicks through safety training gets the same "completed" status as one who genuinely engaged.</p>
           <p>This isn't a minor problem — it's a systemic failure that costs the advertising industry $84 billion in fraud annually, causes nursing homes to face CMS fines when untrained staff interact with residents, and undermines the entire foundation of digital market research.</p>
           <p>The root cause is simple: existing analytics tools measure presence, not attention. They count events, not quality. They track time, not engagement.</p>
-          <p>The SWS Proof of Attention Protocol solves this by measuring six behavioral science signals — timing entropy, Fitts' Law compliance, Hick's Law scaling, scroll saccade patterns, micro-pause analysis, and touch variance — to produce a cryptographic proof of genuine human attention.</p>
+          <p>The SWS Proof of Attention Protocol solves this by measuring twenty behavioral science signals — timing entropy, Fitts' Law compliance, Hick's Law scaling, scroll saccade patterns, micro-pause analysis, and touch variance — to produce a cryptographic proof of genuine human attention.</p>
           <p>Each verified attention event is hashed with SHA-256, creating an immutable, tamper-proof record that can be independently verified. No URLs are tracked. No content is recorded. No personal information is collected. Just pure, verified attention.</p>
         </div>
       </div>
@@ -110,7 +110,7 @@
     <!-- Phase 4: Results -->
     <div class="phase" id="phase-4">
       <h2>Results: Your Behavioral Profile</h2>
-      <p>Here's what SWS captured from your session — all 6 behavioral signals, scored in real time. This data was sent to the API server for scoring.</p>
+      <p>Here's what SWS captured from your session — all 20 behavioral signals, scored in real time. This data was sent to the API server for scoring.</p>
 
       <div class="signal-grid" id="signal-grid">
         <div class="signal-card"><div class="signal-val" id="r-composite">--</div><div class="signal-label">Composite Score</div></div>
@@ -139,9 +139,9 @@
     </div>
   </div>
 
-  <script src="../../src/sdk/secure-config.js"></script>
-  <script src="../../src/sdk/attention-protocol.js"></script>
-  <script src="../../src/sdk/economy-engine.js"></script>
+  <script src="../js/secure-config.js"></script>
+  <script src="../js/attention-protocol.js"></script>
+  <script src="../js/economy-engine.js"></script>
 
   <script>
     var sessionStart = Date.now();

@@ -74,7 +74,7 @@ describe('Browser Environment: SDK Loads', () => {
     });
 
     expect(result.hasSWSAttention).toBe(true);
-    expect(result.version).toBe('1.0.0');
+    expect(result.version).toBe('2.0.0');
     expect(result.entity).toBe('SWS Strategic Media LLC');
     expect(result.hasSessionId).toBe(true);
     await page.close();
