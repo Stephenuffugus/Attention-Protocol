@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>21 CFR Part 11 — SWS Attention Protocol</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Clause-by-clause mapping of 21 CFR Part 11 electronic records and electronic signatures requirements to the SWS attention-receipt technical controls.">
+<style>
+  :root { --bg:#0f172a; --panel:#1e293b; --panel2:#0b1425; --text:#e2e8f0; --dim:#94a3b8;
+          --accent:#06b6d4; --ok:#10b981; --warn:#eab308; --line:#334155; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; line-height:1.6; }
+  .wrap { max-width:1080px; margin:0 auto; padding:40px 24px 80px; }
+  nav { color:var(--dim); font-size:13px; margin-bottom:24px; }
+  nav a { color:var(--accent); text-decoration:none; margin-right:14px; }
+  h1 { font-size:32px; margin:0 0 4px; letter-spacing:-0.3px; }
+  p.tagline { color:var(--dim); margin:0 0 32px; font-size:16px; }
+  h2 { color:var(--accent); font-size:19px; margin:40px 0 12px; letter-spacing:0.2px; }
+  .callout { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--accent); border-radius:6px; padding:16px 20px; margin:20px 0; }
+  .callout strong { color:var(--text); }
+  table { width:100%; border-collapse:collapse; margin:16px 0 24px; font-size:14px; }
+  th, td { text-align:left; padding:12px 14px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { background:var(--panel2); color:var(--dim); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:0.6px; }
+  td.clause { white-space:nowrap; font-family:ui-monospace,Menlo,monospace; color:var(--accent); font-size:13px; width:100px; }
+  td.sws { width:240px; }
+  td.req { color:var(--text); }
+  .chip { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:0.4px; }
+  .chip.tech { background:rgba(16,185,129,0.15); color:var(--ok); }
+  .chip.mixed { background:rgba(234,179,8,0.15); color:var(--warn); }
+  .chip.proc { background:rgba(148,163,184,0.15); color:var(--dim); }
+  code { font-family:ui-monospace,Menlo,monospace; background:var(--panel2); padding:1px 6px; border-radius:3px; font-size:12px; }
+  a { color:var(--accent); }
+  .artifact-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin:16px 0; }
+  .artifact { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:16px 18px; }
+  .artifact h3 { margin:0 0 6px; font-size:14px; color:var(--text); }
+  .artifact p { margin:0 0 10px; font-size:13px; color:var(--dim); line-height:1.5; }
+  .artifact a { font-size:13px; font-weight:600; }
+  .legend { display:flex; gap:18px; flex-wrap:wrap; margin:12px 0 20px; font-size:12px; color:var(--dim); }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  hr { border:none; border-top:1px solid var(--line); margin:48px 0; }
+  .footer-note { color:var(--dim); font-size:13px; line-height:1.7; }
+  .cta { background:var(--accent); color:#001016; border:none; padding:12px 24px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; text-decoration:none; display:inline-block; }
+  .cta:hover { filter:brightness(1.1); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a href="/">← Home</a>
+    <a href="/demo.html">Demo</a>
+    <a href="/verify.html">Verify a Receipt</a>
+    <a href="/.well-known/attention-pubkey.json">Public Key (JWKS)</a>
+  </nav>
+
+  <h1>21 CFR Part 11 — How SWS Satisfies the Regulation</h1>
+  <p class="tagline">Clause-by-clause mapping of FDA's Electronic Records and Electronic Signatures regulation to the technical controls in a SWS attention receipt. For pharma compliance, medical education, and GxP training records.</p>
+
+  <div class="callout">
+    <strong>Summary in one sentence:</strong> SWS provides the <em>technical controls</em> that 21 CFR Part 11 requires — tamper-evident records, secure audit trails, cryptographic signatures, and device checks. Your organization provides the <em>procedural controls</em> (SOPs, access policies, training). Together they satisfy Part 11 for the "did the trainee actually do the training" class of electronic records.
+  </div>
+
+  <div class="callout" style="border-left-color:var(--warn);">
+    <strong>Why this matters now:</strong> The FDA issued <strong>327 Part 11-related warning letters in the second half of 2025 alone — a 73% year-over-year increase</strong>. Data integrity and audit-trail deficiencies are the most frequently cited findings. "Click-through completion" in pharma training records is increasingly unacceptable under Part 11 inspection.
+  </div>
+
+  <h2>Coverage at a Glance</h2>
+  <div class="legend">
+    <span><span class="chip tech">TECH</span> Fully satisfied by SWS technical controls</span>
+    <span><span class="chip mixed">MIXED</span> Shared — SWS tech + customer SOP</span>
+    <span><span class="chip proc">PROC</span> Customer's procedural responsibility</span>
+  </div>
+
+  <h2>Subpart B §11.10 — Controls for Closed Systems</h2>
+  <table>
+    <thead><tr><th>Clause</th><th>Requirement</th><th>SWS Control</th><th></th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="clause">§11.10(a)</td>
+        <td class="req">Validation of systems to ensure accuracy, reliability, and consistent intended performance.</td>
+        <td class="sws">553 unit + integration tests, 100% pass; reproducible builds; published git history at commit <code>HEAD</code>.</td>
+        <td><span class="chip mixed">MIXED</span></td>
+      </tr>
+      <tr>
+        <td class="clause">§11.10(b)</td>
+        <td class="req">Ability to generate accurate and complete copies of records in both human-readable and electronic form.</td>
+        <td class="sws">Each receipt is emitted as a compact JWT (machine-readable) and a JSON-LD Verifiable Credential (human-readable, W3C-standardized).</td>
+        <td><span class="chip tech">TECH</span></td>
+      </tr>
+      <tr>
+        <td class="clause">§11.10(c)</td>
+        <td class="req">Protection of records to enable accurate and ready retrieval throughout the records retention period.</td>
+        <td class="sws">SHA-256 integrity hash over every record. Ed25519 signature binds the record to the issuer. OpenTimestamps anchor proves existence at a specific Bitcoin block.</td>
+        <td><span class="chip tech">TECH</span></td>
+      </tr>
+      <tr>
+        <td class="clause">§11.10(d)</td>
+        <td class="req">Limiting system access to authorized individuals.</td>
+        <td class="sws">Firestore auth rules gate receipt retrieval to the subject's own vault; customer-side access-control lists are customer responsibility.</td>
+        <td><span class="chip mixed">MIXED</span></td>
+      </tr>
+      <tr>
+        <td class="clause">§11.10(e)</td>
+        <td class="req">Secure, computer-generated, time-stamped audit trails to independently record operator entries and actions.</td>
+        <td class="sws">Every behavioral event produces a timestamped entry in the receipt's signal log. Tampering breaks the integrity hash. Bitcoin-anchored timestamp satisfies "computer-generated" and "independent."</td>
+        <td><span class="chip tech">TECH</span></td>
+      </tr>
+      <tr>
+        <td class="clause">§11.10(f)</td>
+        <td class="req">Operational system checks to enforce permitted sequencing of steps and events.</td>
+        <td class="sws">Session phases (read → decide → respond → type → complete) are enforced sequentially by the SDK; the integrity hash covers phase ordering so tampering is detectable.</td>
+        <td><span class="chip tech">TECH</span></td>
+      </tr>
+      <tr>
+        <td class="clause">§11.10(g)</td>
+        <td class="req">Authority checks to ensure only authorized individuals can use the system.</td>
+        <td class="sws">Consent attestation block records the user's explicit authorization with timestamp + version. Integrated with customer identity provider for tying a DID to an authenticated learner.</td>
+        <td><span class="chip mixed">MIXED</span></td>
+      </tr>
+      <tr>
+        <td class="clause">§11.10(h)</td>
+        <td class="req">Device checks to determine validity of data input.</td>
+        <td class="sws">Environmental gate (BotD v2) verifies the browser is a real user agent, not a headless automation tool or emulator. Caught 3/3 Puppeteer profiles in our harness.</td>
+        <td><span class="chip tech">TECH</span></td>
+      </tr>
+      <tr>
+        <td class="clause">§11.10(i)</td>
+        <td class="req">Persons developing/maintaining/using the system have the education, training, and experience.</td>
+        <td class="sws">Inventor is patent-filed (USPTO 2026-03-17, SWS-PROV-001). Customer training program is customer's responsibility.</td>
+        <td><span class="chip proc">PROC</span></td>
+      </tr>
+      <tr>
+        <td class="clause">§11.10(j)</td>
+        <td class="req">Written policies holding individuals accountable for actions under their electronic signatures.</td>
+        <td class="sws">Customer-side SOP; SWS provides the signature mechanism and verdict record but does not author your compliance policy.</td>
+        <td><span class="chip proc">PROC</span></td>
+      </tr>
+      <tr>
+        <td class="clause">§11.10(k)</td>
+        <td class="req">Appropriate controls over systems documentation.</td>
+        <td class="sws">SDK source is versioned (public GitHub); receipt schema is documented in-repo; every deployed artifact has a version-stamped URL.</td>
+        <td><span class="chip tech">TECH</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Subpart B §11.30 — Controls for Open Systems</h2>
+  <table>
+    <tbody>
+      <tr>
+        <td class="clause">§11.30</td>
+        <td class="req">Additional measures (encryption, digital signatures) when records travel over open systems to ensure authenticity, integrity, and confidentiality.</td>
+        <td class="sws">Ed25519 digital signatures (RFC 8032) over every receipt. Public key published at <a href="/.well-known/attention-pubkey.json"><code>/.well-known/attention-pubkey.json</code></a>. Anyone can verify offline with only the public key.</td>
+        <td><span class="chip tech">TECH</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Subpart C §11.50 — Signature Manifestations</h2>
+  <table>
+    <tbody>
+      <tr>
+        <td class="clause">§11.50(a)</td>
+        <td class="req">Printed name of the signer.</td>
+        <td class="sws">Receipt carries <code>issuer.name = "SWS Strategic Media LLC"</code> and pseudonymous subject DID. Full learner name (if privacy policy permits) resolvable via customer identity provider.</td>
+        <td><span class="chip tech">TECH</span></td>
+      </tr>
+      <tr>
+        <td class="clause">§11.50(b)</td>
+        <td class="req">Date and time of signature.</td>
+        <td class="sws">ISO 8601 timestamp in the JWT <code>iat</code> claim + the receipt <code>generated_at</code>. OpenTimestamps Bitcoin anchor provides independent timestamp proof that survives signer compromise.</td>
+        <td><span class="chip tech">TECH</span></td>
+      </tr>
+      <tr>
+        <td class="clause">§11.50(c)</td>
+        <td class="req">The meaning (review, approval, responsibility, authorship) associated with the signature.</td>
+        <td class="sws">Credential type <code>AttentionVerificationCredential</code> + explicit <code>verdict</code> field (e.g. <code>verified_human_active_engagement</code>) + human-readable <code>note</code> on every attestation layer.</td>
+        <td><span class="chip tech">TECH</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Subpart C §11.70 — Signature/Record Linking</h2>
+  <table>
+    <tbody>
+      <tr>
+        <td class="clause">§11.70</td>
+        <td class="req">Electronic signatures shall be linked to their respective electronic records to ensure the signatures cannot be excised, copied, or transferred to falsify another record.</td>
+        <td class="sws">The Ed25519 signature is computed over the entire JWT payload (which contains the full receipt). Copying the signature to any other payload produces a mismatched hash and fails verification immediately.</td>
+        <td><span class="chip tech">TECH</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Subpart C §11.100 — General Requirements for Electronic Signatures</h2>
+  <table>
+    <tbody>
+      <tr>
+        <td class="clause">§11.100(a)</td>
+        <td class="req">Electronic signatures shall be unique to one individual and shall not be reused by, or reassigned to, anyone else.</td>
+        <td class="sws">Each learner's subject DID (<code>did:sws:user:&lt;hash&gt;</code>) is deterministically derived and cryptographically unique. Issuer key rotation is tracked via <code>kid</code> in the JWKS.</td>
+        <td><span class="chip tech">TECH</span></td>
+      </tr>
+      <tr>
+        <td class="clause">§11.100(b)</td>
+        <td class="req">Before using e-signatures, the organization shall verify the identity of the individual.</td>
+        <td class="sws">Customer identity provider (e.g. SSO / your LMS authentication) binds the authenticated learner to the DID. SWS does not perform identity proofing itself.</td>
+        <td><span class="chip proc">PROC</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Subpart C §11.200 — Electronic Signature Components and Controls</h2>
+  <table>
+    <tbody>
+      <tr>
+        <td class="clause">§11.200(a)</td>
+        <td class="req">Non-biometric signatures require at least two distinct identification components (e.g. ID + password).</td>
+        <td class="sws">Customer identity provider handles authentication (1st factor) + SWS captures behavioral biometrics during the session (2nd factor, in the §11.200(b) sense).</td>
+        <td><span class="chip mixed">MIXED</span></td>
+      </tr>
+      <tr>
+        <td class="clause">§11.200(b)</td>
+        <td class="req">Biometric electronic signatures shall be designed to ensure they cannot be used by anyone other than their genuine owners.</td>
+        <td class="sws">15-signal behavioral composite (Fitts' Law, Hick's Law, fractal 1/f scaling, two-thirds power law, etc.) is a behavioral biometric. Composition Integrity signal (Signal 21) further detects LLM-assisted submissions. Research basis: arxiv 2511.12468 (97–99% F1 on LLM-assisted cheating).</td>
+        <td><span class="chip tech">TECH</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Subpart C §11.300 — Controls for Identification Codes and Passwords</h2>
+  <table>
+    <tbody>
+      <tr>
+        <td class="clause">§11.300</td>
+        <td class="req">Uniqueness of ID/password combinations, periodic revision, loss management, transaction safeguards, device testing.</td>
+        <td class="sws">Password lifecycle is the customer identity provider's responsibility. SWS contributes tamper-evident session records that a customer audit trail can reference.</td>
+        <td><span class="chip proc">PROC</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <hr>
+
+  <h2>Live Artifacts You Can Verify Right Now</h2>
+  <div class="artifact-grid">
+    <div class="artifact">
+      <h3>Browser-Side Verification</h3>
+      <p>Paste any SWS receipt JWT, watch your own browser verify the Ed25519 signature against the public JWKS using WebCrypto. No SWS server involved.</p>
+      <a href="/verify.html">Open verify.html →</a>
+    </div>
+    <div class="artifact">
+      <h3>Public Key (JWKS)</h3>
+      <p>RFC 8037-compliant Ed25519 JWK served at the standard <code>.well-known</code> path. Any language, any platform can load it and verify offline.</p>
+      <a href="/.well-known/attention-pubkey.json">Fetch JWKS →</a>
+    </div>
+    <div class="artifact">
+      <h3>Run a Real Session</h3>
+      <p>Complete a 5-phase attention session. A signed, Bitcoin-anchored receipt is issued at the end and written to the proof catalog.</p>
+      <a href="/demo.html">Open demo.html →</a>
+    </div>
+    <div class="artifact">
+      <h3>Patent</h3>
+      <p>Filed 2026-03-17 with the USPTO, application SWS-PROV-001. Claims the specific combination of behavioral signals + cryptographic receipt + tiered attestation.</p>
+      <span style="color:var(--dim);font-size:13px;">Provisional on file</span>
+    </div>
+  </div>
+
+  <h2>What This Does NOT Cover</h2>
+  <p class="footer-note">
+    21 CFR Part 11 is a <strong>joint tech + process</strong> regulation. SWS delivers the technical controls; your organization's written procedures deliver the rest. Specifically outside SWS scope: identity proofing (§11.100(b)), accountability policies (§11.10(j)), periodic password revision (§11.300), internal training records for your QA staff (§11.10(i)), and the system validation master plan (§11.10(a) — we provide supporting evidence; you own the plan). A full Part 11 implementation typically requires an IQ/OQ/PQ validation package referencing the SWS technical controls above.
+  </p>
+
+  <h2>Next Step</h2>
+  <p>If you are a pharma training compliance officer, a medical education accreditation lead, or a GxP systems validation team — we'd like to pilot this with one of your training modules. No integration work required beyond dropping a single <code>&lt;script&gt;</code> tag.</p>
+  <p style="margin-top:20px;">
+    <a class="cta" href="mailto:stephenfurpahs@gmail.com?subject=SWS%20Part%2011%20Pilot%20-%20%5Byour%20org%5D&body=Hi%20Stephen%2C%0A%0AI%27m%20with%20%5Byour%20org%5D%20and%20we%27re%20interested%20in%20discussing%20a%20Part%2011-aligned%20attention-receipt%20pilot.%0A%0AOur%20use%20case%3A%20%5Bbrief%5D%0AOur%20timeline%3A%20%5Bbrief%5D%0A%0AThanks.">Start a pilot conversation</a>
+  </p>
+
+  <hr>
+  <p class="footer-note" style="margin-top:32px;">
+    <strong>Disclaimer:</strong> This page is a technical mapping, not a legal opinion. 21 CFR Part 11 compliance is assessed by FDA inspectors against your organization's full system, documentation, and procedures. SWS provides technical controls designed to materially reduce the effort required to demonstrate compliance. Your organization's quality assurance team should independently validate the mapping above against your specific use case.
+    <br><br>
+    © 2026 SWS Strategic Media LLC. Patent Pending SWS-PROV-001. Published at <code>sws-attention-proofs.web.app/part-11.html</code>.
+  </p>
+</div>
+</body>
+</html>
