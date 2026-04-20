@@ -108,6 +108,21 @@
       }
     };
 
+    // Environmental gate (non-behavioral; always included when present on the receipt)
+    if (receipt.environmental) {
+      credential.credentialSubject.environmental = {
+        loaded: !!receipt.environmental.loaded,
+        bot: receipt.environmental.loaded ? !!receipt.environmental.bot : null,
+        botKind: receipt.environmental.bot_kind || null,
+        detector: receipt.environmental.detector || null,
+        checkedAt: receipt.environmental.checked_at || null,
+        latencyMs: typeof receipt.environmental.latency_ms === 'number'
+          ? receipt.environmental.latency_ms : null,
+        error: receipt.environmental.error || null,
+        note: 'Environmental gate is separate from behavioral composite. Combine as your policy requires.'
+      };
+    }
+
     // Include raw behavioral signals if not using selective disclosure
     if (includeSignals && receipt.human_verification) {
       credential.credentialSubject.humanVerification.signals = {

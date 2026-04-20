@@ -349,10 +349,11 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-  <!-- SWS SDK (cache-busted 2026-04-20) -->
-  <script src="sdk/secure-config.js?v=20260420"></script>
-  <script src="sdk/attention-protocol.js?v=20260420"></script>
-  <script src="sdk/economy-engine.js?v=20260420"></script>
+  <!-- SWS SDK (cache-busted 2026-04-21) -->
+  <script src="sdk/secure-config.js?v=20260421"></script>
+  <script src="sdk/attention-protocol.js?v=20260421"></script>
+  <script src="sdk/economy-engine.js?v=20260421"></script>
+  <script src="sdk/environmental-gate.js?v=20260421"></script>
 
   <script>
     // ---- FIREBASE INIT ----
@@ -392,6 +393,16 @@
 
     // ---- INIT SDK ----
     SWSAttention.init({ gameId: 'live_demo', debug: false, enableBehavioralAnalysis: true });
+
+    // ---- ENVIRONMENTAL GATE (BotD) ----
+    // Runs once, fail-to-unknown. Result lives on window.__swsEnvironmental
+    // and is attached to the session receipt at save time.
+    window.__swsEnvironmental = null;
+    if (typeof SWSEnvironmentalGate !== 'undefined') {
+      SWSEnvironmentalGate.check().then(function(result) {
+        window.__swsEnvironmental = result;
+      });
+    }
 
     // ---- TIMELINE SNAPSHOTS (every 5s) ----
     var timelineInterval = setInterval(function() {
@@ -790,7 +801,8 @@
           crypto_receipt: 'none'
         },
         uid: fbUser ? fbUser.uid : 'anonymous',
-        source_type: sourceType
+        source_type: sourceType,
+        environmental: window.__swsEnvironmental || { loaded: false, error: 'not_yet_resolved', checked_at: new Date().toISOString() }
       };
 
       // Send GA4 completion event with composite score for comparison

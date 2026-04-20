@@ -28,6 +28,7 @@
     "puppeteer": "^24.40.0"
   },
   "dependencies": {
+    "@fingerprintjs/botd": "^2.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

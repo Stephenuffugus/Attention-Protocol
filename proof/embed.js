@@ -38,8 +38,14 @@
   var sessionStart = Date.now();
 
   // Load SDK files in order
-  var sdkFiles = ['sdk/secure-config.js', 'sdk/attention-protocol.js', 'sdk/economy-engine.js'];
+  var sdkFiles = [
+    'sdk/secure-config.js',
+    'sdk/attention-protocol.js',
+    'sdk/economy-engine.js',
+    'sdk/environmental-gate.js'
+  ];
   var loaded = 0;
+  var envResult = null; // populated once BotD check resolves
 
   function loadNext() {
     if (loaded >= sdkFiles.length) {
@@ -74,6 +80,14 @@
     });
 
     if (debug) console.log('[SWS Embed] Initialized for ' + gameId);
+
+    // Kick off the environmental gate (non-blocking, fail-to-unknown)
+    if (typeof window.SWSEnvironmentalGate !== 'undefined') {
+      window.SWSEnvironmentalGate.check().then(function(r) {
+        envResult = r;
+        if (debug) console.log('[SWS Embed] Environmental gate:', r);
+      });
+    }
 
     // Auto-earn for page visit
     SWSAttention.earn('page_visit', 0, 0, 'active');
@@ -143,6 +157,7 @@
       },
       quality_tier: c.composite >= 0.7 ? 'deep' : c.composite >= 0.5 ? 'active' : c.composite >= 0.25 ? 'passive' : 'background',
       hashes_earned: stats.totalHashes,
+      environmental: envResult || { loaded: false, error: 'not_yet_resolved', checked_at: new Date().toISOString() },
       source: 'embed'
     };
 

@@ -141,7 +141,10 @@ async function runProfile(browser, profile) {
   // ---- PHASE 5: RESULTS (wait for report + save to Firestore) ----
   await wait(3000);
 
-  // Extract scores and receipt
+  // Give the environmental gate a moment to resolve (4s timeout internally)
+  await wait(1500);
+
+  // Extract scores, receipt, and environmental gate result
   const result = await page.evaluate(() => {
     if (typeof SWSAttention === 'undefined') return null;
     const stats = SWSAttention.getStats();
@@ -152,7 +155,8 @@ async function runProfile(browser, profile) {
       signals: confidence,
       totalHashes: stats.totalHashes,
       lastHash: stats.lastHash,
-      receiptDisplay: receiptEl ? receiptEl.textContent : null
+      receiptDisplay: receiptEl ? receiptEl.textContent : null,
+      environmental: window.__swsEnvironmental || null
     };
   });
 
@@ -163,9 +167,16 @@ async function runProfile(browser, profile) {
     return null;
   }
 
-  console.log(`   composite: ${result.composite.toFixed(3)}`);
-  console.log(`   hashes:    ${result.totalHashes}`);
-  console.log(`   lastHash:  ${result.lastHash ? result.lastHash.substring(0, 16) + '...' : 'null'}`);
+  const envSummary = !result.environmental
+    ? 'not loaded'
+    : !result.environmental.loaded
+      ? 'unknown (' + result.environmental.error + ')'
+      : (result.environmental.bot ? 'BOT (' + result.environmental.bot_kind + ')' : 'clean');
+
+  console.log(`   composite:     ${result.composite.toFixed(3)}`);
+  console.log(`   env gate:      ${envSummary}`);
+  console.log(`   hashes:        ${result.totalHashes}`);
+  console.log(`   lastHash:      ${result.lastHash ? result.lastHash.slice(0, 16) + '...' : 'null'}`);
   return result;
 }
 
@@ -224,6 +235,7 @@ function buildReceiptFromResult(profileKey, result) {
       micro_pause: sigObj.microPause,
       touch_variance: sigObj.touchVariance
     },
+    environmental: result.environmental || null,
     proof: {
       hash_count: result.totalHashes,
       hash_ids: result.lastHash ? [result.lastHash] : [],
@@ -325,7 +337,20 @@ function persistSignedReceipts(signed) {
     const min = Math.min(...composites);
     console.log(`\nBot composite range: ${min.toFixed(3)} - ${max.toFixed(3)}`);
     console.log(`For comparison, a real human session (Stephen, 2026-04-20) scored 0.573`);
-    console.log(`Separation vs weakest bot: ${(0.573 - min).toFixed(3)}`);
+    console.log(`Separation vs weakest bot (behavioral only): ${(0.573 - min).toFixed(3)}`);
+
+    // Environmental gate: how many of these bots were caught by BotD regardless of behavioral?
+    const envCaught = Object.values(results).filter(r =>
+      r && r.environmental && r.environmental.loaded && r.environmental.bot
+    );
+    const envLoaded = Object.values(results).filter(r =>
+      r && r.environmental && r.environmental.loaded
+    );
+    console.log(`\nEnv gate (BotD): ${envCaught.length} / ${envLoaded.length} bots caught by environmental fingerprint alone`);
+    envCaught.forEach(r => {
+      const k = Object.entries(results).find(([_, v]) => v === r)[0];
+      console.log(`  ${profiles[k].name.padEnd(20)} → ${r.environmental.bot_kind}`);
+    });
   }
 
   // Signed-receipt block (only if a signer was available)

@@ -77,6 +77,10 @@
         verdict: _getVerdict(params.humanConfidence)
       },
 
+      // Environmental gate (non-behavioral — client-env fingerprint)
+      // Kept separate from behavioral composite. See proof/sdk/environmental-gate.js.
+      environmental: params.environmental || null,
+
       // Cryptographic proof
       proof: {
         hash_count: (params.hashIds || []).length,
@@ -103,6 +107,7 @@
       content_id: receipt.content_id,
       engagement: receipt.engagement,
       human_verification: receipt.human_verification,
+      environmental: receipt.environmental,
       generated_timestamp: receipt.generated_timestamp
     }, null, 0);
 
@@ -143,6 +148,7 @@
       content_id: receipt.content_id,
       engagement: receipt.engagement,
       human_verification: receipt.human_verification,
+      environmental: receipt.environmental,
       generated_timestamp: receipt.generated_timestamp
     }, null, 0);
 
