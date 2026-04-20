@@ -5,217 +5,236 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-5JFFYEJ6XP"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-5JFFYEJ6XP');</script>
-  <title>SWS Proof of Attention Protocol</title>
+  <title>SWS — Audit-ready attention receipts for pharma training &amp; regulated credentialing</title>
+  <meta name="description" content="A cryptographic receipt that proves a human actually completed regulated training — not a bot, not a click-through, not a GPT. 21 CFR Part 11 mapped, Ed25519-signed, Bitcoin-anchored, verifiable offline.">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0e17; color: #e2e8f0; min-height: 100vh; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0e17; color: #e2e8f0; min-height: 100vh; line-height: 1.6; }
+    :root { --bg:#0a0e17; --panel:#111827; --panel2:#0b1425; --line:#1e293b; --line2:#334155;
+            --text:#e2e8f0; --dim:#94a3b8; --accent:#06b6d4; --accent2:#22d3ee;
+            --warn:#eab308; --ok:#10b981; }
 
-    .hero { background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%); padding: 80px 24px; text-align: center; border-bottom: 2px solid #06b6d4; }
-    .hero h1 { font-size: 36px; color: #06b6d4; margin-bottom: 12px; letter-spacing: -1px; }
-    .hero .tagline { font-size: 18px; color: #94a3b8; max-width: 700px; margin: 0 auto 8px; line-height: 1.6; }
-    .hero .patent { font-size: 13px; color: #475569; margin-top: 16px; font-family: monospace; }
+    .topbar { display:flex; justify-content:space-between; align-items:center; padding:18px 32px; border-bottom:1px solid var(--line); background:rgba(10,14,23,0.9); backdrop-filter:blur(8px); }
+    .topbar .brand { font-weight:700; color:var(--accent); font-size:15px; letter-spacing:0.3px; }
+    .topbar nav { display:flex; gap:20px; font-size:13px; }
+    .topbar nav a { color:var(--dim); text-decoration:none; }
+    .topbar nav a:hover { color:var(--text); }
+
+    .hero { padding: 72px 24px 48px; text-align:center; background: radial-gradient(ellipse at top, rgba(6,182,212,0.08), transparent 70%); }
+    .hero .eyebrow { display:inline-block; padding:6px 14px; border-radius:20px; background:rgba(234,179,8,0.12); border:1px solid rgba(234,179,8,0.3); color:var(--warn); font-size:11px; font-weight:600; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:20px; }
+    .hero h1 { font-size: 40px; color: var(--text); margin-bottom: 20px; letter-spacing: -0.8px; line-height:1.2; max-width: 880px; margin-left:auto; margin-right:auto; }
+    .hero h1 em { color: var(--accent); font-style:normal; }
+    .hero .tagline { font-size: 17px; color: var(--dim); max-width: 720px; margin: 0 auto 12px; }
+    .hero .patent { font-size: 12px; color: #475569; margin-top: 22px; font-family: ui-monospace, Menlo, monospace; letter-spacing:0.3px; }
 
     .cta-row { display: flex; gap: 12px; justify-content: center; margin-top: 32px; flex-wrap: wrap; }
-    .cta { display: inline-block; padding: 14px 32px; border-radius: 8px; font-size: 15px; font-weight: 600; text-decoration: none; transition: all 0.15s; }
-    .cta-primary { background: #06b6d4; color: #0a0e17; }
-    .cta-primary:hover { background: #22d3ee; }
-    .cta-secondary { background: transparent; color: #06b6d4; border: 1px solid #06b6d4; }
-    .cta-secondary:hover { background: rgba(6,182,212,0.1); }
+    .cta { display: inline-block; padding: 13px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none; transition: all 0.15s; }
+    .cta-primary { background: var(--accent); color: #001016; }
+    .cta-primary:hover { background: var(--accent2); }
+    .cta-secondary { background: transparent; color: var(--accent); border: 1px solid var(--line2); }
+    .cta-secondary:hover { border-color: var(--accent); }
 
-    .container { max-width: 900px; margin: 0 auto; padding: 48px 24px; }
+    .container { max-width: 1040px; margin: 0 auto; padding: 48px 24px; }
 
-    .section-title { font-size: 22px; color: #e2e8f0; text-align: center; margin-bottom: 8px; }
-    .section-sub { font-size: 14px; color: #64748b; text-align: center; margin-bottom: 32px; }
+    .section-title { font-size: 26px; color: var(--text); margin-bottom: 10px; letter-spacing:-0.3px; }
+    .section-sub { font-size: 15px; color: var(--dim); margin-bottom: 32px; max-width:720px; }
 
-    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-bottom: 48px; }
-    .card { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; transition: border-color 0.15s; }
-    .card:hover { border-color: #334155; }
-    .card-icon { font-size: 28px; margin-bottom: 12px; }
-    .card h3 { font-size: 16px; color: #06b6d4; margin-bottom: 8px; }
-    .card p { font-size: 13px; color: #94a3b8; line-height: 1.6; }
+    .pain-point { background: linear-gradient(90deg, rgba(239,68,68,0.06), transparent); border-left: 3px solid #ef4444; padding: 20px 24px; border-radius: 6px; margin: 24px 0; }
+    .pain-point strong { color: var(--text); }
+    .pain-point .stat { font-size: 26px; font-weight: 700; color: #ef4444; margin-right: 6px; letter-spacing:-0.5px; }
 
-    .how-it-works { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 32px; margin-bottom: 48px; }
-    .step-row { display: grid; grid-template-columns: 40px 1fr; gap: 16px; margin-bottom: 20px; align-items: start; }
-    .step-num { width: 32px; height: 32px; border-radius: 50%; background: #06b6d4; color: #0a0e17; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
-    .step-text h4 { font-size: 14px; color: #e2e8f0; margin-bottom: 4px; }
-    .step-text p { font-size: 13px; color: #94a3b8; line-height: 1.5; }
+    .layer-stack { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin: 28px 0 48px; }
+    .layer { background: var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px; position:relative; }
+    .layer .num { position:absolute; top:14px; right:16px; font-family:ui-monospace,Menlo,monospace; color:var(--dim); font-size:11px; }
+    .layer h3 { font-size:15px; color:var(--accent); margin-bottom:8px; }
+    .layer p { font-size:13px; color:var(--dim); line-height:1.6; }
 
-    .signals-showcase { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 48px; }
-    @media (max-width: 600px) { .signals-showcase { grid-template-columns: repeat(2, 1fr); } }
-    .signal { background: #111827; border: 1px solid #1e293b; border-radius: 8px; padding: 16px; text-align: center; }
-    .signal .name { font-size: 12px; color: #06b6d4; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-    .signal .desc { font-size: 11px; color: #64748b; margin-top: 4px; }
-    .signal .science { font-size: 10px; color: #475569; margin-top: 6px; font-style: italic; }
+    .buyers { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin:28px 0 48px; }
+    .buyer { background: var(--panel); border:1px solid var(--line); border-radius:10px; padding:22px 24px; }
+    .buyer h3 { font-size:16px; color:var(--text); margin-bottom:6px; }
+    .buyer .who { font-size:11px; color:var(--warn); text-transform:uppercase; letter-spacing:0.7px; font-weight:600; margin-bottom:10px; }
+    .buyer p { font-size:13px; color:var(--dim); line-height:1.6; }
+    .buyer .hook { font-size:13px; color:var(--text); font-style:italic; margin-top:10px; padding-top:10px; border-top:1px solid var(--line); }
 
-    .bottom-cta { text-align: center; padding: 48px 24px; border-top: 1px solid #1e293b; }
-    .bottom-cta h2 { font-size: 24px; color: #e2e8f0; margin-bottom: 8px; }
-    .bottom-cta p { font-size: 14px; color: #94a3b8; margin-bottom: 24px; }
+    .proof-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin: 24px 0 48px; }
+    .proof-card { background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:16px 18px; text-align:left; }
+    .proof-card h4 { font-size:13px; color:var(--accent); margin-bottom:6px; font-weight:600; letter-spacing:0.3px; }
+    .proof-card p { font-size:12px; color:var(--dim); margin-bottom:10px; line-height:1.5; }
+    .proof-card a { font-size:12px; color:var(--text); text-decoration:none; font-weight:600; }
+    .proof-card a:hover { color:var(--accent); }
 
-    .footer { text-align: center; padding: 24px; color: #475569; font-size: 11px; }
-    .footer a { color: #06b6d4; text-decoration: none; }
+    .sig-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin: 24px 0 48px; }
+    @media (max-width:700px) { .sig-grid { grid-template-columns:repeat(2,1fr); } }
+    .sig { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:12px 14px; }
+    .sig .name { font-size:12px; color:var(--accent); font-weight:600; margin-bottom:4px; }
+    .sig .ref { font-size:10px; color:#64748b; font-family:ui-monospace,Menlo,monospace; }
+
+    .bottom-cta { text-align:center; padding:64px 24px; background:linear-gradient(180deg, transparent, rgba(6,182,212,0.04)); border-top:1px solid var(--line); }
+    .bottom-cta h2 { font-size: 28px; color: var(--text); margin-bottom: 10px; letter-spacing:-0.4px; }
+    .bottom-cta p { font-size: 15px; color: var(--dim); margin-bottom: 28px; max-width:600px; margin-left:auto; margin-right:auto; }
+
+    .footer { text-align:center; padding:28px; color:#475569; font-size:11px; border-top:1px solid var(--line); }
+    .footer a { color: var(--accent); text-decoration:none; margin: 0 8px; }
+    code { font-family: ui-monospace, Menlo, monospace; background: var(--panel2); padding: 1px 6px; border-radius:3px; font-size:12px; color:var(--text); }
   </style>
 </head>
 <body>
+  <div class="topbar">
+    <div class="brand">SWS Proof of Attention Protocol</div>
+    <nav>
+      <a href="/demo.html">Demo</a>
+      <a href="/verify.html">Verify</a>
+      <a href="/part-11.html">21 CFR Part 11</a>
+      <a href="/.well-known/attention-pubkey.json">Public Key</a>
+    </nav>
+  </div>
+
   <div class="hero">
-    <h1>SWS Proof of Attention Protocol</h1>
-    <div class="tagline">Cryptographic verification of genuine human attention. Generate tamper-proof behavioral tokens anywhere, analyze them anytime.</div>
-    <div class="patent">Patent Pending SWS-PROV-001 | SWS Strategic Media LLC</div>
-    <div class="cta-row">
-      <a href="demo.html" class="cta cta-primary">Try the Live Demo</a>
-      <a href="gallery.html" class="cta cta-secondary">View Proof Gallery</a>
-      <a href="results-dashboard.html" class="cta cta-secondary">Session Results</a>
-      <a href="compliance-report.html" class="cta cta-secondary">Compliance Report</a>
+    <div class="eyebrow">Cryptographic attention attestation</div>
+    <h1>Proof a human <em>actually</em> completed the training.<br>Not a bot. Not a click-through. Not a GPT.</h1>
+    <div class="tagline">
+      SWS issues a signed, Bitcoin-anchored receipt that a pharma compliance officer, an FDA auditor, or an LMS vendor can verify offline, in any browser, in 30 seconds — with only our public key.
     </div>
+    <div class="cta-row">
+      <a href="/verify.html" class="cta cta-primary">Verify a live receipt</a>
+      <a href="/part-11.html" class="cta cta-secondary">21 CFR Part 11 mapping</a>
+      <a href="/demo.html" class="cta cta-secondary">Run the demo</a>
+    </div>
+    <div class="patent">Patent Pending SWS-PROV-001 · Filed 2026-03-17 · SWS Strategic Media LLC</div>
   </div>
 
   <div class="container">
-    <div class="section-title">What It Does</div>
-    <div class="section-sub">One JavaScript tag. Twenty behavioral science signals. Cryptographic proof.</div>
 
-    <div class="cards">
-      <div class="card">
-        <div class="card-icon">&#x1f6e1;</div>
-        <h3>Insurance Compliance</h3>
-        <p>Prove a policyholder actually read the coverage terms. Per-section reading verification with a tamper-proof receipt. Not "they visited the page" — "they read section 3."</p>
+    <div class="pain-point">
+      <span class="stat">+73%</span>
+      <strong>YoY increase in 21 CFR Part 11 warning letters (H2 2025: 327 letters).</strong> Data-integrity and audit-trail deficiencies are the most-cited findings. "Click-through completion" in pharma training records is no longer passing FDA inspection — and LLMs just made every existing cheating defense obsolete overnight.
+    </div>
+
+    <div class="section-title">A six-layer signed receipt</div>
+    <div class="section-sub">Each layer is attached to the same record, covered by the same signature, and disclosed separately. A buyer combines them per their policy — strict, lenient, or regulatory.</div>
+
+    <div class="layer-stack">
+      <div class="layer"><span class="num">01</span><h3>Environmental</h3><p>BotD v2 fingerprints the browser. 100% detection of Puppeteer, Selenium, and headless Chrome in ~85ms. Disclosed separately from behavioral data.</p></div>
+      <div class="layer"><span class="num">02</span><h3>Behavioral</h3><p>15 peer-reviewed signals — Fitts' Law, Hick's Law, fractal 1/f scaling, two-thirds power law, micro-pause cadence — produce a composite engagement score, not a bot/not-bot verdict.</p></div>
+      <div class="layer"><span class="num">03</span><h3>Composition Integrity</h3><p>Signal 21: paste-burst + no-backspace + digraph-interval detector. Catches LLM-assisted answers that survive the other layers. Research basis: arxiv 2511.12468 (97-99% F1).</p></div>
+      <div class="layer"><span class="num">04</span><h3>Consent</h3><p>Explicit user authorization recorded with ISO-8601 timestamp, version, and category list. Covered by the integrity hash — tampering breaks verification. GDPR Article 7, CCPA §1798.120 compliant by schema.</p></div>
+      <div class="layer"><span class="num">05</span><h3>Ed25519 Signature</h3><p>RFC 8032 digital signature over the full VC-JWT. Public key at <code>/.well-known/attention-pubkey.json</code>. Verifiable offline in any language, any browser, forever.</p></div>
+      <div class="layer"><span class="num">06</span><h3>OpenTimestamps</h3><p>Bitcoin blockchain anchor via public calendar servers. Once confirmed, the receipt is provably as-old-as a specific Bitcoin block. Backdating requires re-mining Bitcoin.</p></div>
+    </div>
+
+    <div class="section-title">Who buys this</div>
+    <div class="section-sub">Same receipt format. Three distinct buyer personas, three distinct wedges.</div>
+
+    <div class="buyers">
+      <div class="buyer">
+        <div class="who">Pharma Training &amp; GxP</div>
+        <h3>Part 11 audit-ready records</h3>
+        <p>After the +73% YoY spike in 2025 Part 11 warning letters, "learner clicked through the slides" is no longer a defensible training record. SWS issues a tamper-evident, signature-bound receipt that drops directly into your existing validation package.</p>
+        <div class="hook">Buyer: VP Compliance / QA systems lead · ACV: $50k–$150k</div>
       </div>
-      <div class="card">
-        <div class="card-icon">&#x1f3af;</div>
-        <h3>Bot Detection</h3>
-        <p>20 behavioral signals that separate genuine humans from bots, click farms, and replay attacks. Not a one-time CAPTCHA — continuous verification throughout the session.</p>
+      <div class="buyer">
+        <div class="who">Medical Education Companies</div>
+        <h3>Proof for accreditation + grant RFPs</h3>
+        <p>Pfizer, Merck, and Genentech IME RFPs increasingly score "measurement of learner progression." A signed attention receipt turns "we think they read it" into "here is the cryptographic proof the grantor can verify offline."</p>
+        <div class="hook">Buyer: VP Accreditation / Outcomes · ACV: $40k–$100k</div>
       </div>
-      <div class="card">
-        <div class="card-icon">&#x1f9e0;</div>
-        <h3>Fatigue Detection</h3>
-        <p>Detect when a soldier, doctor, or machine operator is degrading. Real-time performance drift from behavioral baselines. No wearables, no cameras — just interaction signals.</p>
-      </div>
-      <div class="card">
-        <div class="card-icon">&#x1f3ac;</div>
-        <h3>Training Verification</h3>
-        <p>Did the employee actually watch the safety video? SWS tracks tab visibility, pauses, seek-backs, and engagement — not just "video played to 100%."</p>
-      </div>
-      <div class="card">
-        <div class="card-icon">&#x1f4ca;</div>
-        <h3>Survey Quality</h3>
-        <p>Flag respondents who speed-click through surveys. Response time should scale with question complexity (Hick's Law). Bots and rushers fail this test. Current tools miss it.</p>
-      </div>
-      <div class="card">
-        <div class="card-icon">&#x1f3ed;</div>
-        <h3>Every Industry, 1 SDK</h3>
-        <p>Military, medical, insurance, education, workplace, advertising — same behavioral signals, different scoring weights per vertical. One integration covers every use case.</p>
+      <div class="buyer">
+        <div class="who">Credentialing &amp; Licensure</div>
+        <h3>OpenBadges 3.0 on a defensible base</h3>
+        <p>Credly, Accredible, Sertifier, and Digital Promise issue badges; they don't measure attention. SWS is the layer underneath the badge — same W3C VC, now backed by behavioral biometrics + LLM-integrity detection.</p>
+        <div class="hook">Partnership / channel · Per-credential pricing</div>
       </div>
     </div>
 
-    <div class="section-title">The 11 Behavioral Signals</div>
-    <div class="section-sub">Peer-reviewed science. 70 years of research. Impossible for bots to fake all twenty.</div>
+    <div class="section-title">Verify truth for yourself</div>
+    <div class="section-sub">Don't trust our description — click through. Every layer is live right now.</div>
 
-    <div class="signals-showcase">
-      <div class="signal">
-        <div class="name">Timing Entropy</div>
-        <div class="desc">Variation in interaction intervals</div>
-        <div class="science">Human CV: 0.4-1.5 | Bot CV: &lt;0.1</div>
+    <div class="proof-row">
+      <div class="proof-card">
+        <h4>Browser-side verification</h4>
+        <p>Paste any SWS receipt JWT, watch your own browser verify the Ed25519 signature against our public JWKS via WebCrypto. No SWS server involved.</p>
+        <a href="/verify.html">Open verify.html →</a>
       </div>
-      <div class="signal">
-        <div class="name">Hick's Law</div>
-        <div class="desc">Decision time scales with options</div>
-        <div class="science">Hick (1952) — 70+ years validated</div>
+      <div class="proof-card">
+        <h4>21 CFR Part 11 mapping</h4>
+        <p>Clause-by-clause: §11.10, §11.30, §11.50, §11.70, §11.100, §11.200, §11.300. Honest TECH / MIXED / PROC labeling — no overclaiming.</p>
+        <a href="/part-11.html">Read the mapping →</a>
       </div>
-      <div class="signal">
-        <div class="name">Fitts' Law</div>
-        <div class="desc">Movement time scales with distance</div>
-        <div class="science">Fitts (1954) — 1000+ studies</div>
+      <div class="proof-card">
+        <h4>Live proof gallery</h4>
+        <p>Real sessions from real users, rendered on a live public page. Sample IDs, hashes, and composite scores visible.</p>
+        <a href="/gallery.html">Open gallery.html →</a>
       </div>
-      <div class="signal">
-        <div class="name">Scroll Saccade</div>
-        <div class="desc">Reading pause patterns while scrolling</div>
-        <div class="science">Human: 2-8 fixations/screen</div>
+      <div class="proof-card">
+        <h4>Run the demo yourself</h4>
+        <p>Five-phase interactive session. 3-4 minutes. Get your own signed, Bitcoin-anchored receipt at the end.</p>
+        <a href="/demo.html">Open demo.html →</a>
       </div>
-      <div class="signal">
-        <div class="name">Micro-Pause</div>
-        <div class="desc">Cognitive delay before interaction</div>
-        <div class="science">200-600ms human processing time</div>
+      <div class="proof-card">
+        <h4>Public key (JWKS)</h4>
+        <p>Standards-compliant JWK set at <code>/.well-known/attention-pubkey.json</code>. Load once, verify forever, any language.</p>
+        <a href="/.well-known/attention-pubkey.json">Fetch JWKS →</a>
       </div>
-      <div class="signal">
-        <div class="name">Touch Variance</div>
-        <div class="desc">Finger pressure and angle variation</div>
-        <div class="science">Each tap is physically unique</div>
-      </div>
-      <div class="signal" style="border-color:#8b5cf6;">
-        <div class="name">Keystroke Dynamics</div>
-        <div class="desc">Typing rhythm, hold time, flight time</div>
-        <div class="science">Unique per human — 99.5% discrimination</div>
-      </div>
-      <div class="signal" style="border-color:#8b5cf6;">
-        <div class="name">Reading Speed</div>
-        <div class="desc">Time-per-section vs content complexity</div>
-        <div class="science">Proves comprehension, not just scrolling</div>
-      </div>
-      <div class="signal" style="border-color:#8b5cf6;">
-        <div class="name">Hover Dwell</div>
-        <div class="desc">Pre-click hesitation time on elements</div>
-        <div class="science">Humans deliberate — bots don't</div>
-      </div>
-      <div class="signal" style="border-color:#8b5cf6;">
-        <div class="name">Tab Visibility</div>
-        <div class="desc">Was the tab actually in the foreground?</div>
-        <div class="science">Catches background tab idling</div>
-      </div>
-      <div class="signal" style="border-color:#8b5cf6;">
-        <div class="name">Inactivity Gaps</div>
-        <div class="desc">Natural break patterns during sessions</div>
-        <div class="science">Real humans take water breaks</div>
+      <div class="proof-card">
+        <h4>Compliance report (PDF-ready)</h4>
+        <p>Lawyer/regulator-ready one-pager with audit trail, method summary, and patent reference.</p>
+        <a href="/compliance-report.html">Open report →</a>
       </div>
     </div>
 
-    <div class="section-title">How It Works</div>
-    <div class="section-sub">From user interaction to cryptographic proof in milliseconds.</div>
+    <div class="section-title">The science underneath</div>
+    <div class="section-sub">The behavioral composite uses 15 peer-reviewed signals. None of them individually solve the problem; together, they're the hardest thing in the world to fake consistently.</div>
 
-    <div class="how-it-works">
-      <div class="step-row">
-        <div class="step-num">1</div>
-        <div class="step-text">
-          <h4>User interacts with any digital content</h4>
-          <p>Reading a policy, watching a video, taking a survey, playing a game — any interaction on any device.</p>
-        </div>
+    <div class="sig-grid">
+      <div class="sig"><div class="name">Fitts' Law</div><div class="ref">Fitts 1954</div></div>
+      <div class="sig"><div class="name">Hick's Law</div><div class="ref">Hick 1952</div></div>
+      <div class="sig"><div class="name">Timing Entropy</div><div class="ref">Shannon 1948</div></div>
+      <div class="sig"><div class="name">Fractal 1/f Scaling</div><div class="ref">Gilden 2001</div></div>
+      <div class="sig"><div class="name">Two-Thirds Power Law</div><div class="ref">Lacquaniti 1983</div></div>
+      <div class="sig"><div class="name">Cursor Jerk (LDLJ)</div><div class="ref">Flash &amp; Hogan 1985</div></div>
+      <div class="sig"><div class="name">Velocity Profile</div><div class="ref">Morasso 1981</div></div>
+      <div class="sig"><div class="name">Scroll Saccade</div><div class="ref">Rayner 1998</div></div>
+      <div class="sig"><div class="name">RT Variability</div><div class="ref">Esterman 2013</div></div>
+      <div class="sig"><div class="name">Scroll Backtracking</div><div class="ref">Khaokaew 2024</div></div>
+      <div class="sig"><div class="name">Cross-Signal Correlation</div><div class="ref">BeCAPTCHA 2021</div></div>
+      <div class="sig"><div class="name">Composition Integrity</div><div class="ref">arxiv 2511.12468</div></div>
+    </div>
+
+    <div class="section-title">Integrations already shipped</div>
+    <div class="section-sub">You don't have to rebuild your stack. You bolt SWS onto what's already there.</div>
+
+    <div class="proof-row">
+      <div class="proof-card">
+        <h4>W3C Verifiable Credentials 2.0</h4>
+        <p>Every receipt is a fully-formed W3C VC. Compatible with any VC-aware wallet or verifier.</p>
       </div>
-      <div class="step-row">
-        <div class="step-num">2</div>
-        <div class="step-text">
-          <h4>SDK captures 20 behavioral signals in real time</h4>
-          <p>Timing entropy, Fitts' Law, Hick's Law, scroll saccade, micro-pause, touch variance, keystroke dynamics, reading speed, hover dwell, tab visibility, inactivity gaps — all running silently in the background.</p>
-        </div>
+      <div class="proof-card">
+        <h4>xAPI 1.0.3 (ADL)</h4>
+        <p>Ingestable by Moodle, Canvas, Articulate Storyline, D2L Brightspace, Cornerstone, Degreed — the full CME/LMS stack.</p>
       </div>
-      <div class="step-row">
-        <div class="step-num">3</div>
-        <div class="step-text">
-          <h4>Signals produce a composite attention score</h4>
-          <p>Weighted composite score (0-1) classifies attention quality: Deep Focus, Active, Passive, or Background. Bots score low. Engaged humans score high.</p>
-        </div>
+      <div class="proof-card">
+        <h4>OpenBadges 3.0 (1EdTech)</h4>
+        <p>Same receipt issues as a portable achievement credential. Credly, Accredible, and LinkedIn Learning all accept OB 3.0.</p>
       </div>
-      <div class="step-row">
-        <div class="step-num">4</div>
-        <div class="step-text">
-          <h4>SHA-256 hash generates a tamper-proof receipt</h4>
-          <p>The attention payload is cryptographically hashed. The receipt is verifiable, portable, and impossible to forge. Store it now, verify it later.</p>
-        </div>
-      </div>
-      <div class="step-row">
-        <div class="step-num">5</div>
-        <div class="step-text">
-          <h4>Receipt stored locally + synced to cloud vault</h4>
-          <p>Works offline-first. Hashes stored in localStorage immediately, synced to Firestore when connected. No data loss, no dependency on network.</p>
-        </div>
+      <div class="proof-card">
+        <h4>OpenTimestamps / Bitcoin</h4>
+        <p>Receipt hashes anchor to the Bitcoin blockchain via public calendar servers. One Bitcoin anchor, thousands of receipts.</p>
       </div>
     </div>
+
   </div>
 
   <div class="bottom-cta">
-    <h2>See It In Action</h2>
-    <p>Complete 3 tasks in 3 minutes. Watch your behavioral signals captured in real time.</p>
-    <a href="demo.html" class="cta cta-primary">Start the Live Demo</a>
+    <h2>Ready to pilot this?</h2>
+    <p>If you're a pharma training compliance officer, a medical education accreditation lead, or a GxP systems validation team — we'd like to run a 60-day pilot on one of your training modules. No integration work beyond a single <code>&lt;script&gt;</code> tag.</p>
+    <a class="cta cta-primary" href="mailto:stephenfurpahs@gmail.com?subject=SWS%20pilot%20-%20%5Byour%20org%5D&body=Hi%20Stephen%2C%0A%0AI%27m%20with%20%5Byour%20org%5D%20and%20we%27d%20like%20to%20discuss%20a%20pilot.%0A%0AOur%20use%20case%3A%20%5Bbrief%5D%0AOur%20timeline%3A%20%5Bbrief%5D%0A%0AThanks.">Start a pilot conversation</a>
   </div>
 
   <div class="footer">
-    (c) 2026 SWS Strategic Media LLC — Patent Pending SWS-PROV-001<br>
+    (c) 2026 SWS Strategic Media LLC &nbsp;·&nbsp; Patent Pending SWS-PROV-001<br>
+    <a href="/part-11.html">21 CFR Part 11</a> ·
+    <a href="/verify.html">Verify a receipt</a> ·
+    <a href="/demo.html">Demo</a> ·
     <a href="https://stevieweedseed.com">stevieweedseed.com</a>
   </div>
 </body>
