@@ -350,10 +350,11 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
   <!-- SWS SDK (cache-busted 2026-04-21) -->
-  <script src="sdk/secure-config.js?v=20260421"></script>
-  <script src="sdk/attention-protocol.js?v=20260421"></script>
-  <script src="sdk/economy-engine.js?v=20260421"></script>
-  <script src="sdk/environmental-gate.js?v=20260421"></script>
+  <script src="sdk/secure-config.js?v=20260421b"></script>
+  <script src="sdk/attention-protocol.js?v=20260421b"></script>
+  <script src="sdk/economy-engine.js?v=20260421b"></script>
+  <script src="sdk/environmental-gate.js?v=20260421b"></script>
+  <script src="sdk/composition-integrity.js?v=20260421b"></script>
 
   <script>
     // ---- FIREBASE INIT ----
@@ -519,6 +520,10 @@
 
     // ---- TYPING TRACKING ----
     var typingArea = document.getElementById('typing-area');
+    if (typingArea && typeof SWSCompositionIntegrity !== 'undefined') {
+      // Signal 21: Composition Integrity (paste/keystroke fingerprint)
+      SWSCompositionIntegrity.observe(typingArea, { scopeId: 'demo' });
+    }
     if (typingArea) {
       typingArea.addEventListener('input', function() {
         // Mobile keystroke fallback — track input timing
@@ -802,7 +807,10 @@
         },
         uid: fbUser ? fbUser.uid : 'anonymous',
         source_type: sourceType,
-        environmental: window.__swsEnvironmental || { loaded: false, error: 'not_yet_resolved', checked_at: new Date().toISOString() }
+        environmental: window.__swsEnvironmental || { loaded: false, error: 'not_yet_resolved', checked_at: new Date().toISOString() },
+        composition_integrity: (typeof SWSCompositionIntegrity !== 'undefined')
+          ? SWSCompositionIntegrity.readSnapshot({ scopeId: 'demo' })
+          : null
       };
 
       // Send GA4 completion event with composite score for comparison

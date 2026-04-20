@@ -62,6 +62,17 @@ const profiles = {
     typeDelayMs: () => 80 + Math.random() * 120,
     typedText: 'attention verification receipts prove human engagement without collecting content data just behavioral shape',
     mouseVariance: 10
+  },
+  llm_paster: {
+    name: 'LLM Paster',
+    description: 'Realistic interactions + PASTES the typed answer (mimics ChatGPT copy-paste)',
+    readDelayMs: 3000,
+    questionDelayMs: (optCount) => 400 + optCount * 150 + Math.random() * 400,
+    targetDelayMs: () => 350 + Math.random() * 350,
+    typeDelayMs: () => 80 + Math.random() * 120,
+    typedText: 'The attention protocol enforces behavioral verification through timing entropy fitts law and hicks law compliance while preserving user privacy through cryptographic attestation rather than keystroke logging or screen recording. Multi-layer attestation combines environmental fingerprinting behavioral shape and composition integrity for regulatory-grade proof of human engagement. This receipt is verifiable offline.',
+    mouseVariance: 10,
+    pasteInsteadOfType: true
   }
 };
 
@@ -126,10 +137,21 @@ async function runProfile(browser, profile) {
     await wait(200);
   }
 
-  // ---- PHASE 4: TYPE ----
+  // ---- PHASE 4: TYPE (or PASTE, for LLM paster profile) ----
   await page.waitForSelector('.typing-area', { timeout: 5000 }).catch(() => {});
   await page.click('.typing-area').catch(() => {});
-  await page.type('.typing-area', profile.typedText, { delay: profile.typeDelayMs() });
+  if (profile.pasteInsteadOfType) {
+    // Simulate a paste: set value in one shot + dispatch input w/ insertFromPaste
+    await page.evaluate((text) => {
+      const el = document.querySelector('.typing-area');
+      if (!el) return;
+      el.focus();
+      el.value = text;
+      el.dispatchEvent(new InputEvent('input', { inputType: 'insertFromPaste', bubbles: true }));
+    }, profile.typedText);
+  } else {
+    await page.type('.typing-area', profile.typedText, { delay: profile.typeDelayMs() });
+  }
   await wait(500);
   await clickByText(page, 'Need 20');  // button says "Need 20+ words →" or "Submit →" after threshold
   await wait(300);
@@ -144,19 +166,23 @@ async function runProfile(browser, profile) {
   // Give the environmental gate a moment to resolve (4s timeout internally)
   await wait(1500);
 
-  // Extract scores, receipt, and environmental gate result
+  // Extract scores, receipt, environmental + composition-integrity snapshot
   const result = await page.evaluate(() => {
     if (typeof SWSAttention === 'undefined') return null;
     const stats = SWSAttention.getStats();
     const confidence = stats.humanConfidence || SWSAttention.getHumanConfidence();
     const receiptEl = document.getElementById('r-hash');
+    const ci = (typeof SWSCompositionIntegrity !== 'undefined')
+      ? SWSCompositionIntegrity.readSnapshot({ scopeId: 'demo' })
+      : null;
     return {
       composite: confidence.composite,
       signals: confidence,
       totalHashes: stats.totalHashes,
       lastHash: stats.lastHash,
       receiptDisplay: receiptEl ? receiptEl.textContent : null,
-      environmental: window.__swsEnvironmental || null
+      environmental: window.__swsEnvironmental || null,
+      composition_integrity: ci
     };
   });
 
@@ -173,8 +199,16 @@ async function runProfile(browser, profile) {
       ? 'unknown (' + result.environmental.error + ')'
       : (result.environmental.bot ? 'BOT (' + result.environmental.bot_kind + ')' : 'clean');
 
+  const ciSummary = !result.composition_integrity
+    ? 'not loaded'
+    : result.composition_integrity.composition_verdict +
+      (result.composition_integrity.composition_integrity_score !== null
+        ? ' (score ' + result.composition_integrity.composition_integrity_score.toFixed(2) + ')'
+        : '');
+
   console.log(`   composite:     ${result.composite.toFixed(3)}`);
   console.log(`   env gate:      ${envSummary}`);
+  console.log(`   signal 21 CI:  ${ciSummary}`);
   console.log(`   hashes:        ${result.totalHashes}`);
   console.log(`   lastHash:      ${result.lastHash ? result.lastHash.slice(0, 16) + '...' : 'null'}`);
   return result;
@@ -236,6 +270,7 @@ function buildReceiptFromResult(profileKey, result) {
       touch_variance: sigObj.touchVariance
     },
     environmental: result.environmental || null,
+    composition_integrity: result.composition_integrity || null,
     proof: {
       hash_count: result.totalHashes,
       hash_ids: result.lastHash ? [result.lastHash] : [],
@@ -350,6 +385,18 @@ function persistSignedReceipts(signed) {
     envCaught.forEach(r => {
       const k = Object.entries(results).find(([_, v]) => v === r)[0];
       console.log(`  ${profiles[k].name.padEnd(20)} → ${r.environmental.bot_kind}`);
+    });
+
+    // Signal 21 (Composition Integrity): flagged pastes / mechanical typing
+    const ciFlagged = Object.entries(results).filter(([_, r]) =>
+      r && r.composition_integrity && ['pasted', 'mechanical', 'suspicious'].includes(r.composition_integrity.composition_verdict)
+    );
+    const ciLoaded = Object.values(results).filter(r =>
+      r && r.composition_integrity && r.composition_integrity.composition_verdict !== 'unknown'
+    );
+    console.log(`\nSignal 21 (Composition Integrity): ${ciFlagged.length} / ${ciLoaded.length} profiles flagged by typing/paste fingerprint`);
+    ciFlagged.forEach(([k, r]) => {
+      console.log(`  ${profiles[k].name.padEnd(20)} → ${r.composition_integrity.composition_verdict} (score ${r.composition_integrity.composition_integrity_score !== null ? r.composition_integrity.composition_integrity_score.toFixed(2) : 'n/a'})`);
     });
   }
 

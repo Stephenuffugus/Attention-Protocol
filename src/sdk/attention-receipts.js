@@ -81,6 +81,11 @@
       // Kept separate from behavioral composite. See proof/sdk/environmental-gate.js.
       environmental: params.environmental || null,
 
+      // Composition Integrity (Signal 21) — LLM-assisted cheating detection
+      // via paste bursts, backspace absence, digraph interval CV. Research
+      // basis: arxiv 2511.12468 (2025). See proof/sdk/composition-integrity.js.
+      composition_integrity: params.composition_integrity || null,
+
       // Cryptographic proof
       proof: {
         hash_count: (params.hashIds || []).length,
@@ -108,6 +113,7 @@
       engagement: receipt.engagement,
       human_verification: receipt.human_verification,
       environmental: receipt.environmental,
+      composition_integrity: receipt.composition_integrity,
       generated_timestamp: receipt.generated_timestamp
     }, null, 0);
 
@@ -149,6 +155,7 @@
       engagement: receipt.engagement,
       human_verification: receipt.human_verification,
       environmental: receipt.environmental,
+      composition_integrity: receipt.composition_integrity,
       generated_timestamp: receipt.generated_timestamp
     }, null, 0);
 

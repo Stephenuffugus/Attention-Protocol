@@ -108,6 +108,30 @@
       }
     };
 
+    // Composition Integrity (Signal 21) — LLM-assisted cheating detection.
+    // Included in credentialSubject when the receipt carries it.
+    if (receipt.composition_integrity) {
+      var ci = receipt.composition_integrity;
+      credential.credentialSubject.compositionIntegrity = {
+        detector: ci.detector || 'sws-composition-v1',
+        verdict: ci.composition_verdict || 'unknown',
+        score: typeof ci.composition_integrity_score === 'number'
+          ? ci.composition_integrity_score : null,
+        charsObserved: ci.chars_observed || 0,
+        pasteBurstDetected: !!ci.paste_burst_detected,
+        pasteBurstCount: ci.paste_burst_count || 0,
+        longestPasteChars: ci.longest_paste_chars || 0,
+        backspaceRatio: typeof ci.backspace_ratio === 'number' ? ci.backspace_ratio : null,
+        backspaceSuspicious: !!ci.backspace_suspicious,
+        digraphCv: ci.digraph_stats && typeof ci.digraph_stats.cv === 'number'
+          ? ci.digraph_stats.cv : null,
+        digraphTotalIntervals: ci.digraph_stats ? (ci.digraph_stats.total_intervals || 0) : 0,
+        subhumanIntervalCount: ci.digraph_stats ? (ci.digraph_stats.subhuman_interval_count || 0) : 0,
+        checkedAt: ci.checked_at || null,
+        note: 'Composition Integrity is separate from behavioral composite and environmental gate. Detects LLM-assisted cheating via paste/keystroke patterns.'
+      };
+    }
+
     // Environmental gate (non-behavioral; always included when present on the receipt)
     if (receipt.environmental) {
       credential.credentialSubject.environmental = {

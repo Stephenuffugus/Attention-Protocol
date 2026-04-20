@@ -42,7 +42,8 @@
     'sdk/secure-config.js',
     'sdk/attention-protocol.js',
     'sdk/economy-engine.js',
-    'sdk/environmental-gate.js'
+    'sdk/environmental-gate.js',
+    'sdk/composition-integrity.js'
   ];
   var loaded = 0;
   var envResult = null; // populated once BotD check resolves
@@ -87,6 +88,25 @@
         envResult = r;
         if (debug) console.log('[SWS Embed] Environmental gate:', r);
       });
+    }
+
+    // Composition Integrity (Signal 21): observe every text input on the page.
+    // Covers forms, comment boxes, quiz answer fields — anywhere an LLM
+    // paste would happen. Rescan on DOM mutations so we pick up late-inserted
+    // inputs (SPA frameworks, infinite scroll, etc.).
+    if (typeof window.SWSCompositionIntegrity !== 'undefined') {
+      var scopeId = 'embed_' + gameId;
+      var attachAll = function() {
+        var nodes = document.querySelectorAll('input[type=text], input[type=email], input[type=search], input[type=url], textarea, [contenteditable=true]');
+        window.SWSCompositionIntegrity.observe(nodes, { scopeId: scopeId });
+      };
+      attachAll();
+      if (typeof MutationObserver !== 'undefined') {
+        var mo = new MutationObserver(function() { attachAll(); });
+        mo.observe(document.body || document.documentElement, { childList: true, subtree: true });
+      }
+      // Expose for the saveSession path
+      window.__swsCompositionScopeId = scopeId;
     }
 
     // Auto-earn for page visit
@@ -158,6 +178,9 @@
       quality_tier: c.composite >= 0.7 ? 'deep' : c.composite >= 0.5 ? 'active' : c.composite >= 0.25 ? 'passive' : 'background',
       hashes_earned: stats.totalHashes,
       environmental: envResult || { loaded: false, error: 'not_yet_resolved', checked_at: new Date().toISOString() },
+      composition_integrity: (typeof window.SWSCompositionIntegrity !== 'undefined' && window.__swsCompositionScopeId)
+        ? window.SWSCompositionIntegrity.readSnapshot({ scopeId: window.__swsCompositionScopeId })
+        : null,
       source: 'embed'
     };
 
