@@ -86,6 +86,12 @@
       // basis: arxiv 2511.12468 (2025). See proof/sdk/composition-integrity.js.
       composition_integrity: params.composition_integrity || null,
 
+      // OpenTimestamps — Bitcoin-anchored proof-of-existence for the
+      // receipt hash. Attached AFTER hash computation (self-authenticating
+      // against receipt_hash — stamped hash must match this receipt).
+      // See src/sdk/attention-anchor.js.
+      ots: params.ots || null,
+
       // Cryptographic proof
       proof: {
         hash_count: (params.hashIds || []).length,

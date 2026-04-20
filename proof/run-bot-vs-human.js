@@ -15,10 +15,12 @@
  */
 
 require('dotenv').config(); // Load SWS_SIGNING_KEY / SWS_SIGNING_KID from .env
+const crypto = require('crypto');
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 const signer = require('../src/sdk/attention-signer');
+const anchor = require('../src/sdk/attention-anchor');
 const VC = require('../src/sdk/verifiable-credentials');
 
 const args = process.argv.slice(2);
@@ -286,7 +288,9 @@ function buildReceiptFromResult(profileKey, result) {
   };
 }
 
-async function signReceipts(results, activeSigner) {
+async function signReceipts(results, activeSigner, opts) {
+  opts = opts || {};
+  const anchorToBitcoin = opts.anchorToBitcoin !== false;
   const signed = {};
   for (const [key, result] of Object.entries(results)) {
     if (!result) { signed[key] = null; continue; }
@@ -297,6 +301,18 @@ async function signReceipts(results, activeSigner) {
     // Self-verify roundtrip as a sanity check
     const verification = await signer.verifyJwt(jwt, activeSigner.publicKeyHex);
 
+    // Bitcoin anchor the JWT itself (what a buyer actually distributes).
+    // Fail-to-unknown — harness keeps running even if OTS calendars are down.
+    let ots = null;
+    if (anchorToBitcoin) {
+      try {
+        const jwtHash = crypto.createHash('sha256').update(jwt, 'utf8').digest('hex');
+        ots = await anchor.stamp(jwtHash);
+      } catch (e) {
+        ots = { status: 'failed', error: 'harness_exception: ' + (e && e.message) };
+      }
+    }
+
     signed[key] = {
       profile: key,
       receipt_id: receipt.receipt_id,
@@ -304,8 +320,10 @@ async function signReceipts(results, activeSigner) {
       composite_score: receipt.human_verification.composite_score,
       verdict: receipt.human_verification.verdict,
       jwt: jwt,
+      jwt_sha256: crypto.createHash('sha256').update(jwt, 'utf8').digest('hex'),
       verified: verification.valid,
-      kid: activeSigner.kid
+      kid: activeSigner.kid,
+      ots: ots
     };
   }
   return signed;
@@ -413,6 +431,22 @@ function persistSignedReceipts(signed) {
         const status = s.verified ? '✓ verified' : '✗ NOT VERIFIED';
         console.log(`${s.profile.padEnd(16)} ${status}  ${jwtPreview}`);
       });
+
+      // OpenTimestamps status per signed receipt
+      const anyOts = Object.values(signed).some(s => s && s.ots);
+      if (anyOts) {
+        console.log('\n━━━ BITCOIN ANCHORING (OpenTimestamps) ━━━');
+        Object.values(signed).forEach(s => {
+          if (!s || !s.ots) return;
+          const label = s.ots.status === 'bitcoin_confirmed'
+            ? `✓ Bitcoin block #${s.ots.bitcoin_block_height}`
+            : s.ots.status === 'pending'
+              ? 'pending (upgrade in ~1–12 hrs)'
+              : `✗ ${s.ots.error || s.ots.status}`;
+          console.log(`${s.profile.padEnd(16)} ${label}`);
+        });
+        console.log('\nRun `node scripts/upgrade-timestamps.js` later to pull Bitcoin attestations.');
+      }
       console.log(`\nSaved: ${path.relative(process.cwd(), outPath)}`);
       console.log(`Public key: proof/.well-known/attention-pubkey.json (kid=${activeSigner.kid})`);
     } catch (err) {

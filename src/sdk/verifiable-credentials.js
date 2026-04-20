@@ -108,6 +108,22 @@
       }
     };
 
+    // OpenTimestamps — Bitcoin-anchored proof-of-existence.
+    // Carried on the receipt AFTER hashing (self-authenticating against receipt_hash).
+    if (receipt.ots) {
+      var o = receipt.ots;
+      credential.credentialSubject.bitcoinAnchor = {
+        detector: o.detector || 'opentimestamps-v1',
+        status: o.status || 'unknown',
+        proofB64: o.proof_b64 || null,
+        stampedAt: o.stamped_at || null,
+        bitcoinBlockHeight: o.bitcoin_block_height || null,
+        bitcoinBlockTime: o.bitcoin_block_time || null,
+        lastUpgradeCheck: o.last_upgrade_check || null,
+        note: 'OpenTimestamps anchors the receipt hash to the Bitcoin blockchain. Once status=bitcoin_confirmed, the receipt is provably as-old-as the referenced Bitcoin block. Verify with src/sdk/attention-anchor.verify(receiptHash, proofB64).'
+      };
+    }
+
     // Composition Integrity (Signal 21) — LLM-assisted cheating detection.
     // Included in credentialSubject when the receipt carries it.
     if (receipt.composition_integrity) {
