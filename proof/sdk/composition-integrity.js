@@ -48,7 +48,8 @@
   // ============================================================
 
   var PASTE_BURST_CHARS = 50;          // >=50 chars in one input event = paste
-  var PASTE_BURST_RATE = 50;           // >=50 chars/sec between events = paste
+  var PASTE_BURST_RATE = 200;          // chars/sec — raised to avoid mobile-autocomplete FP
+  var PASTE_BURST_RATE_MIN_DELTA = 25; // rate check only triggers at this delta+
   var SUBHUMAN_INTERVAL_MS = 60;       // <60ms between keys is implausible
   var CV_HUMAN_MIN = 0.30;             // below = too mechanical
   var CV_HUMAN_MAX = 1.20;             // above = too erratic
@@ -135,11 +136,16 @@
       t.chars_pasted += Math.max(delta, 0);
       if (delta > t.longest_paste_chars) t.longest_paste_chars = delta;
     }
-    // Rate-based paste detection: large delta at high chars/sec.
+    // Rate-based paste detection: VERY large delta at VERY high chars/sec.
+    // Thresholds raised above mobile-autocomplete behavior. Autocomplete
+    // inserts ~6-15 chars in one event (one word), which is indistinguishable
+    // from fast typing on a keyboard; only clearly-paste-shaped events (≥25
+    // chars at ≥200 chars/sec) trigger the rate detector. Explicit
+    // `insertFromPaste` inputType still triggers regardless.
     else if (delta > 0 && t.last_input_ts !== null) {
       var dtSec = Math.max((now - t.last_input_ts) / 1000, 0.001);
       var rate = delta / dtSec;
-      if (delta >= 10 && rate >= PASTE_BURST_RATE) {
+      if (delta >= PASTE_BURST_RATE_MIN_DELTA && rate >= PASTE_BURST_RATE) {
         t.paste_burst_count++;
         t.chars_pasted += delta;
         if (delta > t.longest_paste_chars) t.longest_paste_chars = delta;

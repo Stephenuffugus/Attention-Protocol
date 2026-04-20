@@ -160,6 +160,21 @@ describe('composition-integrity — paste burst', () => {
     const snap = CI.readSnapshot();
     expect(snap.paste_burst_detected).toBe(true);
   });
+
+  test('mobile autocomplete (~10 chars at ~200/s) does NOT trigger paste', () => {
+    // iOS/Android predictive keyboards insert whole words (~6-15 chars)
+    // in one input event. This must not be flagged as a paste.
+    const events = [
+      { type: 'input', valueLen: 5,  ts: 1000 },
+      { type: 'input', valueLen: 15, ts: 1050 },  // 10 chars in 50ms = 200 c/s
+      { type: 'input', valueLen: 20, ts: 1200 },  // 5 chars typed
+      { type: 'input', valueLen: 31, ts: 1250 },  // 11 chars autocomplete
+    ];
+    CI._feedEventsForTests('default', events);
+    const snap = CI.readSnapshot();
+    expect(snap.paste_burst_detected).toBe(false);
+    expect(snap.paste_burst_count).toBe(0);
+  });
 });
 
 // ============================================================
