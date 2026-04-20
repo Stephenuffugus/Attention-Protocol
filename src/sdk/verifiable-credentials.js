@@ -164,6 +164,23 @@
       };
     }
 
+    // Honeypot Canary (Signal 22) — invisible prompt-injected token
+    // detector. If tripped, an LLM assisted.
+    if (receipt.honeypot) {
+      var h = receipt.honeypot;
+      credential.credentialSubject.honeypotCanary = {
+        detector: h.detector || 'sws-honeypot-v1',
+        canaryId: h.canary_id || null,
+        tripped: !!h.tripped,
+        verdict: h.verdict || (h.tripped ? 'llm_assisted_suspected' : 'clean'),
+        strategiesUsed: Array.isArray(h.strategies_used) ? h.strategies_used.slice() : [],
+        detectionMethod: h.detection_method || null,
+        injectedAt: h.injected_at || null,
+        checkedAt: h.checked_at || null,
+        note: h.note || 'Honeypot canary: invisible prompt-injection token. Tripping this signal is near-certain proof of LLM assistance; not tripping is weak evidence of absence.'
+      };
+    }
+
     // Composition Integrity (Signal 21) — LLM-assisted cheating detection.
     // Included in credentialSubject when the receipt carries it.
     if (receipt.composition_integrity) {

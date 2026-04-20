@@ -86,6 +86,12 @@
       // basis: arxiv 2511.12468 (2025). See proof/sdk/composition-integrity.js.
       composition_integrity: params.composition_integrity || null,
 
+      // Honeypot Canary (Signal 22) — invisible prompt-injected token
+      // detector. If tripped, an LLM read the hidden instruction and
+      // complied. Near-zero false-positive rate (humans don't see it).
+      // See proof/sdk/honeypot-canary.js.
+      honeypot: params.honeypot || null,
+
       // Consent attestation (GDPR Article 7 / CCPA §1798.120). Included
       // in integrity hash so tampering breaks verification. Buyer can
       // prove the user actively consented at the recorded timestamp.
@@ -134,6 +140,7 @@
       human_verification: receipt.human_verification,
       environmental: receipt.environmental,
       composition_integrity: receipt.composition_integrity,
+      honeypot: receipt.honeypot,
       consent: receipt.consent,
       generated_timestamp: receipt.generated_timestamp
     }, null, 0);
@@ -177,6 +184,7 @@
       human_verification: receipt.human_verification,
       environmental: receipt.environmental,
       composition_integrity: receipt.composition_integrity,
+      honeypot: receipt.honeypot,
       consent: receipt.consent,
       generated_timestamp: receipt.generated_timestamp
     }, null, 0);

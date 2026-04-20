@@ -261,15 +261,21 @@ describe('Live Demo — Full User Flow', () => {
     await page.goto(`${BASE}/index.html`, { waitUntil: 'networkidle0' });
     await wait(500);
 
-    const h1 = await page.evaluate(() => {
-      return document.querySelector('.hero h1').textContent;
+    // Post-2026-04-21 landing reframe: brand is in the topbar; hero h1
+    // is the buyer-facing value proposition headline.
+    const brand = await page.evaluate(() => {
+      const b = document.querySelector('.brand');
+      return b ? b.textContent : '';
     });
-    expect(h1).toContain('Proof of Attention');
+    expect(brand).toContain('Proof of Attention');
 
-    // Check demo link exists
-    const demoLink = await page.evaluate(() => {
-      return document.querySelector('a[href="demo.html"]') !== null;
-    });
+    const h1Present = await page.evaluate(() =>
+      !!document.querySelector('.hero h1'));
+    expect(h1Present).toBe(true);
+
+    // Demo link exists (with or without leading slash)
+    const demoLink = await page.evaluate(() =>
+      !!document.querySelector('a[href="demo.html"], a[href="/demo.html"]'));
     expect(demoLink).toBe(true);
 
     await page.close();
