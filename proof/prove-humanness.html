@@ -182,6 +182,20 @@ function b64urlToBytes(s) {
 }
 function b64urlToString(s) { return new TextDecoder().decode(b64urlToBytes(s)); }
 
+// DEFLATE decompression for compressed credential URLs (cz= prefix).
+// Large JWTs don't fit in QR codes raw; we DEFLATE+base64url to fit.
+async function decompressCredential(b64) {
+  const bytes = b64urlToBytes(b64);
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('decompression_stream_unavailable');
+  }
+  const ds = new DecompressionStream('deflate-raw');
+  const blob = new Blob([bytes]);
+  const stream = blob.stream().pipeThrough(ds);
+  const inflated = await new Response(stream).arrayBuffer();
+  return new TextDecoder().decode(inflated);
+}
+
 async function fetchJwk() {
   const res = await fetch('/.well-known/attention-pubkey.json', { cache: 'no-store' });
   if (!res.ok) throw new Error('jwks_fetch_failed_' + res.status);
@@ -295,10 +309,19 @@ function renderHumannessVerdict(result) {
 // Wiring
 // ==============================================================
 
-function extractJwtFromInput(s) {
+async function extractJwtFromInput(s) {
   s = (s || '').trim();
   if (!s) return null;
-  // URL form: https://.../prove-humanness.html#c=eyJ...
+  // Compressed URL form: #cz=<base64url(deflate(jwt))>
+  if (s.indexOf('#cz=') !== -1) {
+    const enc = s.split('#cz=')[1].split(/[?&\s]/)[0];
+    return await decompressCredential(enc);
+  }
+  if (s.indexOf('?cz=') !== -1) {
+    const enc = s.split('?cz=')[1].split(/[&\s]/)[0];
+    return await decompressCredential(enc);
+  }
+  // Uncompressed URL form: #c=<jwt>
   if (s.indexOf('#c=') !== -1) return s.split('#c=')[1].split(/[?&\s]/)[0];
   if (s.indexOf('?c=') !== -1) return s.split('?c=')[1].split(/[&\s]/)[0];
   // Raw JWT (header.payload.sig)
@@ -308,10 +331,16 @@ function extractJwtFromInput(s) {
 
 async function doVerify() {
   const input = document.getElementById('input').value;
-  const jwt = extractJwtFromInput(input);
   const vSlot = document.getElementById('verdict-slot');
+  let jwt;
+  try {
+    jwt = await extractJwtFromInput(input);
+  } catch (e) {
+    vSlot.innerHTML = '<div class="verdict bad"><div class="big">Could not decode credential</div><div class="detail">' + (e.message || e) + '</div></div>';
+    return;
+  }
   if (!jwt) {
-    vSlot.innerHTML = '<div class="verdict bad"><div class="big">No credential provided</div><div class="detail">Paste a JWT or a credential URL above.</div></div>';
+    vSlot.innerHTML = '<div class="verdict bad"><div class="big">No credential provided</div><div class="detail">Paste a JWT, credential URL, or scanned QR data above.</div></div>';
     return;
   }
   try {
@@ -347,11 +376,13 @@ document.getElementById('clear-btn').addEventListener('click', () => {
   document.getElementById('raw-slot').textContent = '';
 });
 
-// If URL has #c= param, auto-switch to Verify mode and run
+// If URL has #c= or #cz= param, auto-switch to Verify mode and run
 (async () => {
   const hash = location.hash || '';
   const search = location.search || '';
-  if (hash.indexOf('c=') !== -1 || search.indexOf('c=') !== -1) {
+  const hasCred = /[#?&]c=/.test(hash + search) || /[#?&]cz=/.test(hash + search) ||
+                  hash.startsWith('#c=') || hash.startsWith('#cz=');
+  if (hasCred) {
     document.getElementById('mode-verify').click();
     document.getElementById('input').value = hash || search;
     doVerify();
