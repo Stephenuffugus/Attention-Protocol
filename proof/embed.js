@@ -44,7 +44,8 @@
     'sdk/economy-engine.js',
     'sdk/environmental-gate.js',
     'sdk/composition-integrity.js',
-    'sdk/privacy-compliance.js'
+    'sdk/privacy-compliance.js',
+    'sdk/honeypot-canary.js'
   ];
   var loaded = 0;
   var envResult = null; // populated once BotD check resolves
@@ -89,6 +90,21 @@
         envResult = r;
         if (debug) console.log('[SWS Embed] Environmental gate:', r);
       });
+    }
+
+    // Honeypot canary (Signal 22): inject an invisible prompt-injection
+    // instruction into the page body. If an LLM summarizes or paraphrases
+    // the content and the output is typed/pasted back here, the canary
+    // word will surface in the detector at saveSession() time.
+    window.__swsEmbedHoneypot = null;
+    if (typeof window.SWSHoneypot !== 'undefined') {
+      try {
+        var hpCanary = window.SWSHoneypot.newCanary();
+        var hpEl = document.body || document.documentElement;
+        var hpInjection = window.SWSHoneypot.attachToElement(hpEl, hpCanary);
+        window.__swsEmbedHoneypot = { canary: hpCanary, injection: hpInjection };
+        if (debug) console.log('[SWS Embed] Honeypot canary armed:', hpCanary.canary_id);
+      } catch (e) { /* non-critical */ }
     }
 
     // Composition Integrity (Signal 21): observe every text input on the page.
@@ -185,6 +201,21 @@
       consent: (typeof window.SWSPrivacy !== 'undefined')
         ? window.SWSPrivacy.getReceiptAttestation({ policyUrl: baseUrl + 'privacy' })
         : null,
+      honeypot: (function() {
+        // Signal 22: scan every text input on the page for the canary word.
+        // Detector runs at save time so we never store interim user text.
+        if (typeof window.SWSHoneypot === 'undefined' || !window.__swsEmbedHoneypot) return null;
+        var inputs = document.querySelectorAll('input[type=text],input[type=email],input[type=search],input[type=url],textarea,[contenteditable=true]');
+        var combinedText = '';
+        for (var i = 0; i < inputs.length; i++) {
+          var el = inputs[i];
+          combinedText += ' ' + (el.value || el.textContent || '');
+        }
+        var det = window.SWSHoneypot.detect(combinedText, window.__swsEmbedHoneypot.canary.word);
+        return window.SWSHoneypot.buildReceiptBlock(
+          window.__swsEmbedHoneypot.injection, det, window.__swsEmbedHoneypot.canary
+        );
+      })(),
       source: 'embed'
     };
 

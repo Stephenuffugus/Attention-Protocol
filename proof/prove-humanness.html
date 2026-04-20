@@ -41,6 +41,16 @@
   .shareable { display:grid; grid-template-columns:1fr; gap:10px; margin-top:16px; }
   .privacy-list { margin:0 0 0 18px; color:var(--dim); font-size:13px; line-height:1.7; }
   .privacy-list li strong { color:var(--text); }
+  .share-box { margin-top:20px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:20px; }
+  .share-box h2 { font-size:16px; color:var(--accent); margin:0 0 8px; }
+  .share-box p { color:var(--dim); font-size:13px; margin:0 0 12px; }
+  .share-row { display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+  .qr-frame { background:#fff; padding:12px; border-radius:8px; }
+  .qr-frame canvas, .qr-frame img { display:block; width:200px; height:200px; }
+  .share-url-box { flex:1; min-width:280px; }
+  .share-url-box code { display:block; background:var(--panel2); padding:10px 12px; border-radius:6px; font-size:11px; color:var(--text); word-break:break-all; line-height:1.5; }
+  .share-url-box button { background:var(--accent); color:#001016; border:none; padding:10px 18px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer; margin-top:10px; }
+  .share-url-box button:hover { filter:brightness(1.1); }
   details { margin-top:20px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:12px 16px; }
   summary { cursor:pointer; color:var(--dim); font-size:13px; }
   pre { background:var(--panel2); padding:12px; border-radius:6px; overflow-x:auto; font-size:11px; color:var(--dim); margin:8px 0 0; white-space:pre-wrap; word-break:break-all; }
@@ -140,11 +150,16 @@
     <div id="verdict-slot"></div>
     <div id="details-slot"></div>
 
+    <div id="share-slot"></div>
+
     <details>
       <summary>Advanced: raw presentation JSON</summary>
       <pre id="raw-slot"></pre>
     </details>
   </div>
+
+  <!-- QR code library (local, served by us — no third-party CDN runtime dep) -->
+  <script src="/vendor/qrcode.min.js" defer></script>
 
   <div class="footer">
     <p><strong>How it works under the hood:</strong> Your browser fetches the SWS public JWKS from
@@ -303,6 +318,77 @@ function renderHumannessVerdict(result) {
 
   // Raw JSON (in the details-expander)
   rSlot.textContent = JSON.stringify(result.payload, null, 2);
+
+  // Share box: QR code + copyable credential URL
+  if (isHuman && !result.expired) {
+    renderShareBox(result).catch(function(e) { /* QR lib missing = graceful skip */ });
+  }
+}
+
+// Build a compressed credential URL + render QR
+async function renderShareBox(result) {
+  const shareSlot = document.getElementById('share-slot');
+  if (!shareSlot) return;
+
+  // Rebuild the source JWT from what we verified (payload is decoded;
+  // we need the whole JWT — read from the input field)
+  const jwt = await extractJwtFromInput(document.getElementById('input').value);
+  if (!jwt) return;
+
+  // Use compressed URL form so it fits in a QR
+  const compressedB64 = await compressCredential(jwt);
+  const url = location.origin + '/prove-humanness.html#cz=' + compressedB64;
+
+  shareSlot.innerHTML =
+    '<div class="share-box">' +
+      '<h2>Share this credential</h2>' +
+      '<p>Anyone with this URL can re-verify the credential in their own browser. No identity leaks. Credential still expires at the same time as the original.</p>' +
+      '<div class="share-row">' +
+        '<div class="qr-frame" id="qr-frame">' +
+          (typeof QRCode === 'undefined' ? '<div style="color:#475569;font-family:ui-monospace,Menlo,monospace;font-size:11px;width:200px;height:200px;display:flex;align-items:center;justify-content:center;">QR lib not loaded</div>' : '') +
+        '</div>' +
+        '<div class="share-url-box">' +
+          '<code>' + url + '</code>' +
+          '<button onclick="navigator.clipboard.writeText(\'' + url.replace(/'/g, "\\'") + '\');this.textContent=\'Copied ✓\';">Copy URL</button>' +
+        '</div>' +
+      '</div>' +
+      '<p style="margin-top:12px;font-size:12px;">Credential size: ' + jwt.length + ' chars raw, ' +
+      compressedB64.length + ' chars compressed (' + Math.round((1 - compressedB64.length / jwt.length) * 100) +
+      '% reduction, fits QR byte-mode).</p>' +
+    '</div>';
+
+  // Render QR if the library is loaded (qrcode-generator API:
+  //   qrcode(typeNumber, errorCorrection).addData(s).make().createImgTag(...))
+  if (typeof qrcode !== 'undefined') {
+    try {
+      // typeNumber=0 lets the library pick the smallest fitting version
+      const qr = qrcode(0, 'L');
+      qr.addData(url, 'Byte');
+      qr.make();
+      const frame = document.getElementById('qr-frame');
+      frame.innerHTML = qr.createImgTag(4, 8); // 4px modules, 8px margin
+      const img = frame.querySelector('img');
+      if (img) { img.style.width = '200px'; img.style.height = '200px'; img.style.display = 'block'; }
+    } catch (e) {
+      document.getElementById('qr-frame').innerHTML =
+        '<div style="color:#ef4444;font-size:11px;width:200px;height:200px;display:flex;align-items:center;justify-content:center;padding:20px;">' +
+        'QR render failed: ' + (e.message || e) + '</div>';
+    }
+  }
+}
+
+// DEFLATE compression for large JWTs — mirrors src/sdk/credential-compress.js
+async function compressCredential(jwt) {
+  if (typeof CompressionStream === 'undefined') {
+    throw new Error('compression_stream_unavailable');
+  }
+  const cs = new CompressionStream('deflate-raw');
+  const blob = new Blob([new TextEncoder().encode(jwt)]);
+  const stream = blob.stream().pipeThrough(cs);
+  const compressed = new Uint8Array(await new Response(stream).arrayBuffer());
+  let bin = '';
+  for (let i = 0; i < compressed.length; i++) bin += String.fromCharCode(compressed[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 // ==============================================================
