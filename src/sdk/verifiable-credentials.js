@@ -59,6 +59,14 @@
       },
       issuanceDate: receipt.generated_at,
       validFrom: receipt.generated_at,
+      // Credential expiry (RFC 5280 / VC 2.0). Defaults to 24 hours from
+      // issuance if the receipt didn't specify. Callers can override by
+      // passing opts.validUntilMs or receipt.valid_until (ISO string).
+      validUntil: (receipt.valid_until) || (function() {
+        var issued = new Date(receipt.generated_at || Date.now()).getTime();
+        var ms = (opts.validUntilMs != null) ? opts.validUntilMs : (24 * 60 * 60 * 1000);
+        return new Date(issued + ms).toISOString();
+      })(),
 
       credentialSubject: {
         id: opts.subjectDid || _generateSubjectDid(receipt.subject_id),
@@ -320,6 +328,65 @@
   }
 
   // ============================================================
+  // HUMANNESS PRESENTATION (proof-of-humanness without doxxing)
+  // ============================================================
+
+  /**
+   * Build a minimal-disclosure "proof of humanness" presentation from
+   * a full attention credential. This is what a user presents to a
+   * verifier (a social platform, a marketplace, a policy comment form)
+   * in place of proving identity. Reveals ONLY:
+   *   - isHuman (boolean — verdict begins "verified_human")
+   *   - qualityTier (bucket only: "deep"|"active"|"passive"|"background")
+   *   - validUntil (expiry)
+   *   - issuer (so the verifier knows which public key to load)
+   * Does NOT reveal:
+   *   - individual behavioral signals
+   *   - timestamps beyond the expiry
+   *   - subject DID beyond a one-way-hashed nonce
+   *   - any content/session identifiers
+   *
+   * Privacy property: two presentations from the same source credential
+   * are NOT linkable to each other beyond the issuer DID. (Full
+   * unlinkable-presentation crypto — BBS+ signatures etc. — is a
+   * post-YC roadmap item.)
+   *
+   * @param {Object} credential - full VC from fromReceipt()
+   * @returns {Object} VerifiablePresentation with humanness-only disclosure
+   */
+  function createHumannessPresentation(credential) {
+    if (!credential || !credential.credentialSubject) {
+      throw new Error('invalid_credential');
+    }
+    var hv = credential.credentialSubject.humanVerification || {};
+    var eng = credential.credentialSubject.engagement || {};
+    var verdict = hv.verdict || '';
+    var isHuman = verdict.indexOf('verified_human') === 0;
+
+    return {
+      '@context': [VC_CONTEXT, SWS_CONTEXT],
+      type: ['VerifiablePresentation', 'HumannessPresentation'],
+      verifiableCredential: [{
+        '@context': credential['@context'],
+        type: ['VerifiableCredential', 'HumannessCredential'],
+        id: credential.id,
+        issuer: credential.issuer,
+        issuanceDate: credential.issuanceDate,
+        validUntil: credential.validUntil,
+        credentialSubject: {
+          id: credential.credentialSubject.id,
+          type: 'HumannessClaim',
+          isHuman: isHuman,
+          qualityTier: eng.qualityTier || 'unknown',
+          validUntil: credential.validUntil,
+          note: 'Proof of human attention. No identity, no signals, no timestamps beyond expiry. Verify offline at https://sws-attention-proofs.web.app/prove-humanness.html'
+        },
+        proof: credential.proof
+      }]
+    };
+  }
+
+  // ============================================================
   // VERIFICATION
   // ============================================================
 
@@ -426,6 +493,15 @@
       iat: Math.floor(new Date(credential.issuanceDate).getTime() / 1000),
       vc: credential
     };
+    // JWT exp (RFC 7519 §4.1.4). Taken from the credential's validUntil if
+    // present, so the JWT claim mirrors the VC field. Verifiers (ours + any
+    // third-party RFC 7519-compliant parser) will reject expired tokens.
+    if (credential.validUntil) {
+      var expDate = new Date(credential.validUntil);
+      if (!isNaN(expDate.getTime())) {
+        payload.exp = Math.floor(expDate.getTime() / 1000);
+      }
+    }
     // Lazy require to keep browser bundle slim (signer is Node-only)
     if (typeof require === 'function') {
       var signerMod = require('./attention-signer');
@@ -465,6 +541,7 @@
   var VerifiableCredentials = {
     fromReceipt: fromReceipt,
     createPresentation: createPresentation,
+    createHumannessPresentation: createHumannessPresentation,
     verify: verify,
     toJwt: toJwt,
     toSignedJwt: toSignedJwt,

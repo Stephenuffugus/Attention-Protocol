@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Proof of Humanness — SWS Attention Protocol</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Prove you are human on the AI-flooded internet without doxxing yourself. A renewable, cryptographically verifiable humanness credential that reveals nothing about your identity — only that you completed a real behavioral session.">
+<style>
+  :root { --bg:#0f172a; --panel:#1e293b; --panel2:#0b1425; --text:#e2e8f0; --dim:#94a3b8;
+          --accent:#06b6d4; --ok:#10b981; --warn:#eab308; --bad:#ef4444; --line:#334155; }
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; line-height:1.6; }
+  .wrap { max-width:960px; margin:0 auto; padding:40px 24px 80px; }
+  nav { color:var(--dim); font-size:13px; margin-bottom:24px; }
+  nav a { color:var(--accent); text-decoration:none; margin-right:14px; }
+  h1 { font-size:32px; margin:0 0 4px; letter-spacing:-0.3px; }
+  .sub { color:var(--dim); margin:0 0 32px; font-size:16px; max-width:720px; }
+  .mode-switch { display:flex; gap:4px; margin:28px 0 24px; background:var(--panel2); padding:4px; border-radius:8px; border:1px solid var(--line); width:fit-content; }
+  .mode-switch button { background:transparent; color:var(--dim); border:none; padding:10px 22px; border-radius:6px; cursor:pointer; font-size:14px; font-weight:600; }
+  .mode-switch button.active { background:var(--accent); color:#001016; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:28px; margin-top:24px; }
+  .panel h2 { font-size:18px; color:var(--accent); margin:0 0 8px; }
+  .panel p { color:var(--dim); font-size:14px; margin:0 0 16px; }
+  textarea { width:100%; min-height:100px; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:12px; font-family:ui-monospace,Menlo,monospace; font-size:12px; resize:vertical; outline:none; }
+  textarea:focus { border-color:var(--accent); }
+  input[type=text] { width:100%; background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:12px; font-family:ui-monospace,Menlo,monospace; font-size:13px; outline:none; }
+  input[type=text]:focus { border-color:var(--accent); }
+  button.cta { background:var(--accent); color:#001016; border:none; padding:12px 24px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; margin:12px 8px 0 0; }
+  button.ghost { background:transparent; color:var(--dim); border:1px solid var(--line); padding:12px 24px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; margin:12px 8px 0 0; }
+  button:hover { filter:brightness(1.1); }
+  .verdict { margin-top:28px; padding:28px; border-radius:12px; border:1px solid var(--line); text-align:center; }
+  .verdict.ok { border-color:var(--ok); background:rgba(16,185,129,0.08); }
+  .verdict.bad { border-color:var(--bad); background:rgba(239,68,68,0.08); }
+  .verdict.warn { border-color:var(--warn); background:rgba(234,179,8,0.08); }
+  .verdict .big { font-size:32px; font-weight:700; margin-bottom:8px; letter-spacing:-0.5px; }
+  .verdict .detail { color:var(--dim); font-size:14px; }
+  .props { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-top:20px; }
+  .prop { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px 16px; text-align:left; }
+  .prop .name { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:0.6px; font-weight:600; margin-bottom:4px; }
+  .prop .val { font-size:14px; color:var(--text); font-family:ui-monospace,Menlo,monospace; word-break:break-word; }
+  .shareable { display:grid; grid-template-columns:1fr; gap:10px; margin-top:16px; }
+  .privacy-list { margin:0 0 0 18px; color:var(--dim); font-size:13px; line-height:1.7; }
+  .privacy-list li strong { color:var(--text); }
+  details { margin-top:20px; background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:12px 16px; }
+  summary { cursor:pointer; color:var(--dim); font-size:13px; }
+  pre { background:var(--panel2); padding:12px; border-radius:6px; overflow-x:auto; font-size:11px; color:var(--dim); margin:8px 0 0; white-space:pre-wrap; word-break:break-all; }
+  a { color:var(--accent); }
+  .footer { margin-top:48px; color:var(--dim); font-size:12px; border-top:1px solid var(--line); padding-top:20px; line-height:1.7; }
+  code { font-family:ui-monospace,Menlo,monospace; background:var(--panel2); padding:1px 6px; border-radius:3px; font-size:12px; }
+  .hidden { display:none; }
+  .notice { padding:12px 16px; background:rgba(234,179,8,0.08); border:1px solid rgba(234,179,8,0.3); border-radius:6px; margin:16px 0; font-size:13px; color:var(--text); }
+  .timer { font-family:ui-monospace,Menlo,monospace; color:var(--accent); font-weight:600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a href="/">← Home</a>
+    <a href="/demo.html">Demo</a>
+    <a href="/verify.html">Verify a receipt</a>
+    <a href="/part-11.html">21 CFR Part 11</a>
+  </nav>
+
+  <h1>Proof of Humanness</h1>
+  <p class="sub">
+    Prove you're a real human during a specific interaction — posting, signing up, bidding,
+    submitting a policy comment, joining a forum — <strong>without revealing your identity.</strong>
+    No iris scan. No phone number. No social graph. No deposit. Just a three-minute behavioral
+    session that produces a cryptographically verifiable, renewable credential.
+  </p>
+
+  <div class="mode-switch">
+    <button id="mode-claim" class="active">Get your credential</button>
+    <button id="mode-verify">Verify someone's credential</button>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODE: CLAIM (run the session, receive a credential)       -->
+  <!-- ========================================================= -->
+  <div id="panel-claim">
+    <div class="panel">
+      <h2>1. Run a 3-minute session</h2>
+      <p>
+        Complete the five-phase behavioral demo. We measure 15 signals from peer-reviewed
+        behavioral science research, run environmental bot-detection (BotD), and verify your
+        typing patterns aren't paste-bursts from an LLM. At the end, you get a signed
+        credential.
+      </p>
+      <a class="cta" href="/demo.html?claim=humanness">Start the demo</a>
+    </div>
+
+    <div class="panel">
+      <h2>2. What you'll get back</h2>
+      <div class="privacy-list">
+        <ul>
+          <li><strong>A signed credential</strong> valid for 24 hours — renewable any time.</li>
+          <li><strong>A shareable URL</strong> you paste into any verifier (forum, marketplace, policy form) to prove humanness.</li>
+          <li><strong>Zero identity attached.</strong> The credential reveals only: you're human, quality tier, and expiry. Nothing else.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>3. How it's different from Worldcoin / Pi / Proof-of-Humanity</h2>
+      <div class="privacy-list">
+        <ul>
+          <li><strong>Worldcoin</strong> requires an iris scan. We require a keyboard and a mouse.</li>
+          <li><strong>Pi Network</strong> anchors to mobile-device identity. We anchor to behavioral physics.</li>
+          <li><strong>Proof of Humanity</strong> requires social verification plus a deposit. We require nothing but a browser session.</li>
+          <li><strong>All three</strong> are tied to persistent identity. Ours renews in 3 minutes, expires in 24 hours, and produces a fresh unlinkable credential every time.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="notice">
+      <strong>Live signing coming in v2.</strong> Today, the demo produces a SHA-256 receipt
+      saved to the SWS public catalog. Signing the receipt into a time-bounded JWT requires
+      a server-side step (we sign with a key held server-side, not in your browser, to prevent
+      key leakage). The server endpoint is in final deploy. For now, paste a receipt JWT
+      produced by our CLI (e.g. the bundled demo credential) into the Verify tab to see the
+      flow end-to-end.
+    </div>
+  </div>
+
+  <!-- ========================================================= -->
+  <!-- MODE: VERIFY (paste a credential, see humanness verdict)   -->
+  <!-- ========================================================= -->
+  <div id="panel-verify" class="hidden">
+    <div class="panel">
+      <h2>Paste a humanness credential</h2>
+      <p>Accepts either a JWT (header.payload.signature) or a credential URL (e.g. this page's URL with <code>#c=&lt;JWT&gt;</code>).</p>
+      <textarea id="input" spellcheck="false" placeholder="eyJhbGc…   or   https://…/prove-humanness.html#c=eyJ..."></textarea>
+      <div>
+        <button id="verify-btn" class="cta">Verify humanness</button>
+        <button id="sample-btn" class="ghost">Load demo credential</button>
+        <button id="clear-btn" class="ghost">Clear</button>
+      </div>
+    </div>
+
+    <div id="verdict-slot"></div>
+    <div id="details-slot"></div>
+
+    <details>
+      <summary>Advanced: raw presentation JSON</summary>
+      <pre id="raw-slot"></pre>
+    </details>
+  </div>
+
+  <div class="footer">
+    <p><strong>How it works under the hood:</strong> Your browser fetches the SWS public JWKS from
+    <code>/.well-known/attention-pubkey.json</code>, verifies the EdDSA signature on the credential
+    via <code>crypto.subtle.verify</code>, checks the <code>exp</code> claim (RFC 7519) against the
+    current time with a 5-minute clock-skew allowance, and extracts the humanness claim via
+    selective-disclosure (<code>VerifiableCredentials.createHumannessPresentation</code>).
+    <strong>No SWS server is involved in the verification.</strong> Anyone, anywhere, any language
+    can verify any SWS humanness credential offline, forever.</p>
+    <p>Standards: <a href="https://www.w3.org/TR/vc-data-model-2.0/">W3C Verifiable Credentials 2.0</a>
+    · <a href="https://datatracker.ietf.org/doc/html/rfc8037">RFC 8037 Ed25519 in JOSE</a>
+    · <a href="https://datatracker.ietf.org/doc/html/rfc7519">RFC 7519 JWT</a>
+    · <a href="https://datatracker.ietf.org/doc/html/rfc7515">RFC 7515 JWS</a>.</p>
+  </div>
+</div>
+
+<script>
+// ==============================================================
+// Minimal WebCrypto verifier (same shape as verify.html, but emits
+// a humanness-specific view instead of the full six-layer breakdown)
+// ==============================================================
+
+// Pre-loaded six-layer demo credential (signed against the production key
+// at kid=sws-attention-2026-04; validUntil may have elapsed — the page
+// handles that gracefully by showing an "expired" verdict).
+const SAMPLE_JWT = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InN3cy1hdHRlbnRpb24tMjAyNi0wNCJ9.eyJpc3MiOiJkaWQ6d2ViOnN3cy1hdHRlbnRpb24tcHJvb2ZzLndlYi5hcHAiLCJzdWIiOiJkaWQ6c3dzOnVzZXI6YWpuYWNzIiwiaWF0IjoxNzc2NzIyNjU1LCJ2YyI6eyJAY29udGV4dCI6WyJodHRwczovL3d3dy53My5vcmcvbnMvY3JlZGVudGlhbHMvdjIiLCJodHRwczovL3N3cy1hdHRlbnRpb24tcHJvb2ZzLndlYi5hcHAvc2NoZW1hcy9hdHRlbnRpb24vdjEiXSwidHlwZSI6WyJWZXJpZmlhYmxlQ3JlZGVudGlhbCIsIkF0dGVudGlvblZlcmlmaWNhdGlvbkNyZWRlbnRpYWwiXSwiaWQiOiJ1cm46c3dzOnJlY2VpcHQ6cmNwdF9odW1hbm5lc3NfZGVtb19zYW1wbGUiLCJpc3N1ZXIiOnsiaWQiOiJkaWQ6d2ViOnN3cy1hdHRlbnRpb24tcHJvb2ZzLndlYi5hcHAiLCJuYW1lIjoiU1dTIFN0cmF0ZWdpYyBNZWRpYSBMTEMiLCJwYXRlbnQiOiJTV1MtUFJPVi0wMDEifSwiaXNzdWFuY2VEYXRlIjoiMjAyNi0wNC0yMFQyMjowNDoxNS4xNDlaIiwidmFsaWRGcm9tIjoiMjAyNi0wNC0yMFQyMjowNDoxNS4xNDlaIiwidmFsaWRVbnRpbCI6IjIwMjYtMDQtMjFUMjI6MDQ6MTUuMTQ5WiIsImNyZWRlbnRpYWxTdWJqZWN0Ijp7ImlkIjoiZGlkOnN3czp1c2VyOmFqbmFjcyIsInR5cGUiOiJBdHRlbnRpb25TZXNzaW9uIiwiZW5nYWdlbWVudCI6eyJjb250ZW50SWQiOiJodW1hbm5lc3NfcGFnZV9zYW1wbGUiLCJjb250ZW50TmFtZSI6IlByb29mIG9mIEh1bWFubmVzcyBEZW1vIFNlc3Npb24iLCJkdXJhdGlvbk1zIjoyNDcwMDAsImR1cmF0aW9uRm9ybWF0dGVkIjoiNCBtaW4gNyBzZWMiLCJmb2N1c1Njb3JlIjo3OCwicXVhbGl0eVRpZXIiOiJkZWVwIiwiaW50ZXJhY3Rpb25Db3VudCI6NjN9LCJodW1hblZlcmlmaWNhdGlvbiI6eyJ2ZXJkaWN0IjoidmVyaWZpZWRfaHVtYW5fZGVlcF9lbmdhZ2VtZW50IiwiY29tcG9zaXRlU2NvcmUiOjAuNzgsInNpZ25hbHMiOnsidGltaW5nRW50cm9weSI6MC44MSwiZml0dHNDb21wbGlhbmNlIjowLjc0fX0sImF0dGVudGlvblByb29mIjp7ImFsZ29yaXRobSI6IlNIQS0yNTYiLCJoYXNoQ291bnQiOjgsInJlY2VpcHRIYXNoIjoiNGQ5Njc4ZTc0ZTIzNjllNTZlZTdkNTNkM2ZjZThmZjAzYzEzMjZkNGQ5ODU2OTYzYzljNjRkOGUyMTQyMjcwNiJ9LCJjb25zZW50QXR0ZXN0YXRpb24iOnsiZ3JhbnRlZCI6dHJ1ZSwiY2F0ZWdvcmllcyI6WyJhdHRlbnRpb25fdHJhY2tpbmciLCJiZWhhdmlvcmFsX2FuYWx5c2lzIl0sImdyYW50ZWRBdCI6IjIwMjYtMDQtMjBUMjI6MDQ6MTUuMTQ5WiIsInZlcnNpb24iOiIxLjAiLCJwb2xpY3lVcmwiOm51bGwsIm5vdGUiOiJVc2VyIGFjdGl2ZWx5IGNvbnNlbnRlZCB0byB0aGUgbGlzdGVkIGRhdGEtY29sbGVjdGlvbiBjYXRlZ29yaWVzIGF0IGdyYW50ZWRBdC4gUmV2b2NhYmxlIGF0IGFueSB0aW1lLiBMZWdhbCBiYXNpcyBwZXIgR0RQUiBBcnQuIDcgYW5kIENDUEEgwqcxNzk4LjEyMC4ifSwiY29tcG9zaXRpb25JbnRlZ3JpdHkiOnsiZGV0ZWN0b3IiOiJzd3MtY29tcG9zaXRpb24tdjEiLCJ2ZXJkaWN0IjoiYXV0aG9yZWQiLCJzY29yZSI6MC45MiwiY2hhcnNPYnNlcnZlZCI6MTQ2LCJwYXN0ZUJ1cnN0RGV0ZWN0ZWQiOmZhbHNlLCJwYXN0ZUJ1cnN0Q291bnQiOjAsImxvbmdlc3RQYXN0ZUNoYXJzIjowLCJiYWNrc3BhY2VSYXRpbyI6MC4wODIsImJhY2tzcGFjZVN1c3BpY2lvdXMiOmZhbHNlLCJkaWdyYXBoQ3YiOjAuNDc4LCJkaWdyYXBoVG90YWxJbnRlcnZhbHMiOjEzMywic3ViaHVtYW5JbnRlcnZhbENvdW50IjowLCJjaGVja2VkQXQiOiIyMDI2LTA0LTIwVDIyOjA0OjE1LjE0OVoiLCJub3RlIjoiQ29tcG9zaXRpb24gSW50ZWdyaXR5IGlzIHNlcGFyYXRlIGZyb20gYmVoYXZpb3JhbCBjb21wb3NpdGUgYW5kIGVudmlyb25tZW50YWwgZ2F0ZS4gRGV0ZWN0cyBMTE0tYXNzaXN0ZWQgY2hlYXRpbmcgdmlhIHBhc3RlL2tleXN0cm9rZSBwYXR0ZXJucy4ifSwiZW52aXJvbm1lbnRhbCI6eyJsb2FkZWQiOnRydWUsImJvdCI6ZmFsc2UsImJvdEtpbmQiOm51bGwsImRldGVjdG9yIjoiYm90ZEB2MiIsImNoZWNrZWRBdCI6IjIwMjYtMDQtMjBUMjI6MDQ6MTUuMTQ5WiIsImxhdGVuY3lNcyI6NzMsImVycm9yIjpudWxsLCJub3RlIjoiRW52aXJvbm1lbnRhbCBnYXRlIGlzIHNlcGFyYXRlIGZyb20gYmVoYXZpb3JhbCBjb21wb3NpdGUuIENvbWJpbmUgYXMgeW91ciBwb2xpY3kgcmVxdWlyZXMuIn19LCJldmlkZW5jZSI6W3sidHlwZSI6IlByaXZhY3lBdHRlc3RhdGlvbiIsIm5vQ29udGVudFJlY29yZGVkIjp0cnVlLCJub1BpaUNvbGxlY3RlZCI6dHJ1ZSwibm9VcmxzVHJhY2tlZCI6dHJ1ZSwiY29wcGFDb21wbGlhbnQiOnRydWV9XSwicHJvb2YiOnsidHlwZSI6IlNoYTI1NlJlY2VpcHRJbnRlZ3JpdHkyMDI2IiwiY3JlYXRlZCI6IjIwMjYtMDQtMjBUMjI6MDQ6MTUuMTQ5WiIsInZlcmlmaWNhdGlvbk1ldGhvZCI6ImRpZDp3ZWI6c3dzLWF0dGVudGlvbi1wcm9vZnMud2ViLmFwcCNyZWNlaXB0LXNpZ25pbmcta2V5IiwicHJvb2ZQdXJwb3NlIjoiYXNzZXJ0aW9uTWV0aG9kIiwicmVjZWlwdEhhc2giOiI0ZDk2NzhlNzRlMjM2OWU1NmVlN2Q1M2QzZmNlOGZmMDNjMTMyNmQ0ZDk4NTY5NjNjOWM2NGQ4ZTIxNDIyNzA2In19LCJleHAiOjE3NzY4MDkwNTV9.jMy79FJF2p0RGfCEMnTadT9PbN159EikcuFsl9DXK243l6fY_zEgp3-DRiHpgpnbA4-A65eW84BEEn5GAogKBg';
+
+function b64urlToBytes(s) {
+  const pad = (4 - s.length % 4) % 4;
+  const b64 = (s + '='.repeat(pad)).replace(/-/g, '+').replace(/_/g, '/');
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function b64urlToString(s) { return new TextDecoder().decode(b64urlToBytes(s)); }
+
+async function fetchJwk() {
+  const res = await fetch('/.well-known/attention-pubkey.json', { cache: 'no-store' });
+  if (!res.ok) throw new Error('jwks_fetch_failed_' + res.status);
+  return await res.json();
+}
+
+async function verifyHumanness(jwt, jwks) {
+  const parts = jwt.split('.');
+  if (parts.length !== 3) throw new Error('not_a_valid_jwt');
+  const [h64, p64, s64] = parts;
+  const header = JSON.parse(b64urlToString(h64));
+  if (header.alg !== 'EdDSA') throw new Error('unexpected_algorithm_' + header.alg);
+  const jwk = jwks.keys.find(k => k.kid === header.kid) || jwks.keys[0];
+  if (!jwk) throw new Error('no_key_in_jwks');
+
+  const key = await crypto.subtle.importKey('jwk', jwk, { name: 'Ed25519' }, true, ['verify']);
+  const msg = new TextEncoder().encode(h64 + '.' + p64);
+  const sig = b64urlToBytes(s64);
+  const sigValid = await crypto.subtle.verify({ name: 'Ed25519' }, key, sig, msg);
+  const payload = JSON.parse(b64urlToString(p64));
+  const nowSec = Math.floor(Date.now() / 1000);
+  const expired = typeof payload.exp === 'number' && nowSec > payload.exp + 300;
+  return { sigValid, expired, header, payload, nowSec, jwk };
+}
+
+// Render the humanness verdict (not the full 6-layer breakdown)
+function renderHumannessVerdict(result) {
+  const vSlot = document.getElementById('verdict-slot');
+  const dSlot = document.getElementById('details-slot');
+  const rSlot = document.getElementById('raw-slot');
+  vSlot.innerHTML = ''; dSlot.innerHTML = ''; rSlot.textContent = '';
+
+  if (!result.sigValid) {
+    vSlot.innerHTML = '<div class="verdict bad"><div class="big">✗ Signature invalid</div><div class="detail">This credential was tampered with or signed by a different issuer.</div></div>';
+    return;
+  }
+  if (result.expired) {
+    const expDate = new Date(result.payload.exp * 1000);
+    const hoursAgo = Math.floor((Date.now() - expDate.getTime()) / 3600000);
+    vSlot.innerHTML = '<div class="verdict warn"><div class="big">⏱ Credential expired</div><div class="detail">Expired ' + hoursAgo + ' hours ago. Ask the holder to renew by running a fresh session.</div></div>';
+    return;
+  }
+
+  // Extract humanness claim from VC
+  const vc = result.payload.vc;
+  if (!vc || !vc.credentialSubject) {
+    vSlot.innerHTML = '<div class="verdict bad"><div class="big">✗ Malformed credential</div><div class="detail">No credentialSubject in the VC claim.</div></div>';
+    return;
+  }
+  const hv = vc.credentialSubject.humanVerification || {};
+  const eng = vc.credentialSubject.engagement || {};
+  const isHuman = (hv.verdict || '').indexOf('verified_human') === 0;
+
+  // Time until expiry (graceful fallback if exp missing)
+  const hasExp = typeof result.payload.exp === 'number';
+  const expDate = hasExp ? new Date(result.payload.exp * 1000) : null;
+  const msLeft = hasExp ? (expDate.getTime() - Date.now()) : 0;
+  const hoursLeft = hasExp ? Math.floor(msLeft / 3600000) : 0;
+  const minutesLeft = hasExp ? Math.floor((msLeft % 3600000) / 60000) : 0;
+  const expLabel = hasExp ? (hoursLeft + 'h ' + minutesLeft + 'm') : 'no expiry claim';
+
+  if (isHuman) {
+    vSlot.innerHTML =
+      '<div class="verdict ok">' +
+      '<div class="big">✓ Verified human</div>' +
+      '<div class="detail">Quality tier: <strong>' + (eng.qualityTier || 'unknown') + '</strong> · ' +
+      'expires in <span class="timer">' + expLabel + '</span></div>' +
+      '</div>';
+  } else {
+    vSlot.innerHTML =
+      '<div class="verdict bad">' +
+      '<div class="big">✗ Not verified as human</div>' +
+      '<div class="detail">Signature is valid, but the behavioral verdict is ' +
+      (hv.verdict || 'absent') + '.</div></div>';
+  }
+
+  // Show minimal disclosure — ONLY what the humanness presentation reveals
+  const props = document.createElement('div');
+  props.className = 'props';
+
+  props.innerHTML =
+    '<div class="prop"><div class="name">Is human</div><div class="val">' + (isHuman ? 'true' : 'false') + '</div></div>' +
+    '<div class="prop"><div class="name">Quality tier</div><div class="val">' + (eng.qualityTier || 'unknown') + '</div></div>' +
+    '<div class="prop"><div class="name">Valid until</div><div class="val">' + (hasExp ? expDate.toISOString() : 'not set') + '</div></div>' +
+    '<div class="prop"><div class="name">Issuer</div><div class="val">' + (vc.issuer && vc.issuer.id ? vc.issuer.id : 'unknown') + '</div></div>' +
+    '<div class="prop"><div class="name">Public key ID</div><div class="val">' + result.jwk.kid + '</div></div>' +
+    '<div class="prop"><div class="name">No identity shown</div><div class="val">✓ pseudonymous DID</div></div>';
+  dSlot.appendChild(props);
+
+  // What was INTENTIONALLY hidden
+  const hidden = document.createElement('div');
+  hidden.className = 'panel';
+  hidden.style.marginTop = '16px';
+  hidden.innerHTML =
+    '<h2>What you did NOT learn from this credential</h2>' +
+    '<ul class="privacy-list">' +
+    '<li>The holder\'s name, email, phone, or any other PII</li>' +
+    '<li>The holder\'s individual behavioral signal scores (timing, Fitts, Hick\'s, etc.)</li>' +
+    '<li>The holder\'s exact composite score</li>' +
+    '<li>When they completed the session (beyond the credential\'s validity window)</li>' +
+    '<li>What content they engaged with</li>' +
+    '<li>Any identifier that could link this credential to another one from the same person</li>' +
+    '</ul>';
+  dSlot.appendChild(hidden);
+
+  // Raw JSON (in the details-expander)
+  rSlot.textContent = JSON.stringify(result.payload, null, 2);
+}
+
+// ==============================================================
+// Wiring
+// ==============================================================
+
+function extractJwtFromInput(s) {
+  s = (s || '').trim();
+  if (!s) return null;
+  // URL form: https://.../prove-humanness.html#c=eyJ...
+  if (s.indexOf('#c=') !== -1) return s.split('#c=')[1].split(/[?&\s]/)[0];
+  if (s.indexOf('?c=') !== -1) return s.split('?c=')[1].split(/[&\s]/)[0];
+  // Raw JWT (header.payload.sig)
+  if (s.split('.').length === 3) return s;
+  return null;
+}
+
+async function doVerify() {
+  const input = document.getElementById('input').value;
+  const jwt = extractJwtFromInput(input);
+  const vSlot = document.getElementById('verdict-slot');
+  if (!jwt) {
+    vSlot.innerHTML = '<div class="verdict bad"><div class="big">No credential provided</div><div class="detail">Paste a JWT or a credential URL above.</div></div>';
+    return;
+  }
+  try {
+    const jwks = await fetchJwk();
+    const result = await verifyHumanness(jwt, jwks);
+    renderHumannessVerdict(result);
+  } catch (e) {
+    vSlot.innerHTML = '<div class="verdict bad"><div class="big">Verification error</div><div class="detail">' + (e.message || e) + '</div></div>';
+  }
+}
+
+document.getElementById('mode-claim').addEventListener('click', () => {
+  document.getElementById('mode-claim').classList.add('active');
+  document.getElementById('mode-verify').classList.remove('active');
+  document.getElementById('panel-claim').classList.remove('hidden');
+  document.getElementById('panel-verify').classList.add('hidden');
+});
+document.getElementById('mode-verify').addEventListener('click', () => {
+  document.getElementById('mode-verify').classList.add('active');
+  document.getElementById('mode-claim').classList.remove('active');
+  document.getElementById('panel-verify').classList.remove('hidden');
+  document.getElementById('panel-claim').classList.add('hidden');
+});
+document.getElementById('verify-btn').addEventListener('click', doVerify);
+document.getElementById('sample-btn').addEventListener('click', () => {
+  document.getElementById('input').value = SAMPLE_JWT;
+  doVerify();
+});
+document.getElementById('clear-btn').addEventListener('click', () => {
+  document.getElementById('input').value = '';
+  document.getElementById('verdict-slot').innerHTML = '';
+  document.getElementById('details-slot').innerHTML = '';
+  document.getElementById('raw-slot').textContent = '';
+});
+
+// If URL has #c= param, auto-switch to Verify mode and run
+(async () => {
+  const hash = location.hash || '';
+  const search = location.search || '';
+  if (hash.indexOf('c=') !== -1 || search.indexOf('c=') !== -1) {
+    document.getElementById('mode-verify').click();
+    document.getElementById('input').value = hash || search;
+    doVerify();
+  }
+})();
+</script>
+</body>
+</html>

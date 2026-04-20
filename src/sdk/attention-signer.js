@@ -267,6 +267,19 @@ async function verifyJwt(jwt, publicKey) {
       return { valid: false, error: 'no_signature' };
     }
 
+    // JWT exp check (RFC 7519 §4.1.4). Allow 300s of clock skew.
+    // Runs BEFORE signature verification so an expired token short-circuits.
+    try {
+      const earlyPayload = JSON.parse(base64urlDecodeToString(payloadB64));
+      if (earlyPayload && typeof earlyPayload.exp === 'number') {
+        const nowSec = Math.floor(Date.now() / 1000);
+        if (nowSec > earlyPayload.exp + 300) {
+          return { valid: false, error: 'token_expired', header: header,
+                   exp: earlyPayload.exp, now: nowSec };
+        }
+      }
+    } catch (e) { /* payload parse fails below; don't early-exit here */ }
+
     let pubKeyRaw;
     if (publicKey instanceof Uint8Array) {
       pubKeyRaw = publicKey;
