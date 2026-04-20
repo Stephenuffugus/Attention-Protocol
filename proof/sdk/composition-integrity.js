@@ -143,7 +143,31 @@
         t.paste_burst_count++;
         t.chars_pasted += delta;
         if (delta > t.longest_paste_chars) t.longest_paste_chars = delta;
+      } else {
+        // Mobile fallback: iOS/Android virtual keyboards fire `input` events
+        // per char but usually NOT `keydown`. If keydown fired recently
+        // (desktop), we've already counted this — skip. Otherwise count it
+        // as a typed char so short mobile sessions don't get "unknown".
+        var keyRecent = t.last_keystroke_ts !== null &&
+                        (now - t.last_keystroke_ts) < 120;
+        if (!keyRecent) {
+          t.chars_typed += delta;
+          // Synthesize a digraph interval from consecutive input events so
+          // mobile sessions still contribute to CV/subhuman stats.
+          if (t.last_input_ts !== null) {
+            var interval = now - t.last_input_ts;
+            if (interval >= 0 && interval < 10000) {
+              t.intervals.push(interval);
+              if (interval < SUBHUMAN_INTERVAL_MS) t.subhuman_interval_count++;
+            }
+          }
+        }
       }
+    }
+    // Deletion via input event (iOS "deleteContentBackward")
+    else if (delta < 0 && (inputType === 'deleteContentBackward' ||
+             inputType === 'deleteContent' || inputType === 'deleteByCut')) {
+      t.chars_deleted += Math.abs(delta);
     }
 
     t.last_input_ts = now;

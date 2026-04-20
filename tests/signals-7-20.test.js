@@ -179,17 +179,23 @@ describe('Signal 8: Reading Speed Inference', () => {
     expect(c.readingSpeed).toBe(0);
   });
 
-  test('returns valid [0,1] score with 2+ completed sections', (done) => {
+  test('returns valid [0,1] score with 3+ completed sections', (done) => {
+    // Threshold raised from 2 to 3 after 2026-04-21 calibration fix:
+    // 2 data points is too few to compute a stable CV, so it now returns -1.
     SWSAttention.recordSectionEntry('sec1');
     setTimeout(() => {
       SWSAttention.recordSectionExit('sec1', 100);
       SWSAttention.recordSectionEntry('sec2');
       setTimeout(() => {
         SWSAttention.recordSectionExit('sec2', 100);
-        const c = SWSAttention.getHumanConfidence();
-        expect(c.readingSpeed).toBeGreaterThan(0);
-        expect(c.readingSpeed).toBeLessThanOrEqual(1);
-        done();
+        SWSAttention.recordSectionEntry('sec3');
+        setTimeout(() => {
+          SWSAttention.recordSectionExit('sec3', 100);
+          const c = SWSAttention.getHumanConfidence();
+          expect(c.readingSpeed).toBeGreaterThan(0);
+          expect(c.readingSpeed).toBeLessThanOrEqual(1);
+          done();
+        }, 250);
       }, 250);
     }, 250);
   });
@@ -558,18 +564,20 @@ describe('Signal 19: Two-Thirds Power Law', () => {
 // Signal 20: Device Motion (accelerometer/gyroscope)
 // ============================================================
 describe('Signal 20: Device Motion', () => {
-  test('returns sentinel with fewer than 30 motion samples', () => {
-    for (let i = 0; i < 10; i++) {
+  test('returns sentinel with fewer than 100 motion samples', () => {
+    // Threshold raised from 30 to 100 after 2026-04-21 calibration fix:
+    // ~5s of data (vs 1.5s) produces stable SD estimates.
+    for (let i = 0; i < 50; i++) {
       SWSAttention.recordDeviceMotion(0.1, 9.8, 0.05, 0.01, 0.02, 0.01);
     }
     const c = SWSAttention.getHumanConfidence();
     expect(c.deviceMotion).toBe(0);
   });
 
-  test('returns valid score with 30+ human-like motion samples', (done) => {
+  test('returns valid score with 100+ human-like motion samples', (done) => {
     let count = 0;
     function go() {
-      if (count < 35) {
+      if (count < 110) {
         const ax = 0.1 + Math.sin(count * 0.3) * 0.08;
         const ay = 9.81 + Math.sin(count * 0.5) * 0.05;
         const az = 0.1 + Math.cos(count * 0.4) * 0.06;
@@ -589,16 +597,19 @@ describe('Signal 20: Device Motion', () => {
     go();
   }, 10000);
 
-  test('all-zero motion (emulator) returns 0.05', (done) => {
+  test('all-zero motion (emulator) returns -1 insufficient data', (done) => {
+    // Post-2026-04-21 calibration: flat-zero accelerometer is treated as
+    // "device quirk / permission denied", not "bot-like", so the signal is
+    // excluded from scoring via -1 sentinel (displayed as 0).
     let count = 0;
     function go() {
-      if (count < 35) {
+      if (count < 110) {
         SWSAttention.recordDeviceMotion(0, 0, 0, 0, 0, 0);
         count++;
         setTimeout(go, 55);
       } else {
         const c = SWSAttention.getHumanConfidence();
-        expect(c.deviceMotion).toBeLessThanOrEqual(0.1);
+        expect(c.deviceMotion).toBe(0);
         done();
       }
     }

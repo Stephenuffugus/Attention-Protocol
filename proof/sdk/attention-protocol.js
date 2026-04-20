@@ -573,11 +573,12 @@
 
     computeReadingSpeed: function() {
       var completed = _sectionTimings.filter(function(s) { return s.exitTime; });
-      if (completed.length < 2) return -1; // insufficient data sentinel
+      // Need enough sections to produce a stable CV.
+      if (completed.length < 3) return -1;
       var durations = completed.map(function(s) { return s.exitTime - s.enterTime; });
       var mean = durations.reduce(function(a, b) { return a + b; }, 0) / durations.length;
-      if (mean < 200) return 0.2; // impossibly fast skim
-      if (mean > 60000) return 0.3; // suspiciously long per section
+      if (mean < 200) return 0.2; // impossibly fast skim — still flag
+      if (mean > 60000) return -1; // too long per section = likely tab switch, not signal
       var variance = durations.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / durations.length;
       var cv = mean > 0 ? Math.sqrt(variance) / mean : 0;
       // Mobile users read sections in 1-8 seconds typically
@@ -673,7 +674,8 @@
 
     computeInactivityPattern: function() {
       var sessionDuration = Date.now() - _sessionStartTime;
-      if (sessionDuration < 10000) return -1; // too short
+      // Require enough session to judge activity patterns reliably.
+      if (sessionDuration < 60000) return -1;
       if (_inactivityGaps.length === 0) {
         // No gaps at all — slightly suspicious for long sessions (bots are continuous)
         if (sessionDuration > 60000) return 0.55;
@@ -681,7 +683,9 @@
       }
       var totalGapTime = _inactivityGaps.reduce(function(sum, g) { return sum + g.durationMs; }, 0);
       var gapRatio = totalGapTime / sessionDuration;
-      if (gapRatio > 0.7) return 0.1; // mostly idle
+      // High gap ratio can mean "user is reading" on content-heavy pages. Don't
+      // treat it as bot-evidence; flag as insufficient data instead.
+      if (gapRatio > 0.7) return -1;
       var gapDurations = _inactivityGaps.map(function(g) { return g.durationMs; });
       var mean = gapDurations.reduce(function(a, b) { return a + b; }, 0) / gapDurations.length;
       var variance = gapDurations.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / gapDurations.length;
@@ -720,13 +724,14 @@
     // Signal 12: RT Variability (Coefficient of Variation + Ex-Gaussian tau)
     // Esterman et al. 2013, strongest single attention metric in cognitive science
     computeRTVariability: function() {
-      if (_interactionTimestamps.length < 15) return -1;
+      // Need more interactions for a stable CV estimate. 15 was too few.
+      if (_interactionTimestamps.length < 20) return -1;
       var intervals = [];
       for (var i = 1; i < _interactionTimestamps.length; i++) {
         var dt = _interactionTimestamps[i] - _interactionTimestamps[i - 1];
         if (dt > 50 && dt < 10000) intervals.push(dt);
       }
-      if (intervals.length < 10) return -1;
+      if (intervals.length < 15) return -1;
       var mean = intervals.reduce(function(a, b) { return a + b; }, 0) / intervals.length;
       var variance = intervals.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / intervals.length;
       var cv = Math.sqrt(variance) / mean;
@@ -752,12 +757,17 @@
     computeScrollBacktracking: function() {
       if (_scrollReversals.length < 2) return -1;
       var upReversals = _scrollReversals.filter(function(r) { return r.direction === 'up'; });
-      if (_scrollLog.length < 10) return -1;
+      // Need enough scroll events AND enough session time before we can
+      // judge whether "no backtracking" is suspicious or just a short
+      // first-pass read. Short sessions often have zero backtracks legitimately.
+      if (_scrollLog.length < 30) return -1;
+      var sessionDur = Date.now() - _sessionStartTime;
+      if (sessionDur < 120000) return -1; // <2 min → not enough reading time to judge
       var totalScrollEvents = _scrollLog.length;
       var backtrackRatio = upReversals.length / totalScrollEvents;
       // Humans re-read: 5-15% backtrack ratio on medium-difficulty text
       // Bots: 0% (never go back) or random
-      if (backtrackRatio === 0) return 0.15; // never went back = suspicious or very fast reader
+      if (backtrackRatio === 0) return -1; // insufficient data: no backtrack doesn't prove bot
       var score = _ascore(backtrackRatio, 0.08);
       // Also check if backtracks cluster at specific positions (comprehension difficulty)
       if (upReversals.length >= 3) {
@@ -1093,7 +1103,10 @@
     },
 
     computeDeviceMotion: function() {
-      if (_motionLog.length < 30) return -1; // need ~1.5s of data at 20Hz
+      // Raise threshold: 30 samples (~1.5s at 20Hz) is too noisy; 100 samples
+      // (~5s) produces stable SD estimates. Fewer samples = insufficient data
+      // rather than a low-confidence score.
+      if (_motionLog.length < 100) return -1;
       // Human holding phone: constant micro-tremor (accelerometer noise CV 0.02-0.15)
       // Bot/emulator: either zero motion or perfectly constant values
       var axVals = _motionLog.map(function(m) { return m.ax; });
@@ -1111,8 +1124,10 @@
       var ayStats = stats(ayVals);
       var gzStats = stats(gzVals);
 
-      // Check 1: Is there any motion at all? (emulators return all zeros)
-      if (axStats.sd < 0.001 && ayStats.sd < 0.001 && gzStats.sd < 0.001) return 0.05;
+      // Check 1: If accelerometer/gyro exist but are reporting flat zeros,
+      // that's a device-quirk indicator, not a bot signal. Treat as
+      // insufficient-data so the composite doesn't penalize the session.
+      if (axStats.sd < 0.001 && ayStats.sd < 0.001 && gzStats.sd < 0.001) return -1;
 
       // Check 2: Human hand tremor produces characteristic SD ranges
       // Accelerometer SD: 0.01-0.5 m/s² for stationary holding
@@ -1606,13 +1621,11 @@
         .catch(function(err) { _log('Sync failed for hash:', err.message); });
     });
 
-    // Update balance document
+    // Update balance document — only update earned count, preserve spend history
     firebase.firestore().collection('vaults').doc(uid)
       .collection('balance').doc('current')
       .set({
         total_earned: hashes.length,
-        total_spent: 0,
-        current: hashes.length,
         last_updated: Date.now(),
         game_id: _config.gameId
       }, { merge: true });
