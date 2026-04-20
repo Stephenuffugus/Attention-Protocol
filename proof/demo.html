@@ -350,12 +350,13 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
   <!-- SWS SDK (cache-busted 2026-04-21c) -->
-  <script src="sdk/secure-config.js?v=20260421d"></script>
-  <script src="sdk/attention-protocol.js?v=20260421d"></script>
-  <script src="sdk/economy-engine.js?v=20260421d"></script>
-  <script src="sdk/environmental-gate.js?v=20260421d"></script>
-  <script src="sdk/composition-integrity.js?v=20260421d"></script>
-  <script src="sdk/privacy-compliance.js?v=20260421d"></script>
+  <script src="sdk/secure-config.js?v=20260421e"></script>
+  <script src="sdk/attention-protocol.js?v=20260421e"></script>
+  <script src="sdk/economy-engine.js?v=20260421e"></script>
+  <script src="sdk/environmental-gate.js?v=20260421e"></script>
+  <script src="sdk/composition-integrity.js?v=20260421e"></script>
+  <script src="sdk/privacy-compliance.js?v=20260421e"></script>
+  <script src="sdk/honeypot-canary.js?v=20260421e"></script>
 
   <script>
     // ---- FIREBASE INIT ----
@@ -414,6 +415,24 @@
     if (typeof SWSPrivacy !== 'undefined') {
       try { SWSPrivacy.showConsentBanner({ theme: 'dark' }); } catch (e) { /* non-critical */ }
     }
+
+    // ---- HONEYPOT CANARY (Signal 22) ----
+    // Inject an invisible prompt-injection instruction into the reading area.
+    // Humans don't see it. LLMs that receive the content as text do, and
+    // frequently comply by including the canary word in their output.
+    // Detector fires in Phase 4 when the user submits their typed answer.
+    window.__swsHoneypotCanary = null;
+    window.__swsHoneypotInjection = null;
+    window.__swsHoneypotDetection = null;
+    (function() {
+      if (typeof SWSHoneypot === 'undefined') return;
+      var readingContainer = document.getElementById('reading-area');
+      if (!readingContainer) return;
+      var canary = SWSHoneypot.newCanary();
+      var injection = SWSHoneypot.attachToElement(readingContainer, canary);
+      window.__swsHoneypotCanary = canary;
+      window.__swsHoneypotInjection = injection;
+    })();
 
     // ---- TIMELINE SNAPSHOTS (every 5s) ----
     var timelineInterval = setInterval(function() {
@@ -823,7 +842,19 @@
           : null,
         consent: (typeof SWSPrivacy !== 'undefined')
           ? SWSPrivacy.getReceiptAttestation({ policyUrl: 'https://sws-attention-proofs.web.app/privacy' })
-          : null
+          : null,
+        honeypot: (function() {
+          // Signal 22: check the user's typed answer for the invisible
+          // canary. Run ONLY here (at save time) — never stores user text.
+          if (typeof SWSHoneypot === 'undefined' || !window.__swsHoneypotCanary
+              || !window.__swsHoneypotInjection) return null;
+          var userText = typingArea ? typingArea.value : '';
+          var det = SWSHoneypot.detect(userText, window.__swsHoneypotCanary.word);
+          window.__swsHoneypotDetection = det;
+          return SWSHoneypot.buildReceiptBlock(
+            window.__swsHoneypotInjection, det, window.__swsHoneypotCanary
+          );
+        })()
       };
 
       // Send GA4 completion event with composite score for comparison
