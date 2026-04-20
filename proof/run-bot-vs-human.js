@@ -14,7 +14,12 @@
  * Prereqs (local mode only): `npm run proof:gallery` in another terminal.
  */
 
+require('dotenv').config(); // Load SWS_SIGNING_KEY / SWS_SIGNING_KID from .env
 const puppeteer = require('puppeteer');
+const fs = require('fs');
+const path = require('path');
+const signer = require('../src/sdk/attention-signer');
+const VC = require('../src/sdk/verifiable-credentials');
 
 const args = process.argv.slice(2);
 const useLocal = args.includes('--local');
@@ -181,9 +186,108 @@ const wait = (ms) => new Promise(r => setTimeout(r, ms));
 // MAIN
 // ============================================================
 
+// ============================================================
+// SIGNED RECEIPT EMISSION
+// ============================================================
+
+function buildReceiptFromResult(profileKey, result) {
+  const now = new Date();
+  const sigObj = result.signals || {};
+  return {
+    receipt_id: 'rcpt_bot_' + profileKey + '_' + now.getTime(),
+    receipt_version: '1.0',
+    protocol: 'SWS Proof of Attention Protocol',
+    issuer: 'SWS Strategic Media LLC',
+    generated_at: now.toISOString(),
+    generated_timestamp: now.getTime(),
+    subject_id: 'bot_' + profileKey,
+    application_id: 'bot-vs-human-harness',
+    content_id: 'demo_session',
+    content_name: 'SWS Live Demo',
+    engagement: {
+      duration_ms: null,
+      duration_formatted: null,
+      focus_score: Math.round(result.composite * 100),
+      quality_tier: result.composite < 0.4 ? 'bot_suspected'
+                  : result.composite < 0.55 ? 'shallow'
+                  : result.composite < 0.7 ? 'active'
+                  : 'deep',
+      interaction_count: null
+    },
+    human_verification: {
+      composite_score: result.composite,
+      verdict: result.composite >= 0.55 ? 'verified_human' : 'bot_suspected',
+      timing_entropy: sigObj.timingEntropy,
+      fitts_compliance: sigObj.fittsCompliance,
+      hicks_compliance: sigObj.hicksCompliance,
+      scroll_saccade: sigObj.scrollSaccade,
+      micro_pause: sigObj.microPause,
+      touch_variance: sigObj.touchVariance
+    },
+    proof: {
+      hash_count: result.totalHashes,
+      hash_ids: result.lastHash ? [result.lastHash] : [],
+      algorithm: 'SHA-256',
+      receipt_hash: result.lastHash
+    },
+    privacy: {
+      no_content_recorded: true,
+      no_pii_collected: true,
+      no_urls_tracked: true,
+      coppa_compliant: true
+    }
+  };
+}
+
+async function signReceipts(results, activeSigner) {
+  const signed = {};
+  for (const [key, result] of Object.entries(results)) {
+    if (!result) { signed[key] = null; continue; }
+    const receipt = buildReceiptFromResult(key, result);
+    const cred = VC.fromReceipt(receipt);
+    const jwt = await VC.toSignedJwt(cred, activeSigner);
+
+    // Self-verify roundtrip as a sanity check
+    const verification = await signer.verifyJwt(jwt, activeSigner.publicKeyHex);
+
+    signed[key] = {
+      profile: key,
+      receipt_id: receipt.receipt_id,
+      receipt_hash: receipt.proof.receipt_hash,
+      composite_score: receipt.human_verification.composite_score,
+      verdict: receipt.human_verification.verdict,
+      jwt: jwt,
+      verified: verification.valid,
+      kid: activeSigner.kid
+    };
+  }
+  return signed;
+}
+
+function persistSignedReceipts(signed) {
+  const outDir = path.resolve(__dirname, 'results');
+  if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  const outPath = path.join(outDir, `signed-jwts-${ts}.json`);
+  fs.writeFileSync(outPath, JSON.stringify(signed, null, 2) + '\n', 'utf8');
+  return outPath;
+}
+
+// ============================================================
+// MAIN
+// ============================================================
+
 (async () => {
   console.log(`SWS Bot vs Human — running against ${BASE_URL}`);
   console.log(`Profiles: ${profileFilter || 'all'}\n`);
+
+  // Load signer from env; graceful degrade if SWS_SIGNING_KEY unset.
+  const activeSigner = await signer.loadSignerFromEnv();
+  if (activeSigner) {
+    console.log(`Signer loaded: kid=${activeSigner.kid} alg=${activeSigner.algorithm}`);
+  } else {
+    console.log('Signer: NOT LOADED (set SWS_SIGNING_KEY in .env to sign receipts)');
+  }
 
   const browser = await puppeteer.launch({
     headless: true,
@@ -215,7 +319,6 @@ const wait = (ms) => new Promise(r => setTimeout(r, ms));
     }
   });
 
-  const real = results;
   const composites = Object.values(results).filter(r => r).map(r => r.composite);
   if (composites.length > 1) {
     const max = Math.max(...composites);
@@ -223,5 +326,25 @@ const wait = (ms) => new Promise(r => setTimeout(r, ms));
     console.log(`\nBot composite range: ${min.toFixed(3)} - ${max.toFixed(3)}`);
     console.log(`For comparison, a real human session (Stephen, 2026-04-20) scored 0.573`);
     console.log(`Separation vs weakest bot: ${(0.573 - min).toFixed(3)}`);
+  }
+
+  // Signed-receipt block (only if a signer was available)
+  if (activeSigner) {
+    try {
+      const signed = await signReceipts(results, activeSigner);
+      const outPath = persistSignedReceipts(signed);
+
+      console.log('\n━━━ SIGNED RECEIPTS (EdDSA) ━━━');
+      Object.values(signed).forEach(s => {
+        if (!s) return;
+        const jwtPreview = s.jwt.slice(0, 48) + '…' + s.jwt.slice(-12);
+        const status = s.verified ? '✓ verified' : '✗ NOT VERIFIED';
+        console.log(`${s.profile.padEnd(16)} ${status}  ${jwtPreview}`);
+      });
+      console.log(`\nSaved: ${path.relative(process.cwd(), outPath)}`);
+      console.log(`Public key: proof/.well-known/attention-pubkey.json (kid=${activeSigner.kid})`);
+    } catch (err) {
+      console.log(`\n✗ Signing failed: ${err.message}`);
+    }
   }
 })().catch(err => { console.error(err); process.exit(1); });

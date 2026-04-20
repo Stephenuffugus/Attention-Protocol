@@ -304,11 +304,11 @@
 
   /**
    * Export credential as JWT-encoded VC (VC-JWT format).
-   * Note: This is a simplified version. Production should use
-   * proper JWT signing with Ed25519 or ES256 key pairs.
+   * Unsigned (alg=none). For production, use toSignedJwt() with an Ed25519 signer.
+   * Preserved for backwards compatibility and dev/test use.
    */
   function toJwt(credential) {
-    var header = { alg: 'none', typ: 'JWT' }; // Unsigned for now
+    var header = { alg: 'none', typ: 'JWT' };
     var payload = {
       iss: credential.issuer.id,
       sub: credential.credentialSubject.id,
@@ -318,7 +318,33 @@
 
     var headerB64 = btoa(JSON.stringify(header));
     var payloadB64 = btoa(JSON.stringify(payload));
-    return headerB64 + '.' + payloadB64 + '.'; // Unsigned
+    return headerB64 + '.' + payloadB64 + '.';
+  }
+
+  /**
+   * Export credential as EdDSA-signed VC-JWT.
+   * Asynchronous. Requires a signer from attention-signer.createSigner().
+   *
+   * @param {Object} credential - VC from fromReceipt()
+   * @param {Object} signer - { sign, kid, algorithm } from attention-signer
+   * @returns {Promise<string>} compact JWT: header.payload.signature (EdDSA)
+   */
+  function toSignedJwt(credential, signer) {
+    if (!signer || typeof signer.sign !== 'function') {
+      return Promise.reject(new Error('missing_signer'));
+    }
+    var payload = {
+      iss: credential.issuer.id,
+      sub: credential.credentialSubject.id,
+      iat: Math.floor(new Date(credential.issuanceDate).getTime() / 1000),
+      vc: credential
+    };
+    // Lazy require to keep browser bundle slim (signer is Node-only)
+    if (typeof require === 'function') {
+      var signerMod = require('./attention-signer');
+      return signerMod.signJwt(payload, signer);
+    }
+    return Promise.reject(new Error('signed_jwt_requires_node'));
   }
 
   /**
@@ -354,6 +380,7 @@
     createPresentation: createPresentation,
     verify: verify,
     toJwt: toJwt,
+    toSignedJwt: toSignedJwt,
     toJsonLd: toJsonLd,
     ISSUER_DID: ISSUER_DID,
     ISSUER_NAME: ISSUER_NAME
