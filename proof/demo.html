@@ -349,12 +349,13 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-  <!-- SWS SDK (cache-busted 2026-04-21) -->
-  <script src="sdk/secure-config.js?v=20260421b"></script>
-  <script src="sdk/attention-protocol.js?v=20260421b"></script>
-  <script src="sdk/economy-engine.js?v=20260421b"></script>
-  <script src="sdk/environmental-gate.js?v=20260421b"></script>
-  <script src="sdk/composition-integrity.js?v=20260421b"></script>
+  <!-- SWS SDK (cache-busted 2026-04-21c) -->
+  <script src="sdk/secure-config.js?v=20260421c"></script>
+  <script src="sdk/attention-protocol.js?v=20260421c"></script>
+  <script src="sdk/economy-engine.js?v=20260421c"></script>
+  <script src="sdk/environmental-gate.js?v=20260421c"></script>
+  <script src="sdk/composition-integrity.js?v=20260421c"></script>
+  <script src="sdk/privacy-compliance.js?v=20260421c"></script>
 
   <script>
     // ---- FIREBASE INIT ----
@@ -403,6 +404,15 @@
       SWSEnvironmentalGate.check().then(function(result) {
         window.__swsEnvironmental = result;
       });
+    }
+
+    // ---- CONSENT BANNER (GDPR / CCPA) ----
+    // Shows once per browser (reads localStorage). If user has no record,
+    // they see the banner; when they accept/decline, we store it.
+    // The banner is a non-blocking FYI — the demo still functions for the
+    // researcher who explicitly landed here to test the protocol.
+    if (typeof SWSPrivacy !== 'undefined') {
+      try { SWSPrivacy.showConsentBanner({ theme: 'dark' }); } catch (e) { /* non-critical */ }
     }
 
     // ---- TIMELINE SNAPSHOTS (every 5s) ----
@@ -810,6 +820,9 @@
         environmental: window.__swsEnvironmental || { loaded: false, error: 'not_yet_resolved', checked_at: new Date().toISOString() },
         composition_integrity: (typeof SWSCompositionIntegrity !== 'undefined')
           ? SWSCompositionIntegrity.readSnapshot({ scopeId: 'demo' })
+          : null,
+        consent: (typeof SWSPrivacy !== 'undefined')
+          ? SWSPrivacy.getReceiptAttestation({ policyUrl: 'https://sws-attention-proofs.web.app/privacy' })
           : null
       };
 

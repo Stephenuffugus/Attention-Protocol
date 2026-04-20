@@ -108,6 +108,19 @@
       }
     };
 
+    // Consent attestation — GDPR Article 7 + CCPA §1798.120 compliance.
+    if (receipt.consent) {
+      var c = receipt.consent;
+      credential.credentialSubject.consentAttestation = {
+        granted: c.granted === true,
+        categories: Array.isArray(c.categories) ? c.categories.slice() : [],
+        grantedAt: c.timestamp || null,
+        version: c.version || null,
+        policyUrl: c.policy_url || null,
+        note: 'User actively consented to the listed data-collection categories at grantedAt. Revocable at any time. Legal basis per GDPR Art. 7 and CCPA §1798.120.'
+      };
+    }
+
     // OpenTimestamps — Bitcoin-anchored proof-of-existence.
     // Carried on the receipt AFTER hashing (self-authenticating against receipt_hash).
     if (receipt.ots) {

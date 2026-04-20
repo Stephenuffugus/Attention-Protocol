@@ -86,6 +86,12 @@
       // basis: arxiv 2511.12468 (2025). See proof/sdk/composition-integrity.js.
       composition_integrity: params.composition_integrity || null,
 
+      // Consent attestation (GDPR Article 7 / CCPA §1798.120). Included
+      // in integrity hash so tampering breaks verification. Buyer can
+      // prove the user actively consented at the recorded timestamp.
+      // See src/sdk/privacy-compliance.js.
+      consent: params.consent || null,
+
       // OpenTimestamps — Bitcoin-anchored proof-of-existence for the
       // receipt hash. Attached AFTER hash computation (self-authenticating
       // against receipt_hash — stamped hash must match this receipt).
@@ -120,6 +126,7 @@
       human_verification: receipt.human_verification,
       environmental: receipt.environmental,
       composition_integrity: receipt.composition_integrity,
+      consent: receipt.consent,
       generated_timestamp: receipt.generated_timestamp
     }, null, 0);
 
@@ -162,6 +169,7 @@
       human_verification: receipt.human_verification,
       environmental: receipt.environmental,
       composition_integrity: receipt.composition_integrity,
+      consent: receipt.consent,
       generated_timestamp: receipt.generated_timestamp
     }, null, 0);
 

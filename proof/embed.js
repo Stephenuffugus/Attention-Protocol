@@ -43,7 +43,8 @@
     'sdk/attention-protocol.js',
     'sdk/economy-engine.js',
     'sdk/environmental-gate.js',
-    'sdk/composition-integrity.js'
+    'sdk/composition-integrity.js',
+    'sdk/privacy-compliance.js'
   ];
   var loaded = 0;
   var envResult = null; // populated once BotD check resolves
@@ -180,6 +181,9 @@
       environmental: envResult || { loaded: false, error: 'not_yet_resolved', checked_at: new Date().toISOString() },
       composition_integrity: (typeof window.SWSCompositionIntegrity !== 'undefined' && window.__swsCompositionScopeId)
         ? window.SWSCompositionIntegrity.readSnapshot({ scopeId: window.__swsCompositionScopeId })
+        : null,
+      consent: (typeof window.SWSPrivacy !== 'undefined')
+        ? window.SWSPrivacy.getReceiptAttestation({ policyUrl: baseUrl + 'privacy' })
         : null,
       source: 'embed'
     };

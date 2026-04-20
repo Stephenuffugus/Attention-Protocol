@@ -102,6 +102,35 @@
     return consent[consentType] === true;
   }
 
+  /**
+   * Extract a receipt-ready consent attestation snapshot.
+   * Shape matches what attention-receipts.generateReceipt() expects.
+   * Returns null if no consent record exists (receipt will record "no consent").
+   */
+  function getReceiptAttestation(opts) {
+    opts = opts || {};
+    var consent = getConsent();
+    if (!consent.timestamp) return null;
+
+    var granted = [];
+    if (consent.attention_tracking)   granted.push('attention_tracking');
+    if (consent.behavioral_analysis)  granted.push('behavioral_analysis');
+    if (consent.cloud_sync)           granted.push('cloud_sync');
+    if (consent.fitness_bridge)       granted.push('fitness_bridge');
+    if (consent.browser_extension)    granted.push('browser_extension');
+    if (consent.push_notifications)   granted.push('push_notifications');
+
+    return {
+      granted: granted.length > 0,
+      categories: granted,
+      timestamp: consent.timestamp
+        ? new Date(consent.timestamp).toISOString()
+        : null,
+      version: consent.version || '1.0',
+      policy_url: opts.policyUrl || null
+    };
+  }
+
   function _syncConsentToCloud(consent) {
     try {
       var user = firebase.auth().currentUser;
@@ -473,12 +502,13 @@
   // EXPORT
   // ============================================================
 
-  window.SWSPrivacy = {
+  var SWSPrivacy = {
     ConsentTypes: ConsentTypes,
     getConsent: getConsent,
     setConsent: setConsent,
     revokeAllConsent: revokeAllConsent,
     hasConsent: hasConsent,
+    getReceiptAttestation: getReceiptAttestation,
     exportAllData: exportAllData,
     downloadExport: downloadExport,
     deleteAllData: deleteAllData,
@@ -486,5 +516,14 @@
     showConsentBanner: showConsentBanner,
     verifyCOPPA: verifyCOPPA
   };
+
+  window.SWSPrivacy = SWSPrivacy;
+
+  // Node / test hook — the module is IIFE-wrapped for browser but we also
+  // want to be able to require() it in Jest for unit tests on the
+  // getReceiptAttestation/hasConsent shapes without needing a full SDK boot.
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = SWSPrivacy;
+  }
 
 })(window, document);
