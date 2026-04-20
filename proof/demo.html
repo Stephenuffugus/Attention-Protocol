@@ -349,10 +349,10 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
-  <!-- SWS SDK -->
-  <script src="sdk/secure-config.js"></script>
-  <script src="sdk/attention-protocol.js"></script>
-  <script src="sdk/economy-engine.js"></script>
+  <!-- SWS SDK (cache-busted 2026-04-20) -->
+  <script src="sdk/secure-config.js?v=20260420"></script>
+  <script src="sdk/attention-protocol.js?v=20260420"></script>
+  <script src="sdk/economy-engine.js?v=20260420"></script>
 
   <script>
     // ---- FIREBASE INIT ----
@@ -748,7 +748,9 @@
 
       // Receipt
       document.getElementById('r-session-id').textContent = sessionId;
-      document.getElementById('r-hash').textContent = 'SHA-256: ' + (stats.lastHash || sessionId);
+      document.getElementById('r-hash').textContent = stats.lastHash
+        ? 'SHA-256: ' + stats.lastHash
+        : 'Session ID: ' + sessionId + ' (no hashes generated — engagement below threshold)';
 
       // Save to Firestore
       saveSession(c, stats, elapsed, timeline);
@@ -806,8 +808,9 @@
 
       db.collection('demos').doc(sessionId).set(sessionData)
         .then(function() {
-          document.getElementById('r-hash').textContent =
-            'SHA-256: ' + (stats.lastHash || sessionId) + ' — Saved to proof catalog';
+          document.getElementById('r-hash').textContent = stats.lastHash
+            ? 'SHA-256: ' + stats.lastHash + ' — Saved to proof catalog (session: ' + sessionId + ')'
+            : 'Session ID: ' + sessionId + ' (no hashes generated — engagement below threshold)';
           logEvent('SESSION SAVED to Firestore', '');
         })
         .catch(function(err) {

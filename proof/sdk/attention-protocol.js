@@ -1463,7 +1463,8 @@
       humanConfidence: confidence,
       sessionDurationMs: Date.now() - _sessionStartTime,
       synced: hashes.filter(function(h) { return h.synced; }).length,
-      unsynced: hashes.filter(function(h) { return !h.synced; }).length
+      unsynced: hashes.filter(function(h) { return !h.synced; }).length,
+      lastHash: hashes.length ? hashes[hashes.length - 1].hash : null
     };
   }
 

@@ -53,7 +53,7 @@
 
 ### What is your company going to make? Please describe your product and what it does or will do.
 
-We generate SHA-256 cryptographic attention receipts that prove a real human was actually paying attention to a screen, not a bot, not a distracted scroller, not a click-farmer. Every receipt is a 9-field payload hashed with behavioral signals: timing entropy, Fitts' Law curvature, scroll saccade pauses, micro-pause distribution, touch variance, and Hick's Law reaction curves — part of a 20-signal behavioral library that collapses into a single human-confidence score and a quality tier (Deep Focus, Active, Passive, Background).
+We generate SHA-256 cryptographic attention receipts that prove a real human was actually paying attention to a screen, not a bot, not a distracted scroller, not a click-farmer. Every receipt is a 9-field payload hashed with behavioral signals: timing entropy, Fitts' Law curvature, scroll saccade pauses, micro-pause distribution, touch variance, and Hick's Law reaction curves — part of a 15-signal production library (with 5 additional signals in active development) that collapses into a single human-confidence score and a quality tier (Deep Focus, Active, Passive, Background).
 
 The receipts are tamper-evident, privacy-preserving (no PII — just behavioral shape), and work on web and mobile. Architecturally designed to be SCIF-eligible — no content data is stored, only behavioral metrics.
 
@@ -102,10 +102,10 @@ Far enough to show you what we built, not far enough to show you revenue yet.
 
 **Shipped:**
 - Provisional patent filed at USPTO on March 17, 2026 (serial # `[FILL — input #5]`), 29 pages, 247 innovations across 24 categories, $65 micro-entity fee paid, 12-month utility conversion deadline March 17, 2027
-- Production SDK: 22 modules, 382 automated tests passing (100%), runs in ~3 minutes `[RE-VERIFY TEST COUNT BEFORE SUBMIT — run npm test and update]`
+- Production SDK: 22 modules, 437 automated tests passing (100%), runs in ~4.7 minutes (verified 2026-04-19)
 - Live site generating real attention hashes: stevieweedseed.com (Firebase project `focus-grove-fffa8`)
 - Public proof gallery covering 9 verticals, with dual-tracked SWS vs. GA4 comparisons: **https://sws-attention-proofs.web.app**
-- 20-signal behavioral human-confidence scoring library (timing entropy, Fitts, Hick, scroll saccade, micro-pause, touch variance, and more) leveraging behavioral signals with strong separation between human and bot patterns in our simulations
+- Behavioral human-confidence scoring library: 15 production-validated signals (timing entropy, Fitts, Hick, scroll saccade, micro-pause, touch variance, keystroke rhythm, cross-signal correlation, two-thirds power law, and more) + 5 emergent signals in active development, with strong separation between human and bot patterns in our simulations
 - Printable compliance report for lawyers and regulators
 - W3C VC-structured receipts + differential privacy + WebAuthn device binding modules *(cryptographic signing on the roadmap)*
 - One-tag embed (`<script src="...">`) that any site can drop on any page in 10 minutes
@@ -154,7 +154,7 @@ No revenue yet. Business model when we turn it on:
 
 I'm applying to YC as a solo founder with a filed patent, a working artifact, and a narrow window. The honest frame: I am in a hard place financially and physically, and I'm building anyway. The protocol is real, the code runs, the patent is filed, and the outreach is happening whether YC funds it or not. YC accelerates this by 12-18 months; it does not make the difference between shipping and not shipping.
 
-The one asset nobody else in this space has is the combination of a granted filing date (March 17, 2026) across 247 innovations, a production hash pipeline, and a 20-signal behavioral library that has already been validated against real traffic. Roundtable (YC S24) solved a narrower problem (proof-of-human) and solved it well; we extend that surface into *quality of attention*, not just authenticity, and we do it with cryptographic attention receipts that work in SCIF-eligible environments where Roundtable cannot operate.
+The one asset nobody else in this space has is the combination of a granted filing date (March 17, 2026) across 247 innovations, a production hash pipeline writing real attention receipts into a cloud datastore right now, and a 15-signal behavioral library (with 5 more signals in active development) validated across 437 automated tests. Roundtable (YC S24) solved a narrower problem (proof-of-human) and solved it well; we extend that surface into *quality of attention*, not just authenticity, and we do it with cryptographic attention receipts that work in SCIF-eligible environments where Roundtable cannot operate.
 
 If you want me to be in the batch, I will be in the batch. If not, I will ship the first pilot this summer anyway.
 
@@ -176,7 +176,7 @@ I built a working prototype, patented it, and then kept going because every vert
 
 Four things competitors can't combine:
 
-1. **20 behavioral signals as composite score** — not one, not two. Competitors use timing OR mouse movement OR touch variance. We use 20 distinct signals (timing entropy, Fitts' Law curvature, Hick's Law reaction, scroll saccade, micro-pause distribution, touch variance, and more) and weight them into a single human-confidence score. BioCatch is the closest, but they optimize for fraud authentication, not attention *quality*. These signals draw on behavioral science literature with documented discrimination accuracy between human and bot patterns.
+1. **A composite behavioral score from a deep signal library, not one or two** — Competitors use timing OR mouse movement OR touch variance in isolation. We use 15 production-validated signals (timing entropy, Fitts' Law curvature, Hick's Law reaction, scroll saccade, micro-pause distribution, touch variance, keystroke rhythm, cross-signal correlation, two-thirds power law coupling, and more) with 5 additional signals in active development, weighted into a single human-confidence score. BioCatch is the closest, but they optimize for fraud authentication, not attention *quality*. These signals draw on behavioral science literature with documented discrimination accuracy between human and bot patterns.
 2. **Quality tiers, not binary human/bot** — Deep Focus vs. Active vs. Passive vs. Background. The same real human at the same screen can be any of the four depending on what's happening around them, and that distinction is what buyers actually care about.
 3. **Cryptographic attention receipts with zero content data** — Hashes contain no PII, no screen contents, no keystrokes. This is an attention verification system architecturally designed to operate in SCIF-eligible environments. It is also COPPA-safe by construction for children's applications.
 4. **Cross-vertical generality** — Market research, insurance/nursing homes, advertising, corporate training, healthcare/digital therapeutics, education, defense, financial services. 20+ vertical audits completed. The same protocol, the same SDK, the same receipts.
@@ -259,7 +259,7 @@ Record this LAST, after the written application is locked. Unlisted YouTube uplo
 >
 > Everybody in analytics measures what *happened*. Nobody measures whether a human was actually *there*. That gap is where ad fraud lives, where compliance fails, where corporate training can't prove anyone learned anything, and where a nursing home can't prove someone is actually watching a resident.
 >
-> We use 20 behavioral signals — including timing entropy, Fitts' Law, scroll saccade, micro-pause, touch variance, Hick's Law — to produce a single human-confidence score and a quality tier, and we wrap that in a SHA-256 attention receipt that works in a market research panel, an insurance audit, or a SCIF-eligible environment.
+> We use a 15-signal behavioral library — including timing entropy, Fitts' Law, scroll saccade, micro-pause, touch variance, Hick's Law, keystroke rhythm, and cross-signal correlation — to produce a single human-confidence score and a quality tier, and we wrap that in a SHA-256 attention receipt that works in a market research panel, an insurance audit, or a SCIF-eligible environment. Five additional signals are in active development.
 >
 > The patent was filed at the USPTO March 17, 2026 across 247 innovations. The protocol is live on a production site generating hashes right now. The code runs. The tests pass.
 >
