@@ -428,7 +428,7 @@
         } else if (delta > 0 && tr.last_input_ts !== null) {
           var dt = Math.max((now2 - tr.last_input_ts) / 1000, 0.001);
           var rate = delta / dt;
-          if (delta >= 10 && rate >= PASTE_BURST_RATE) {
+          if (delta >= PASTE_BURST_RATE_MIN_DELTA && rate >= PASTE_BURST_RATE) {
             tr.paste_burst_count++;
             tr.chars_pasted += delta;
             if (delta > tr.longest_paste_chars) tr.longest_paste_chars = delta;

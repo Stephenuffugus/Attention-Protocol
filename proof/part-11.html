@@ -59,6 +59,13 @@
     <strong>Summary in one sentence:</strong> SWS provides the <em>technical controls</em> that 21 CFR Part 11 requires — tamper-evident records, secure audit trails, cryptographic signatures, and device checks. Your organization provides the <em>procedural controls</em> (SOPs, access policies, training). Together they satisfy Part 11 for the "did the trainee actually do the training" class of electronic records.
   </div>
 
+  <div class="callout">
+    <strong>Choose your timestamp authority.</strong> SWS supports both anchoring options, selectable per-receipt:
+    <br>&nbsp;&nbsp;• <strong>RFC 3161 TSA</strong> (default for pharma pilots) — DigiCert, Sectigo, GlobalSign, Entrust, or any CAB-Forum-accredited TSA. Same standard your security team already uses for Authenticode and PAdES-LTV.
+    <br>&nbsp;&nbsp;• <strong>OpenTimestamps / Bitcoin</strong> — decentralized blockchain anchoring. Stronger cryptographic properties but requires your compliance policy to accept blockchain-based timestamps.
+    <br>&nbsp;&nbsp;• <strong>Both, on the same receipt</strong> — belt-and-suspenders for maximum regulatory defensibility. Different failure modes protect each other.
+  </div>
+
   <div class="callout" style="border-left-color:var(--warn);">
     <strong>Why this matters now:</strong> The FDA issued <strong>327 Part 11-related warning letters in the second half of 2025 alone — a 73% year-over-year increase</strong>. Data integrity and audit-trail deficiencies are the most frequently cited findings. "Click-through completion" in pharma training records is increasingly unacceptable under Part 11 inspection.
   </div>
@@ -101,7 +108,7 @@
       <tr>
         <td class="clause">§11.10(e)</td>
         <td class="req">Secure, computer-generated, time-stamped audit trails to independently record operator entries and actions.</td>
-        <td class="sws">Every behavioral event produces a timestamped entry in the receipt's signal log. Tampering breaks the integrity hash. Bitcoin-anchored timestamp satisfies "computer-generated" and "independent."</td>
+        <td class="sws">Every behavioral event produces a timestamped entry in the receipt's signal log. Tampering breaks the integrity hash. Two independent timestamp-authority options satisfy "computer-generated" and "independent": RFC 3161 TSA (DigiCert / Sectigo / FreeTSA) or OpenTimestamps Bitcoin anchor — or both simultaneously.</td>
         <td><span class="chip tech">TECH</span></td>
       </tr>
       <tr>

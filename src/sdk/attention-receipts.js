@@ -98,6 +98,14 @@
       // See src/sdk/attention-anchor.js.
       ots: params.ots || null,
 
+      // RFC 3161 Timestamp Authority — buyer-selectable alternative to OTS.
+      // Use when the regulator / auditor already trusts a specific TSA
+      // (DigiCert, Sectigo, GlobalSign, Entrust, FreeTSA, or a
+      // self-hosted one). Parallel to `ots`, not a replacement — both
+      // can coexist on a single receipt for belt-and-suspenders coverage.
+      // See src/sdk/attention-tsa.js.
+      tsa: params.tsa || null,
+
       // Cryptographic proof
       proof: {
         hash_count: (params.hashIds || []).length,

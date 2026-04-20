@@ -121,6 +121,25 @@
       };
     }
 
+    // RFC 3161 Timestamp Authority — buyer-selectable alternative/addition to Bitcoin.
+    if (receipt.tsa) {
+      var t = receipt.tsa;
+      credential.credentialSubject.rfc3161Timestamp = {
+        detector: t.detector || 'rfc3161-tsa-v1',
+        status: t.status || 'unknown',
+        tsaName: t.tsa_name || null,
+        tsaUrl: t.tsa_url || null,
+        tsaPolicyOid: t.tsa_policy_oid || null,
+        serialHex: t.serial_hex || null,
+        genTime: t.gen_time || null,
+        hashHex: t.hash_hex || null,
+        hashAlgorithmOid: t.hash_alg_oid || null,
+        tokenB64: t.token_b64 || null,
+        stampedAt: t.stamped_at || null,
+        note: 'RFC 3161 TimeStampToken — the same format used by Microsoft Authenticode, Adobe PAdES-LTV, and eIDAS qualified timestamps. Verify independently with openssl ts -verify.'
+      };
+    }
+
     // OpenTimestamps — Bitcoin-anchored proof-of-existence.
     // Carried on the receipt AFTER hashing (self-authenticating against receipt_hash).
     if (receipt.ots) {
