@@ -242,7 +242,8 @@ async function signJwt(payload, signer) {
  * @param {string|Uint8Array|Object} publicKey - hex string, raw bytes, or JWK
  * @returns {Promise<{valid, header, payload, error}>}
  */
-async function verifyJwt(jwt, publicKey) {
+async function verifyJwt(jwt, publicKey, opts) {
+  opts = opts || {};
   try {
     if (typeof jwt !== 'string') {
       return { valid: false, error: 'jwt_not_string' };
@@ -269,16 +270,21 @@ async function verifyJwt(jwt, publicKey) {
 
     // JWT exp check (RFC 7519 §4.1.4). Allow 300s of clock skew.
     // Runs BEFORE signature verification so an expired token short-circuits.
-    try {
-      const earlyPayload = JSON.parse(base64urlDecodeToString(payloadB64));
-      if (earlyPayload && typeof earlyPayload.exp === 'number') {
-        const nowSec = Math.floor(Date.now() / 1000);
-        if (nowSec > earlyPayload.exp + 300) {
-          return { valid: false, error: 'token_expired', header: header,
-                   exp: earlyPayload.exp, now: nowSec };
+    // Set opts.ignoreExp=true for legitimate replay/audit use cases
+    // (e.g., a buyer verifying a year-old receipt — exp is for
+    // humanness-presentation freshness, not integrity).
+    if (!opts.ignoreExp) {
+      try {
+        const earlyPayload = JSON.parse(base64urlDecodeToString(payloadB64));
+        if (earlyPayload && typeof earlyPayload.exp === 'number') {
+          const nowSec = Math.floor(Date.now() / 1000);
+          if (nowSec > earlyPayload.exp + 300) {
+            return { valid: false, error: 'token_expired', header: header,
+                     exp: earlyPayload.exp, now: nowSec };
+          }
         }
-      }
-    } catch (e) { /* payload parse fails below; don't early-exit here */ }
+      } catch (e) { /* payload parse fails below; don't early-exit here */ }
+    }
 
     let pubKeyRaw;
     if (publicKey instanceof Uint8Array) {

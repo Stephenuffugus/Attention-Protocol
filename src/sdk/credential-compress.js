@@ -97,16 +97,31 @@ async function compress(jwt) {
 /**
  * Decompress a base64url-encoded DEFLATE'd credential back to JWT.
  * @param {string} compressedB64
+ * @param {Object} [opts]
+ * @param {number} [opts.maxOutputBytes=262144] — zip-bomb guard. A real
+ *   signed receipt JWT tops out well under 10 KB; 256 KB leaves ample
+ *   headroom while rejecting pathological inflation ratios (e.g. a
+ *   200-byte input that expands to 200 MB).
  * @returns {Promise<string>} original JWT
  */
-async function decompress(compressedB64) {
+async function decompress(compressedB64, opts) {
+  opts = opts || {};
+  const maxOut = typeof opts.maxOutputBytes === 'number' ? opts.maxOutputBytes : 262144;
   if (typeof compressedB64 !== 'string' || !compressedB64.length) {
     throw new Error('decompress_requires_nonempty_string');
+  }
+  // Also bound the compressed input — the upstream URL is capped well below
+  // this, so anything larger is hostile on its face. Finding: audit Apr 21.
+  if (compressedB64.length > 65536) {
+    throw new Error('compressed_input_too_large');
   }
   const compressed = base64urlDecode(compressedB64);
 
   if (NODE_ZLIB && typeof NODE_ZLIB.inflateRawSync === 'function') {
-    const inflated = NODE_ZLIB.inflateRawSync(compressed);
+    // maxOutputLength enforces the ceiling inside zlib itself, so a
+    // malicious payload is rejected without ever allocating the full
+    // inflated buffer. (Node ≥ 15.15 / all modern runtimes.)
+    const inflated = NODE_ZLIB.inflateRawSync(compressed, { maxOutputLength: maxOut });
     return Buffer.from(inflated).toString('utf8');
   }
 
@@ -114,8 +129,25 @@ async function decompress(compressedB64) {
     const ds = new DecompressionStream('deflate-raw');
     const blob = new Blob([compressed]);
     const inflatedStream = blob.stream().pipeThrough(ds);
-    const inflated = await new Response(inflatedStream).arrayBuffer();
-    return new TextDecoder().decode(inflated);
+    // Stream through a size-bounded reader so we abort as soon as the
+    // output exceeds maxOut, rather than buffering the whole thing first.
+    const reader = inflatedStream.getReader();
+    const chunks = [];
+    let total = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > maxOut) {
+        try { reader.cancel(); } catch (_) { /* best-effort */ }
+        throw new Error('decompressed_output_exceeds_max');
+      }
+      chunks.push(value);
+    }
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const c of chunks) { out.set(c, off); off += c.byteLength; }
+    return new TextDecoder().decode(out);
   }
   throw new Error('no_decompression_available');
 }

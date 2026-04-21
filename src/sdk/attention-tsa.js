@@ -45,6 +45,16 @@ const DETECTOR = 'rfc3161-tsa-v1';
 const DEFAULT_TSA_URL = 'https://freetsa.org/tsr';
 const SHA256_OID = '2.16.840.1.101.3.4.2.1';
 
+// Allowlist of publicly-operated / commercial-grade TSA endpoints.
+// Callers that need a self-hosted TSA must pass `opts.allowCustomTsa: true`.
+const PUBLIC_TSAS = {
+  freetsa:    'https://freetsa.org/tsr',
+  digicert:   'http://timestamp.digicert.com',
+  sectigo:    'http://timestamp.sectigo.com',
+  globalsign: 'http://timestamp.globalsign.com/tsa/r6advanced1',
+  starfield:  'http://tsa.starfieldtech.com'
+};
+
 // ============================================================
 // STAMP
 // ============================================================
@@ -66,6 +76,19 @@ async function stamp(hashHexOrBytes, opts) {
   const tsaName = opts.tsaName || _deriveTsaName(tsaUrl);
   const timeoutMs = typeof opts.timeoutMs === 'number' ? opts.timeoutMs : 15000;
   const wantCert = opts.certReq !== false;
+
+  // SSRF guard: reject URLs not in the known-public allowlist unless the
+  // caller explicitly opts into a custom TSA. This matters because
+  // opts.tsaUrl flows straight into https.request(); a web-facing
+  // endpoint passing req.body.tsa_url through would be a classic
+  // SSRF + IAM-token exfil vector on Cloud Run / Functions. Finding:
+  // audit Apr 21.
+  if (!opts.allowCustomTsa) {
+    const allowed = Object.values(PUBLIC_TSAS);
+    if (allowed.indexOf(tsaUrl) < 0) {
+      return _failed('tsa_url_not_in_allowlist_pass_allowCustomTsa_to_override', tsaName);
+    }
+  }
 
   let hashBuf;
   try {
@@ -266,11 +289,5 @@ module.exports = {
   DEFAULT_TSA_URL: DEFAULT_TSA_URL,
   SHA256_OID: SHA256_OID,
   // Exposed for pilots who want to test alternate TSAs
-  PUBLIC_TSAS: {
-    freetsa:    'https://freetsa.org/tsr',
-    digicert:   'http://timestamp.digicert.com',
-    sectigo:    'http://timestamp.sectigo.com',
-    globalsign: 'http://timestamp.globalsign.com/tsa/r6advanced1',
-    starfield:  'http://tsa.starfieldtech.com'
-  }
+  PUBLIC_TSAS: PUBLIC_TSAS
 };

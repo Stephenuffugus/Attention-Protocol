@@ -85,7 +85,13 @@
     opts = opts || {};
     var word;
     if (opts.word) {
-      word = opts.word;
+      // Defensive: the caller-supplied word flows into HTML injection paths.
+      // Reject anything outside [a-z0-9-] so a malicious or careless caller
+      // can't weaponize the honeypot as an XSS vector. Finding: audit Apr 21.
+      word = String(opts.word).toLowerCase().replace(/[^a-z0-9-]/g, '');
+      if (!word || word.length < 3) {
+        throw new Error('canary_word_invalid: must be lowercase alphanumeric/hyphen, length >= 3');
+      }
     } else {
       var idx = Math.floor(Math.random() * CANARY_WORDS.length);
       word = CANARY_WORDS[idx];
