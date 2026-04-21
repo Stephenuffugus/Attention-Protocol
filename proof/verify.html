@@ -136,6 +136,12 @@ function el(tag, cls, text) {
   if (text !== undefined) e.textContent = text;
   return e;
 }
+// Each details entry is either a plain string ("Bot kind: none") or a
+// [label, value, {code: true}] triple. textContent is used for every
+// dynamic piece so a hostile JWT payload (even one we sanitized but did
+// not HTML-escape at signing time) cannot inject markup on the verify
+// page. Defense-in-depth against the case where a signed receipt carries
+// attacker-influenced strings. Finding: audit Apr 21.
 function layerCard(name, status, details) {
   const card = el('div', 'layer');
   card.appendChild(el('h3', null, name));
@@ -144,7 +150,23 @@ function layerCard(name, status, details) {
   card.appendChild(row);
   for (const line of details) {
     const v = el('div', 'val');
-    v.innerHTML = line;
+    if (Array.isArray(line)) {
+      // [label, value, opts?]
+      const label = String(line[0]);
+      const val = line[1] == null ? '—' : String(line[1]);
+      const opts = line[2] || {};
+      v.appendChild(document.createTextNode(label + ': '));
+      if (opts.code) {
+        const c = document.createElement('code');
+        c.textContent = val;
+        v.appendChild(c);
+      } else {
+        v.appendChild(document.createTextNode(val));
+      }
+    } else {
+      // Legacy plain string — rendered as text, not HTML
+      v.textContent = String(line);
+    }
     card.appendChild(v);
   }
   return card;
@@ -168,9 +190,9 @@ function renderLayers(cs) {
                     : e.bot ? { cls: 'bad', label: 'BOT DETECTED' }
                     : { cls: 'ok', label: 'clean' };
     grid.appendChild(layerCard('1. Environmental gate', status, [
-      'Detector: <code>' + (e.detector || '—') + '</code>',
-      'Bot kind: ' + (e.botKind || '—'),
-      'Latency: ' + (e.latencyMs || '—') + ' ms'
+      ['Detector', e.detector || '—', { code: true }],
+      ['Bot kind', e.botKind || '—'],
+      ['Latency', (e.latencyMs || '—') + ' ms']
     ]));
   }
 
@@ -184,9 +206,9 @@ function renderLayers(cs) {
                     : score >= 0.4 ? { cls: 'warn', label: tier || 'shallow' }
                     : { cls: 'bad', label: tier || 'low' };
     grid.appendChild(layerCard('2. Behavioral composite', status, [
-      'Composite: <code>' + (score === null ? '—' : score.toFixed(3)) + '</code>',
-      'Verdict: ' + (hv.verdict || '—'),
-      'Duration: ' + ((cs.engagement && cs.engagement.durationFormatted) || '—')
+      ['Composite', score === null ? '—' : score.toFixed(3), { code: true }],
+      ['Verdict', hv.verdict || '—'],
+      ['Duration', (cs.engagement && cs.engagement.durationFormatted) || '—']
     ]));
   }
 
@@ -200,9 +222,9 @@ function renderLayers(cs) {
                     : v === 'suspicious' ? { cls: 'warn', label: 'suspicious' }
                     : { cls: 'dim', label: v || 'unknown' };
     grid.appendChild(layerCard('3. Composition integrity', status, [
-      'Score: <code>' + (ci.score !== null && ci.score !== undefined ? ci.score.toFixed(2) : '—') + '</code>',
-      'Paste bursts: ' + (ci.pasteBurstCount || 0),
-      'Chars observed: ' + (ci.charsObserved || 0)
+      ['Score', ci.score !== null && ci.score !== undefined ? ci.score.toFixed(2) : '—', { code: true }],
+      ['Paste bursts', ci.pasteBurstCount || 0],
+      ['Chars observed', ci.charsObserved || 0]
     ]));
   }
 
@@ -212,16 +234,16 @@ function renderLayers(cs) {
     const status = c.granted ? { cls: 'ok', label: 'consent granted' }
                     : { cls: 'bad', label: 'not granted' };
     grid.appendChild(layerCard('4. Consent attestation', status, [
-      'Categories: <code>' + ((c.categories || []).join(', ') || '—') + '</code>',
-      'Granted at: ' + (c.grantedAt || '—'),
-      'Version: ' + (c.version || '—')
+      ['Categories', (c.categories || []).join(', ') || '—', { code: true }],
+      ['Granted at', c.grantedAt || '—'],
+      ['Version', c.version || '—']
     ]));
   }
 
   // 5. Ed25519 signing — always present at this point (we already verified)
   grid.appendChild(layerCard('5. Ed25519 signature', { cls: 'ok', label: 'verified' }, [
-    'Algorithm: <code>EdDSA (Ed25519)</code>',
-    'Issuer: <code>' + (cs.issuer && cs.issuer.id ? cs.issuer.id : '—') + '</code>'
+    ['Algorithm', 'EdDSA (Ed25519)', { code: true }],
+    ['Issuer', cs.issuer && cs.issuer.id ? cs.issuer.id : '—', { code: true }]
   ]));
 
   // 6. OpenTimestamps
@@ -232,9 +254,9 @@ function renderLayers(cs) {
                     : b.status === 'pending' ? { cls: 'warn', label: 'pending Bitcoin confirm' }
                     : { cls: 'dim', label: b.status || 'unknown' };
     grid.appendChild(layerCard('6. Bitcoin anchor (OTS)', status, [
-      'Stamped at: ' + (b.stampedAt || '—'),
-      'Block time: ' + (b.bitcoinBlockTime || 'pending'),
-      'Proof size: ' + (b.proofB64 ? Math.round(b.proofB64.length * 0.75) + ' bytes' : '—')
+      ['Stamped at', b.stampedAt || '—'],
+      ['Block time', b.bitcoinBlockTime || 'pending'],
+      ['Proof size', b.proofB64 ? Math.round(b.proofB64.length * 0.75) + ' bytes' : '—']
     ]));
   }
 

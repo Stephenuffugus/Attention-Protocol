@@ -370,9 +370,14 @@ async function renderShareBox(result) {
       const img = frame.querySelector('img');
       if (img) { img.style.width = '200px'; img.style.height = '200px'; img.style.display = 'block'; }
     } catch (e) {
-      document.getElementById('qr-frame').innerHTML =
-        '<div style="color:#ef4444;font-size:11px;width:200px;height:200px;display:flex;align-items:center;justify-content:center;padding:20px;">' +
-        'QR render failed: ' + (e.message || e) + '</div>';
+      // textContent for the error message so a hostile library error cannot
+      // inject markup. Finding: audit Apr 21.
+      const frame = document.getElementById('qr-frame');
+      frame.textContent = '';
+      const box = document.createElement('div');
+      box.style.cssText = 'color:#ef4444;font-size:11px;width:200px;height:200px;display:flex;align-items:center;justify-content:center;padding:20px;';
+      box.textContent = 'QR render failed: ' + (e && e.message ? e.message : String(e));
+      frame.appendChild(box);
     }
   }
 }
@@ -415,6 +420,25 @@ async function extractJwtFromInput(s) {
   return null;
 }
 
+// Safe verdict renderer — the `detail` text is the only dynamic field
+// and it flows through textContent so a hostile JWT/error message cannot
+// inject markup. Finding: audit Apr 21 (prove-humanness.html XSS via
+// JSON.parse error text reflected into innerHTML).
+function setVerdictBad(slot, headline, detail) {
+  slot.textContent = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'verdict bad';
+  const big = document.createElement('div');
+  big.className = 'big';
+  big.textContent = headline;
+  const det = document.createElement('div');
+  det.className = 'detail';
+  det.textContent = String(detail || '');
+  wrap.appendChild(big);
+  wrap.appendChild(det);
+  slot.appendChild(wrap);
+}
+
 async function doVerify() {
   const input = document.getElementById('input').value;
   const vSlot = document.getElementById('verdict-slot');
@@ -422,11 +446,11 @@ async function doVerify() {
   try {
     jwt = await extractJwtFromInput(input);
   } catch (e) {
-    vSlot.innerHTML = '<div class="verdict bad"><div class="big">Could not decode credential</div><div class="detail">' + (e.message || e) + '</div></div>';
+    setVerdictBad(vSlot, 'Could not decode credential', e && e.message ? e.message : e);
     return;
   }
   if (!jwt) {
-    vSlot.innerHTML = '<div class="verdict bad"><div class="big">No credential provided</div><div class="detail">Paste a JWT, credential URL, or scanned QR data above.</div></div>';
+    setVerdictBad(vSlot, 'No credential provided', 'Paste a JWT, credential URL, or scanned QR data above.');
     return;
   }
   try {
@@ -434,7 +458,7 @@ async function doVerify() {
     const result = await verifyHumanness(jwt, jwks);
     renderHumannessVerdict(result);
   } catch (e) {
-    vSlot.innerHTML = '<div class="verdict bad"><div class="big">Verification error</div><div class="detail">' + (e.message || e) + '</div></div>';
+    setVerdictBad(vSlot, 'Verification error', e && e.message ? e.message : e);
   }
 }
 
