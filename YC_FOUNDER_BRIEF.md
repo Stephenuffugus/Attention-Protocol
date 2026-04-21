@@ -99,7 +99,7 @@ A: "Ad-tech tried — DoubleVerify, IAS, Moat — and settled for viewability, b
 A: "Three layers. Patent filed March 17 2026, 247 distinct innovations, 12-month conversion window. Category creation — credentialing buyers don't have an RFP line item for this yet, so we define the category. Behavioral-science-first design, not ML — we don't need a training dataset, we deploy day one. A BioCatch with unlimited resources would still need 18 months to reach feature parity, and the patent covers the composite-signal-to-receipt mapping."
 
 **Q: "Show me traction."**
-A: *(Honest answer):* "I filed the patent, shipped the SDK with 695 passing tests, deployed the live proof gallery at sws-attention-proofs.web.app, built a seven-layer attestation stack (Ed25519-signed, Bitcoin-anchored, RFC 3161-timestamped, with LLM-cheating detection and consent attestation), and generated real human attention receipts under those seven layers. Zero paid pilots yet. Three in conversation. I'm applying to YC because funding compresses a 12–18 month roadmap into 6."
+A: *(Honest answer):* "I filed the patent, shipped the SDK with 708 passing tests, deployed the live proof gallery at sws-attention-proofs.web.app, built a seven-layer attestation stack (Ed25519-signed, Bitcoin-anchored, RFC 3161-timestamped, with LLM-cheating detection and consent attestation), and generated real human attention receipts under those seven layers. Zero paid pilots yet. Three in conversation. I'm applying to YC because funding compresses a 12–18 month roadmap into 6."
 
 **Q: "Who's the buyer in credentialing?"**
 A: "ACCME-accredited CME providers ($1B+ market, ~1,800 organizations). Corporate training/LMS (Cornerstone, Workday Learning, Litmos — $15B). Professional licensure boards (state bar, FAA, nursing). All three pay per-learner-per-session today; replacing their "we believe they watched it" attestation with "here's the cryptographic receipt" is a direct procurement conversation."
@@ -120,7 +120,7 @@ A: *(Use tonight's finding.)* "I ran my own Puppeteer bots against my own live d
 | Asset | Real? | Notes |
 |---|---|---|
 | Patent | ✅ | Filed USPTO 2026-03-17, serial # to be added |
-| Production SDK | ✅ | 695 tests (34 suites), 7-layer stack live, 15 behavioral + 2 LLM-integrity signals, 3 behavioral in research |
+| Production SDK | ✅ | 708 tests (34 suites), 7-layer stack live, 15 behavioral + 2 LLM-integrity signals, 3 behavioral in research |
 | Live proof site | ✅ | sws-attention-proofs.web.app — 9 public pages |
 | Real human receipts | ⚠ | N=1 (you, 2026-04-20, composite 0.573, Bitcoin-pending). Target: 10+ before submission |
 | Real bot receipts | ✅ | N=3, demonstrating pipeline works under adversarial input |
@@ -157,7 +157,7 @@ Make sure all three work flawlessly on mobile + desktop the morning you submit. 
 
 ## 10. One sentence to end on
 
-**You have a patented, working, live, privacy-preserving cryptographic attestation protocol with real Ed25519-signed and Bitcoin-anchored receipts, 695 passing tests across 34 suites, a seven-layer attestation stack, two wedges (pharma compliance + proof of humanness), and a founder who knows his gaps.** That is strictly more than most Demo Day companies have at their YC interview. Don't oversell. Don't undersell. Tell the truth with precision — that's the whole game.
+**You have a patented, working, live, privacy-preserving cryptographic attestation protocol with real Ed25519-signed and Bitcoin-anchored receipts, 708 passing tests across 34 suites, a seven-layer attestation stack, two wedges (pharma compliance + proof of humanness), and a founder who knows his gaps.** That is strictly more than most Demo Day companies have at their YC interview. Don't oversell. Don't undersell. Tell the truth with precision — that's the whole game.
 
 ---
 
