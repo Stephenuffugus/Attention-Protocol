@@ -1,6 +1,9 @@
 node_modules/
 .env
 .env.local
+rotation-staging/
+.claude/
+datasets/
 *.key
 *.pem
 credentials.json
