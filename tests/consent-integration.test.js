@@ -255,3 +255,54 @@ describe('consent — five-layer attestation stack', () => {
     expect(subj.bitcoinAnchor.status).toBe('pending');
   });
 });
+
+// ============================================================
+// SECURITY — buildConsentUI enum-validates theme + position (audit Apr 21)
+// ============================================================
+
+describe('buildConsentUI — CSS-injection guard', () => {
+  test('accepts valid theme/position values and echoes them in output', () => {
+    const htmlTopDark = global.SWSPrivacy.buildConsentUI({ theme: 'dark', position: 'top' });
+    expect(htmlTopDark).toContain('position:fixed;top:0');
+    expect(htmlTopDark).toContain('#111827'); // dark bg
+
+    const htmlBottomLight = global.SWSPrivacy.buildConsentUI({ theme: 'light', position: 'bottom' });
+    expect(htmlBottomLight).toContain('position:fixed;bottom:0');
+    expect(htmlBottomLight).toContain('#ffffff'); // light bg
+  });
+
+  test('defaults to bottom/dark when options omitted', () => {
+    const html = global.SWSPrivacy.buildConsentUI();
+    expect(html).toContain('position:fixed;bottom:0');
+    expect(html).toContain('#111827');
+  });
+
+  test('rejects a CSS-injection attempt in position by falling back to bottom', () => {
+    // Attacker-supplied position tries to close the style attribute and add markup
+    const evil = 'top;background:url(javascript:alert(1))"><script>alert(1)</script>';
+    const html = global.SWSPrivacy.buildConsentUI({ position: evil });
+    // Hard-enum: anything that isn't the literal 'top' collapses to 'bottom'
+    expect(html).toContain('position:fixed;bottom:0');
+    expect(html).not.toMatch(/javascript:/i);
+    expect(html).not.toMatch(/<script/i);
+    expect(html).not.toContain(evil);
+  });
+
+  test('rejects a CSS-injection attempt in theme by falling back to dark', () => {
+    const evil = 'dark;background:url(javascript:alert(1))';
+    const html = global.SWSPrivacy.buildConsentUI({ theme: evil });
+    // Hard-enum: anything that isn't the literal 'light' collapses to 'dark' (#111827)
+    expect(html).toContain('#111827');
+    expect(html).not.toMatch(/javascript:/i);
+  });
+
+  test('an attribute-breakout attempt does not produce unescaped markup', () => {
+    const html = global.SWSPrivacy.buildConsentUI({
+      theme: '"><img src=x onerror=alert(1)>',
+      position: '"><script>alert(2)</script>'
+    });
+    expect(html).not.toMatch(/<script/i);
+    expect(html).not.toMatch(/<img\b/i);
+    expect(html).not.toMatch(/onerror=/i);
+  });
+});

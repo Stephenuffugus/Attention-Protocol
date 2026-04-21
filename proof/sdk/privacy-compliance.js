@@ -387,8 +387,11 @@
    */
   function buildConsentUI(options) {
     options = options || {};
-    var theme = options.theme || 'dark';
-    var position = options.position || 'bottom';
+    // Hard-enum validation — these values land in the banner's inline
+    // style attribute via string concatenation, so an attacker-controllable
+    // `position` would otherwise be a CSS-injection sink. Finding: audit Apr 21.
+    var theme = options.theme === 'light' ? 'light' : 'dark';
+    var position = options.position === 'top' ? 'top' : 'bottom';
 
     var bg = theme === 'dark' ? '#111827' : '#ffffff';
     var text = theme === 'dark' ? '#f1f5f9' : '#1e293b';
