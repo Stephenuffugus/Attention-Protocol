@@ -69,17 +69,19 @@ This is what a buyer sees when you hand them a URL.
 ### Step 1.2 — Verify page works against a known-good JWT
 **Do:**
 1. Open `https://sws-attention-proofs.web.app/verify.html`
-2. Copy the full `signed_jwt` field from `proof/results/stephen-0573-anchored.json`
+2. Copy the full `signed_jwt` field from `proof/results/verify-sample-7layer.json` (the canonical all-seven-layers fixture; `verify-sample-6layer.json` renders 6 cards; `stephen-0573-anchored.json` renders only 2)
 3. Paste it into the textarea on verify.html
 4. Click **Verify**
 
 **Expect:**
 - Green "✓ Signature verified" banner at the top
 - Issuer: "SWS Strategic Media LLC" and Key ID: `sws-attention-2026-04`
-- The six-layer grid renders: Environmental / Behavioral (composite 0.573, tier "active") / Composition integrity / Consent / Ed25519 / Bitcoin anchor
+- A multi-card grid renders: Environmental / Behavioral (composite + gated composite if present) / Composition integrity / Consent / Ed25519 / Bitcoin anchor
 - Bitcoin anchor status: `pending` or `bitcoin_confirmed` depending on when you run this
 
 **Fail mode:** "Signature did NOT verify" on a known-good JWT means the JWKS endpoint or the signing key rotated. Check `/.well-known/attention-pubkey.json` is reachable and matches the `kid` in the JWT header.
+
+**Note about the gated composite card:** the pre-2026-04-21 fixtures were signed before the gated composite shipped, so they don't carry `compositeScoreFinal` / `gatesApplied`. After fixture regeneration (next playbook update) the Behavioral card will show both numbers. Freshly-minted sessions through the live demo always carry the new fields.
 
 **This is the single most important demo step.** If a buyer can watch their own browser verify a receipt we gave them, the "cryptographic receipt" pitch is now a fact, not a claim.
 
@@ -165,15 +167,17 @@ node proof/run-bot-vs-human.js
 ```
 
 **Expect:**
-- Three Puppeteer profiles (naive, jittered, puppeteer-stealth) each complete the demo
-- Composite scores fall in the 0.48–0.54 range (well below your ~0.57)
-- BotD environmental gate catches ≥1 of the 3
-- Honeypot canary trips when the bot answers the text phase (because the bot ingests full DOM-including the hidden canary instruction — most commonly the naive and jittered bots will trip it)
+- Four Puppeteer profiles (naive, jittered, sophisticated, llm_paster) each complete the demo
+- Composite scores fall in the 0.47–0.57 range. Note: the llm_paster profile may score within 0.01 of a real human composite — this is the *exact* finding that tells you to pitch the receipt's layered evidence, not the composite number alone.
+- BotD environmental gate catches **4/4** (every bot identifies as `headless_chrome`)
+- Composition integrity flags **4/4** (typed-vs-pasted fingerprint: verdict `mechanical` or `pasted` for every bot)
+- Honeypot canary: **no trip expected in this harness.** The bots type fixed pre-defined strings; they do not ingest the DOM + re-emit. To actually exercise the honeypot you need an LLM-in-the-loop harness (pending; not in 2026-04-21 playbook run).
 
 **Fail mode:**
 - If bots score ≥0.60: calibration broke; investigate `composite_score` weights
-- If **none** trip honeypot: the canary isn't being injected on demo.html (check `proof/demo.html` for the `injectHtml` call)
-- If BotD catches zero of three: `proof/vendor/botd.esm.js` may have failed to load — check Network tab in browser
+- If BotD catches fewer than 4: `proof/vendor/botd.esm.js` may have failed to load — check Network tab in browser
+- If composition integrity flags fewer than 4: the typing-fingerprint pipeline regressed
+- Honeypot gap is **known and documented**, not a regression
 
 ### Step 3.2 — Side-by-side receipt comparison
 **Do:** Open `proof/results/` and compare:
@@ -193,10 +197,12 @@ node proof/run-bot-vs-human.js
 ### Step 4.1 — Fresh ZIP reflecting today's state
 **Do:**
 ```bash
+node scripts/refresh-demo-fixtures.js
 node scripts/generate-evidence-kit.js
 ls -la dist/evidence-kit.zip
 unzip -l dist/evidence-kit.zip
 ```
+`refresh-demo-fixtures.js` re-signs `humanness-sample.json` with a fresh 24h validity window, using the env signing key. Run it before any pitch day so the demo never shows "Credential expired".
 
 **Expect:**
 - Exit 0
