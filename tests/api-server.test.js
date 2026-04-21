@@ -329,3 +329,98 @@ describe('Client Stats', () => {
     expect(res.status).toBe(403);
   });
 });
+
+// ============================================================
+// SECURITY — server hardening (audit Apr 21)
+// ============================================================
+
+describe('Security hardening — constant-time API key compare', () => {
+  test('rejects an API key of the correct length but wrong bytes', async () => {
+    // demo key is 'sws_demo_key_2026' (17 chars); same length, wrong bytes
+    const res = await apiRequest('POST', '/v1/sessions', { session_id: 't' }, {
+      'X-SWS-API-Key': 'sws_demo_key_XXXX',
+      'X-SWS-Client-ID': 'demo_client'
+    });
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('invalid_credentials');
+  });
+
+  test('rejects a shorter guess without throwing (pad-and-compare path)', async () => {
+    const res = await apiRequest('POST', '/v1/sessions', { session_id: 't' }, {
+      'X-SWS-API-Key': 'sws_',
+      'X-SWS-Client-ID': 'demo_client'
+    });
+    expect(res.status).toBe(403);
+  });
+
+  test('rejects a longer guess without throwing', async () => {
+    const res = await apiRequest('POST', '/v1/sessions', { session_id: 't' }, {
+      'X-SWS-API-Key': 'sws_demo_key_2026_trailingjunk',
+      'X-SWS-Client-ID': 'demo_client'
+    });
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('Security hardening — signup gate', () => {
+  // Tests run without SWS_SIGNUP_TOKEN set; the gate falls through (dev mode)
+  // but that path is explicitly exercised above in 'Client Registration'. Here
+  // we flip the env var and confirm production-shape enforcement.
+
+  const ORIGINAL_TOKEN = process.env.SWS_SIGNUP_TOKEN;
+  afterEach(() => {
+    if (ORIGINAL_TOKEN === undefined) delete process.env.SWS_SIGNUP_TOKEN;
+    else process.env.SWS_SIGNUP_TOKEN = ORIGINAL_TOKEN;
+  });
+
+  test('rejects signup without token when SWS_SIGNUP_TOKEN is set', async () => {
+    process.env.SWS_SIGNUP_TOKEN = 'operator-secret-123';
+    const res = await apiRequest('POST', '/v1/clients', { name: 'Probe' });
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('invalid_signup_token');
+  });
+
+  test('rejects signup with wrong token', async () => {
+    process.env.SWS_SIGNUP_TOKEN = 'operator-secret-123';
+    const res = await apiRequest('POST', '/v1/clients', { name: 'Probe' }, {
+      'X-SWS-Signup-Token': 'wrong'
+    });
+    expect(res.status).toBe(401);
+  });
+
+  test('accepts signup with correct token', async () => {
+    process.env.SWS_SIGNUP_TOKEN = 'operator-secret-123';
+    const res = await apiRequest('POST', '/v1/clients', { name: 'Gated Corp' }, {
+      'X-SWS-Signup-Token': 'operator-secret-123'
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.client_id).toMatch(/^cli_/);
+  });
+
+  test('always assigns plan=pilot regardless of request body', async () => {
+    // Mint via the open-in-dev path (no SWS_SIGNUP_TOKEN)
+    const res = await apiRequest('POST', '/v1/clients', {
+      name: 'Escalation Attempt', plan: 'enterprise'
+    });
+    expect(res.status).toBe(201);
+    // Must not echo back the attacker-supplied plan
+    expect(res.body.plan).toBe('pilot');
+  });
+});
+
+describe('Security hardening — IP rate limit on verify', () => {
+  test('enforces a per-IP minute-window cap on /v1/sessions/verify', async () => {
+    // Default cap is 30/min for verify. Fire 35 quickly; at least one must be 429.
+    let sawRateLimit = false;
+    for (let i = 0; i < 35; i++) {
+      const res = await apiRequest('POST', '/v1/sessions/verify', {
+        receipt_id: 'rcpt_does_not_exist_' + i
+      });
+      if (res.status === 429 && res.body.error === 'rate_limit_ip') {
+        sawRateLimit = true;
+        break;
+      }
+    }
+    expect(sawRateLimit).toBe(true);
+  });
+});

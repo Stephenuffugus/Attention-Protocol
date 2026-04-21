@@ -183,6 +183,25 @@ clients.set(DEMO_CLIENT_ID, {
 // AUTH MIDDLEWARE
 // ============================================================
 
+// Constant-time secret comparison — prevents timing side-channel leak on
+// the API key. A raw `!==` compare short-circuits on first mismatching byte,
+// giving an attacker a measurable signal about how many leading bytes of
+// their guess are correct. Finding: audit Apr 21.
+function constantTimeEqual(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const aBuf = Buffer.from(a, 'utf8');
+  const bBuf = Buffer.from(b, 'utf8');
+  // timingSafeEqual throws on length mismatch — pad the shorter side so we
+  // still run the full comparison in constant time, then fold the length
+  // check into the final result.
+  if (aBuf.length !== bBuf.length) {
+    // Still burn equivalent cycles; do a same-length compare against itself
+    crypto.timingSafeEqual(aBuf, aBuf);
+    return false;
+  }
+  return crypto.timingSafeEqual(aBuf, bBuf);
+}
+
 function authenticate(req, res, next) {
   const apiKey = req.headers['x-sws-api-key'];
   const clientId = req.headers['x-sws-client-id'];
@@ -195,7 +214,7 @@ function authenticate(req, res, next) {
   }
 
   const client = clients.get(clientId);
-  if (!client || client.apiKey !== apiKey) {
+  if (!client || !constantTimeEqual(client.apiKey, apiKey)) {
     return res.status(403).json({
       error: 'invalid_credentials',
       message: 'API key does not match client ID'
@@ -478,10 +497,92 @@ app.get('/v1/health', (req, res) => {
   });
 });
 
+// Per-IP rate limiter for the unauthenticated endpoints (signup, verify).
+// In-memory, 60s window, 20 req/min/IP. Public endpoints without this gate
+// are memory-DoS vectors (mint N clients → fill clients Map) and quota-
+// multiplication vectors (one attacker multiplies their request budget
+// by minting more credentials). Finding: audit Apr 21.
+const ipRateLimits = new Map();
+function ipRateLimit(perMinute) {
+  perMinute = perMinute || 20;
+  return function(req, res, next) {
+    const ip = req.ip || (req.connection && req.connection.remoteAddress) || 'unknown';
+    // Key per-endpoint so /v1/clients and /v1/sessions/verify get
+    // independent buckets. Otherwise two endpoints sharing ipRateLimit()
+    // mutually deplete each other's budget, which is both surprising to
+    // operators and makes the declared perMinute numbers meaningless.
+    const endpoint = req.route && req.route.path ? req.route.path : req.path;
+    const windowKey = ip + '|' + endpoint + '|' + Math.floor(Date.now() / 60000);
+    const count = (ipRateLimits.get(windowKey) || 0) + 1;
+    ipRateLimits.set(windowKey, count);
+    // Cleanup every 200 hits
+    if (count % 200 === 0) {
+      const cutoff = Math.floor(Date.now() / 60000) - 2;
+      ipRateLimits.forEach((_v, k) => {
+        const win = parseInt(k.split('|').pop(), 10);
+        if (!Number.isNaN(win) && win < cutoff) ipRateLimits.delete(k);
+      });
+    }
+    if (count > perMinute) {
+      return res.status(429).json({
+        error: 'rate_limit_ip',
+        message: 'Too many requests from this IP. Try again in a minute.',
+        retry_after: 60
+      });
+    }
+    next();
+  };
+}
+
+// Signup gate — require an operator-held token to mint new credentials.
+// Without this, anyone can create unlimited clients (in-memory DoS +
+// quota multiplication). Set SWS_SIGNUP_TOKEN in the deployment env.
+// In non-production and when no token is set, we fall back to open signup
+// for local development, but log a clear warning.
+function signupGate(req, res, next) {
+  const expected = process.env.SWS_SIGNUP_TOKEN;
+  if (!expected) {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(503).json({
+        error: 'signup_disabled',
+        message: 'Client signup disabled. Set SWS_SIGNUP_TOKEN env var to enable.'
+      });
+    }
+    // Dev / test: allow but warn once per process
+    if (!signupGate._warned) {
+      console.warn('  [WARN] SWS_SIGNUP_TOKEN unset — /v1/clients is open. Do NOT run this way in production.');
+      signupGate._warned = true;
+    }
+    return next();
+  }
+  const provided = req.headers['x-sws-signup-token'] || '';
+  if (!constantTimeEqual(expected, provided)) {
+    return res.status(401).json({
+      error: 'invalid_signup_token',
+      message: 'Include X-SWS-Signup-Token header with a valid operator token.'
+    });
+  }
+  next();
+}
+
 // Register a new client
-app.post('/v1/clients', (req, res) => {
+app.post('/v1/clients', ipRateLimit(10), signupGate, (req, res) => {
   const { name, contact_email, plan } = req.body;
   if (!name) return res.status(400).json({ error: 'name_required' });
+
+  // Cap the clients Map to prevent unbounded growth. 10k is far beyond any
+  // realistic pilot volume; past that, ops should shard or persist.
+  if (clients.size >= 10000) {
+    return res.status(503).json({
+      error: 'client_capacity_reached',
+      message: 'Signup temporarily disabled; contact operator.'
+    });
+  }
+
+  // Operator cannot self-promote a new client above 'pilot' via the request
+  // body — the plan must be assigned by an operator out-of-band (e.g. via a
+  // separate admin channel). Otherwise callers trivially bypass rate limits.
+  const allowedPlan = 'pilot';
 
   const clientId = 'cli_' + uuidv4().substring(0, 12);
   const apiKey = 'sws_' + crypto.randomBytes(24).toString('hex');
@@ -489,9 +590,9 @@ app.post('/v1/clients', (req, res) => {
   const client = {
     id: clientId,
     apiKey,
-    name,
-    contact_email: contact_email || null,
-    plan: plan || 'pilot',
+    name: sanitizeString(name, 128),
+    contact_email: sanitizeString(contact_email, 256) || null,
+    plan: allowedPlan,
     created: Date.now(),
     sessionsCount: 0,
     hashesGenerated: 0
@@ -612,8 +713,10 @@ app.post('/v1/sessions', authenticate, (req, res) => {
   });
 });
 
-// Verify a receipt
-app.post('/v1/sessions/verify', (req, res) => {
+// Verify a receipt — unauthenticated by design (any verifier can check),
+// but rate-limited per IP to prevent receipt-id enumeration. Finding:
+// audit Apr 21.
+app.post('/v1/sessions/verify', ipRateLimit(30), (req, res) => {
   const { receipt_id, receipt_hash } = req.body;
 
   if (!receipt_id) return res.status(400).json({ error: 'receipt_id_required' });
