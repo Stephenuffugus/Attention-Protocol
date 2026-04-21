@@ -18,7 +18,7 @@ Companion docs in this repo:
 - ✅ First real human receipt in the cloud: `7d780c38c65d878005d35cf659136d8da6efb6033451cacd9704187a23e26e3c`
 - ✅ Three real Puppeteer bot receipts for adversarial comparison
 - ✅ SHA-256 display bug fixed (was showing session ID), deployed live
-- ✅ YC draft numerically honest (15 behavioral + 2 LLM-integrity signals live; 3 behavioral in research; 652 tests)
+- ✅ YC draft numerically honest (15 behavioral + 2 LLM-integrity signals live; 3 behavioral in research; 695 tests)
 - ✅ Puppeteer bot harness: `proof/run-bot-vs-human.js`
 - ✅ Commits `c938d19` + `3ed7d8b` pushed to main
 - ✅ `YC_FOUNDER_BRIEF.md` interview cheat sheet
@@ -182,7 +182,7 @@ Memorize the shape of your answer to each (from YC_FOUNDER_BRIEF.md §7):
 | Asset | Status | Notes |
 |---|---|---|
 | Patent | ✅ | USPTO 2026-03-17, serial # to add |
-| SDK | ✅ | 652 tests (33 suites), 15 behavioral + 2 LLM-integrity signals live, 3 behavioral in research |
+| SDK | ✅ | 695 tests (34 suites), 15 behavioral + 2 LLM-integrity signals live, 3 behavioral in research |
 | Live proof site | ✅ | sws-attention-proofs.web.app — 9 public pages including verify.html + prove-humanness.html |
 | Real human receipts | ⚠ | N=1 (Stephen 0.573, Bitcoin pending), target 6+ by submit |
 | Real bot receipts | ✅ | N=3 |
@@ -223,7 +223,7 @@ Run through this before hitting the submit button:
 
 ## 12. One-line grounding
 
-You have a patented, working, live, privacy-preserving cryptographic attention-attestation protocol with Ed25519-signed and Bitcoin-anchored receipts, a 652-test SDK (33 suites), a seven-layer attestation stack, two wedges (pharma compliance + proof of humanness), and a founder who knows his gaps. The signed, Bitcoin-anchored, LLM-integrity-aware classifier that actually separates humans from bots is shipped and live — what's left is outreach, corpus, and the 90-sec CME video. **Tell the truth with precision.** That is the whole game.
+You have a patented, working, live, privacy-preserving cryptographic attention-attestation protocol with Ed25519-signed and Bitcoin-anchored receipts, a 695-test SDK (34 suites), a seven-layer attestation stack, two wedges (pharma compliance + proof of humanness), and a founder who knows his gaps. The signed, Bitcoin-anchored, LLM-integrity-aware classifier that actually separates humans from bots is shipped and live — what's left is outreach, corpus, and the 90-sec CME video. **Tell the truth with precision.** That is the whole game.
 
 ---
 

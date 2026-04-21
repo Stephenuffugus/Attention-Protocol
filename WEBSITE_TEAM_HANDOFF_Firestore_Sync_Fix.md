@@ -4,7 +4,26 @@
 ## Fix: Attention Hashes Not Reaching Firestore
 ## Priority: IMMEDIATE
 ## From: Stephen Furpahs, Director
-## Date: March 20, 2026
+## Date: March 20, 2026 · Status refreshed 2026-04-21
+
+---
+
+## CURRENT STATUS (refreshed 2026-04-21)
+
+**The SWS-side fix is already built and committed.** A drop-in module is in the repo at:
+
+- `src/sdk/firestore-sync-fix.js` — the exact authentication + sync logic this handoff describes, wrapped as a single paste-ready IIFE
+- `src/sdk/firestore.rules` — the Firestore security rules referenced in Step 4 below
+
+Nothing further on the engineering side is required. The remaining blockers are all in the hosting / Firebase-console layer:
+
+1. **Enable Anonymous Authentication in the Firebase Console** for project `focus-grove-fffa8` — Step 1 of "THE FIX" below. (2 min.)
+2. **Apply the security rules from `src/sdk/firestore.rules`** to the Firestore console. (5 min.)
+3. **Deploy `src/sdk/firestore-sync-fix.js`** to stevieweedseed.com via Hostinger — include it after the Firebase SDK and after the existing attention-hash code. (15 min.)
+
+Until those three are done, visitor hashes will continue to land in `localStorage` with `synced: false` and the `vaults/` Firestore collection will stay empty. Once they're done, the first authenticated session on any page will back-sync every unsynced hash the visitor has accumulated.
+
+**Why this still matters in April:** this is upstream of the "real user corpus N≥6" milestone needed for the YC submission. The receipts we'd show to any pilot buyer live in this collection.
 
 ---
 
