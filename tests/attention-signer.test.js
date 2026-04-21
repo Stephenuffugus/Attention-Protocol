@@ -250,7 +250,10 @@ describe('attention-signer — VC integration', () => {
     const kp = await signer.generateKeypair({ kid: 'vc-integration' });
     const s = await signer.createSigner(kp.privateKeyHex, { kid: 'vc-integration' });
 
-    const cred = VC.fromReceipt(sampleReceipt());
+    // Fixture's generated_at is a fixed historical date (golden vector).
+    // Default 24h expiry becomes a time-bomb once real clock passes it.
+    // Override to 10y so the signature-roundtrip assertion stays stable.
+    const cred = VC.fromReceipt(sampleReceipt(), { validUntilMs: 10 * 365 * 24 * 60 * 60 * 1000 });
     const jwt = await VC.toSignedJwt(cred, s);
 
     expect(typeof jwt).toBe('string');
