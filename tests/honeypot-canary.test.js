@@ -265,3 +265,72 @@ describe('honeypot — receipt + VC integration', () => {
     expect(v.payload.vc.credentialSubject.honeypotCanary.tripped).toBe(false);
   });
 });
+
+// ============================================================
+// SECURITY — opts.word XSS guard (audit Apr 21)
+// ============================================================
+
+describe('honeypot — opts.word sanitization', () => {
+  test('accepts valid lowercase-alphanumeric-hyphen words', () => {
+    expect(() => H.newCanary({ word: 'quartzite' })).not.toThrow();
+    expect(() => H.newCanary({ word: 'my-custom-token' })).not.toThrow();
+    expect(() => H.newCanary({ word: 'abc123' })).not.toThrow();
+  });
+
+  test('uppercase letters get lowercased, not rejected', () => {
+    const c = H.newCanary({ word: 'MixedCase' });
+    expect(c.word).toBe('mixedcase');
+  });
+
+  test('neutralizes a script-tag injection attempt (strips tags)', () => {
+    // Sanitizer defense: strip every non-allowed char, so a hostile input
+    // that still contains some alphanumerics becomes a silly-but-safe word.
+    // The attack surface is eliminated (no <, >, /, ", =, etc. survive).
+    const c = H.newCanary({ word: '<script>alert(1)</script>' });
+    expect(c.word).not.toMatch(/[<>"'=/]/);
+    expect(c.word).toBe('scriptalert1script');
+  });
+
+  test('neutralizes an attribute-breaker payload into a plain token', () => {
+    const c = H.newCanary({ word: 'foo"onmouseover="x"' });
+    expect(c.word).not.toMatch(/["=]/);
+    expect(c.word).toBe('fooonmouseoverx');
+  });
+
+  test('rejects a word that reduces to empty after sanitization', () => {
+    expect(() => H.newCanary({ word: '<<<>>>' }))
+      .toThrow(/canary_word_invalid/);
+    expect(() => H.newCanary({ word: '!@#$%' }))
+      .toThrow(/canary_word_invalid/);
+  });
+
+  test('rejects a word shorter than 3 chars after sanitization', () => {
+    expect(() => H.newCanary({ word: 'ab' }))
+      .toThrow(/canary_word_invalid/);
+    expect(() => H.newCanary({ word: 'a-b' }))  // 3 chars ok after strip
+      .not.toThrow();
+  });
+
+  test('empty-string word falls through to random selection (not an override)', () => {
+    // opts.word = '' is falsy; behaves as "no override supplied" and picks
+    // a random curated word. Not a failure path — document the contract.
+    const c = H.newCanary({ word: '' });
+    expect(H.CANARY_WORDS).toContain(c.word);
+    expect(c.word.length).toBeGreaterThanOrEqual(3);
+  });
+
+  test('sanitized word does not leak HTML into injectHtml output', () => {
+    // Hostile input — must not produce any markup in the rendered HTML.
+    const c = H.newCanary({ word: 'x<img src=x onerror=alert(1)>' });
+    expect(c.word).not.toMatch(/[<>"'=]/);
+    // Build the full injection HTML and assert no active markup survives
+    const html = H.injectHtml(c.instruction);
+    expect(html).not.toMatch(/<script/i);
+    expect(html).not.toMatch(/<img\b/i);
+    expect(html).not.toMatch(/onerror=/i);
+    // And the legit path is unaffected
+    const clean = H.newCanary({ word: 'safeword' });
+    const cleanHtml = H.injectHtml(clean.instruction);
+    expect(cleanHtml).toContain('safeword');
+  });
+});

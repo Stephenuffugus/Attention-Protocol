@@ -191,3 +191,53 @@ describe('attention-tsa — receipt + VC integration', () => {
     expect(cred.credentialSubject.bitcoinAnchor.status).toBe('pending');
   });
 });
+
+// ============================================================
+// SECURITY — SSRF guard on opts.tsaUrl (audit Apr 21)
+// ============================================================
+
+describe('attention-tsa — SSRF guard on tsaUrl', () => {
+  const VALID_HASH = 'ab'.repeat(32);
+
+  test('rejects an arbitrary URL that is not in the PUBLIC_TSAS allowlist', async () => {
+    const r = await tsa.stamp(VALID_HASH, { tsaUrl: 'http://169.254.169.254/latest/meta-data/' });
+    expect(r.status).toBe('failed');
+    expect(r.error).toMatch(/tsa_url_not_in_allowlist/);
+  });
+
+  test('rejects an http://localhost tsaUrl without allowCustomTsa', async () => {
+    const r = await tsa.stamp(VALID_HASH, { tsaUrl: 'http://localhost:9999/tsa' });
+    expect(r.status).toBe('failed');
+    expect(r.error).toMatch(/tsa_url_not_in_allowlist/);
+  });
+
+  test('rejects an attacker-controlled public URL', async () => {
+    const r = await tsa.stamp(VALID_HASH, { tsaUrl: 'https://attacker.example.com/tsa' });
+    expect(r.status).toBe('failed');
+    expect(r.error).toMatch(/tsa_url_not_in_allowlist/);
+  });
+
+  test('every URL in PUBLIC_TSAS passes the allowlist check (never allowlist-failed)', async () => {
+    // Short timeout; we only care that the outcome is NOT an allowlist rejection.
+    // Actual result depends on network — a live TSA may return 'signed', offline/
+    // timeout ones will return 'failed' with a network-ish error. Either is fine.
+    for (const url of Object.values(tsa.PUBLIC_TSAS)) {
+      const r = await tsa.stamp(VALID_HASH, { tsaUrl: url, timeoutMs: 250 });
+      if (r.status === 'failed') {
+        expect(r.error).not.toMatch(/tsa_url_not_in_allowlist/);
+      } else {
+        expect(['signed', 'failed']).toContain(r.status);
+      }
+    }
+  }, 30000);
+
+  test('allowCustomTsa: true bypasses the allowlist (falls through to network, not allowlist failure)', async () => {
+    const r = await tsa.stamp(VALID_HASH, {
+      tsaUrl: 'http://127.0.0.1:1/tsa',
+      allowCustomTsa: true,
+      timeoutMs: 250
+    });
+    expect(r.status).toBe('failed');
+    expect(r.error).not.toMatch(/tsa_url_not_in_allowlist/);
+  });
+});

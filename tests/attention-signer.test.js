@@ -313,3 +313,50 @@ describe('attention-signer — loadSignerFromEnv', () => {
     expect(result.valid).toBe(true);
   });
 });
+
+// ============================================================
+// SECURITY — opts.ignoreExp for legitimate replay/audit (audit Apr 21)
+// ============================================================
+
+describe('verifyJwt — opts.ignoreExp', () => {
+  async function buildExpiredJwt() {
+    const kp = await signer.generateKeypair({ kid: 'exp-test' });
+    const s = await signer.createSigner(kp.privateKeyHex, { kid: 'exp-test' });
+    // exp = 1 hour in the past (well beyond the 300s skew tolerance)
+    const pastExp = Math.floor(Date.now() / 1000) - 3600;
+    const jwt = await signer.signJwt({ sub: 'replay-audit', exp: pastExp }, s);
+    return { jwt, kp };
+  }
+
+  test('expired JWT is rejected by default', async () => {
+    const { jwt, kp } = await buildExpiredJwt();
+    const r = await signer.verifyJwt(jwt, kp.publicKeyJwk);
+    expect(r.valid).toBe(false);
+    expect(r.error).toBe('token_expired');
+  });
+
+  test('expired JWT passes when opts.ignoreExp is true AND signature is valid', async () => {
+    const { jwt, kp } = await buildExpiredJwt();
+    const r = await signer.verifyJwt(jwt, kp.publicKeyJwk, { ignoreExp: true });
+    expect(r.valid).toBe(true);
+    expect(r.payload.sub).toBe('replay-audit');
+  });
+
+  test('opts.ignoreExp does NOT bypass signature verification', async () => {
+    const { jwt } = await buildExpiredJwt();
+    // Sign with one keypair, verify with a different public key — signature must still fail
+    const otherKp = await signer.generateKeypair({ kid: 'other' });
+    const r = await signer.verifyJwt(jwt, otherKp.publicKeyJwk, { ignoreExp: true });
+    expect(r.valid).toBe(false);
+    expect(r.error).toBe('signature_invalid');
+  });
+
+  test('opts.ignoreExp is a no-op for unexpired tokens', async () => {
+    const kp = await signer.generateKeypair({ kid: 'fresh' });
+    const s = await signer.createSigner(kp.privateKeyHex, { kid: 'fresh' });
+    const futureExp = Math.floor(Date.now() / 1000) + 3600;
+    const jwt = await signer.signJwt({ sub: 'fresh', exp: futureExp }, s);
+    const r = await signer.verifyJwt(jwt, kp.publicKeyJwk, { ignoreExp: true });
+    expect(r.valid).toBe(true);
+  });
+});

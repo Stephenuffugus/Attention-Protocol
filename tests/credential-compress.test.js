@@ -156,3 +156,53 @@ describe('credential-compress — parseCredentialUrl', () => {
       .rejects.toThrow(/requires_string/);
   });
 });
+
+// ============================================================
+// SECURITY — zip-bomb guard on decompress() (audit Apr 21)
+// ============================================================
+
+describe('credential-compress — zip-bomb guard', () => {
+  const zlib = require('zlib');
+
+  function b64url(buf) {
+    return Buffer.from(buf).toString('base64')
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  test('rejects a compressed payload whose inflated output exceeds the default 256 KB cap', async () => {
+    // Build a ~2 MB string of zeros — DEFLATE collapses it to a few hundred bytes.
+    const bigPlain = Buffer.alloc(2 * 1024 * 1024, 0);
+    const bomb = zlib.deflateRawSync(bigPlain, { level: 9 });
+    const b64 = b64url(bomb);
+    // Sanity: confirm the bomb is actually small on the wire
+    expect(b64.length).toBeLessThan(65536);
+    await expect(c.decompress(b64)).rejects.toThrow();
+  });
+
+  test('honors a caller-supplied maxOutputBytes bound', async () => {
+    // 16 KB input is well under the default cap but over this bound
+    const plain = Buffer.alloc(16 * 1024, 'x');
+    const payload = zlib.deflateRawSync(plain, { level: 9 });
+    const b64 = b64url(payload);
+    await expect(c.decompress(b64, { maxOutputBytes: 8192 })).rejects.toThrow();
+  });
+
+  test('accepts input within the bound (round-trip still works)', async () => {
+    const plain = 'ok-' + 'a'.repeat(4000);
+    const compressed = await c.compress(plain);
+    const round = await c.decompress(compressed, { maxOutputBytes: 16384 });
+    expect(round).toBe(plain);
+  });
+
+  test('rejects a compressed input larger than 65536 chars on its face', async () => {
+    // Not even attempting inflation — oversized base64url blob is hostile.
+    const huge = 'A'.repeat(70000);
+    await expect(c.decompress(huge)).rejects.toThrow(/compressed_input_too_large/);
+  });
+
+  test('rejects empty / non-string input', async () => {
+    await expect(c.decompress('')).rejects.toThrow(/requires_nonempty_string/);
+    await expect(c.decompress(null)).rejects.toThrow(/requires_nonempty_string/);
+    await expect(c.decompress(undefined)).rejects.toThrow(/requires_nonempty_string/);
+  });
+});
