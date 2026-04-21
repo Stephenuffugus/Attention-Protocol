@@ -18,18 +18,24 @@ Companion docs in this repo:
 - ✅ First real human receipt in the cloud: `7d780c38c65d878005d35cf659136d8da6efb6033451cacd9704187a23e26e3c`
 - ✅ Three real Puppeteer bot receipts for adversarial comparison
 - ✅ SHA-256 display bug fixed (was showing session ID), deployed live
-- ✅ YC draft numerically honest (15 production + 5 roadmap signals; 437 tests)
+- ✅ YC draft numerically honest (15 behavioral + 2 LLM-integrity signals live; 3 behavioral in research; 652 tests)
 - ✅ Puppeteer bot harness: `proof/run-bot-vs-human.js`
 - ✅ Commits `c938d19` + `3ed7d8b` pushed to main
 - ✅ `YC_FOUNDER_BRIEF.md` interview cheat sheet
 
 **Known weaknesses (documented honestly):**
-- ❌ Bot-vs-human composite gap only ~0.09 under current calibration (not a reliable classifier)
-- ❌ Receipts hashed but NOT digitally signed (JWT `alg=none`)
-- ❌ No hash chain (each receipt independent)
+- ❌ Bot-vs-human composite gap only ~0.09 under current calibration (so pitch the *receipt*, not the classifier — the layered environmental+composition-integrity+honeypot signals carry the "is it a bot/LLM" case separately)
+- ❌ No hash chain (each receipt independent — Merkle batching scaffolded but per-receipt signing is the primary integrity guarantee)
 - ❌ No 90-sec CME demo video
 - ❌ Real corpus = N=1 (you)
 - ❌ Zero paid pilots
+
+**Weaknesses previously listed that are now resolved:**
+- ✅ Ed25519 digital signatures (`alg=EdDSA`, public JWKS) — shipped 2026-04-21
+- ✅ OpenTimestamps Bitcoin anchoring + RFC 3161 TSA — shipped 2026-04-21
+- ✅ Signal 21 (Composition Integrity, LLM-cheating) + Signal 22 (Honeypot Canary) — shipped 2026-04-21
+- ✅ Consent attestation (GDPR Art. 7 / CCPA §1798.120) wired into the receipt — shipped 2026-04-21
+- ✅ Browser-side full verifier (verify.html), Proof of Humanness wedge (prove-humanness.html), 21 CFR Part 11 page (part-11.html), xAPI + OpenBadges 3.0 — shipped 2026-04-21
 
 ---
 
@@ -176,16 +182,26 @@ Memorize the shape of your answer to each (from YC_FOUNDER_BRIEF.md §7):
 | Asset | Status | Notes |
 |---|---|---|
 | Patent | ✅ | USPTO 2026-03-17, serial # to add |
-| SDK with 437 tests | ✅ | 15 signals production |
-| Live proof site | ✅ | sws-attention-proofs.web.app |
-| Real human receipts | ⚠ | N=1, target 6+ by submit |
+| SDK | ✅ | 652 tests (33 suites), 15 behavioral + 2 LLM-integrity signals live, 3 behavioral in research |
+| Live proof site | ✅ | sws-attention-proofs.web.app — 9 public pages including verify.html + prove-humanness.html |
+| Real human receipts | ⚠ | N=1 (Stephen 0.573, Bitcoin pending), target 6+ by submit |
 | Real bot receipts | ✅ | N=3 |
 | CME demo video | ❌ | Record Day 4 |
 | Letters of interest | ❌ | Worth trying for 1 pharma CME provider this week |
-| Digital signatures | ❌ | Track A Day 1 fixes this |
+| Ed25519 digital signatures | ✅ | Live, JWKS public |
+| OpenTimestamps Bitcoin anchor | ✅ | Live, Stephen's receipt pending confirmation |
+| RFC 3161 TSA (pharma alternative) | ✅ | Live, DigiCert/Sectigo compatible |
+| Composition Integrity (Signal 21) | ✅ | LLM-cheating detector, arxiv-backed |
+| Honeypot Canary (Signal 22) | ✅ | Invisible prompt-injection LLM trap |
+| Consent attestation | ✅ | GDPR/CCPA wired into receipt |
+| xAPI 1.0.3 adapter | ✅ | Moodle/Canvas/Articulate/D2L |
+| OpenBadges 3.0 issuer | ✅ | LinkedIn-portable |
+| 21 CFR Part 11 mapping page | ✅ | /part-11.html |
+| Evidence kit + cold-email playbook | ✅ | dist/evidence-kit.zip + docs/cold-email-templates.md |
+| QR-compressible humanness credential | ✅ | /prove-humanness.html#cz= |
 | Hash chain | ❌ | 30-day roadmap |
-| xAPI / OpenBadges / LTI | ❌ | 30-day roadmap |
-| `api.swsprotocol.com` | ❌ | 30-day roadmap |
+| `api.swsprotocol.com` | ❌ | Blocked on GCP billing for Cloud Run |
+| Firebase Functions (live-demo signing) | ⚠ | Scaffold ready, blocked on Blaze activation |
 | Lucid Wins game | ❌ | Do not mention |
 
 ---
@@ -207,7 +223,7 @@ Run through this before hitting the submit button:
 
 ## 12. One-line grounding
 
-You have a patented, working, live, privacy-preserving cryptographic attention-attestation protocol with real receipts in the cloud, a 437-test SDK, a coherent wedge, a founder who knows his gaps, and — if you execute Track A tomorrow — a signed, Bitcoin-anchored, LLM-integrity-aware classifier that actually separates humans from bots. **Tell the truth with precision.** That is the whole game.
+You have a patented, working, live, privacy-preserving cryptographic attention-attestation protocol with Ed25519-signed and Bitcoin-anchored receipts, a 652-test SDK (33 suites), a seven-layer attestation stack, two wedges (pharma compliance + proof of humanness), and a founder who knows his gaps. The signed, Bitcoin-anchored, LLM-integrity-aware classifier that actually separates humans from bots is shipped and live — what's left is outreach, corpus, and the 90-sec CME video. **Tell the truth with precision.** That is the whole game.
 
 ---
 

@@ -53,7 +53,7 @@
 
 ### What is your company going to make? Please describe your product and what it does or will do.
 
-We generate SHA-256 cryptographic attention receipts that prove a real human was actually paying attention to a screen, not a bot, not a distracted scroller, not a click-farmer. Every receipt is a 9-field payload hashed with behavioral signals: timing entropy, Fitts' Law curvature, scroll saccade pauses, micro-pause distribution, touch variance, and Hick's Law reaction curves — part of a 15-signal production library (with 5 additional signals in active development) that collapses into a single human-confidence score and a quality tier (Deep Focus, Active, Passive, Background).
+We generate cryptographic attention receipts — Ed25519-signed, optionally Bitcoin-anchored — that prove a real human was actually paying attention to a screen, not a bot, not a distracted scroller, not a click-farmer, not an LLM. Every receipt is a W3C Verifiable Credential with a 15-signal behavioral human-confidence score (timing entropy, Fitts' Law, Hick's Law, scroll saccade, micro-pause, touch variance, keystroke rhythm, and more) plus a separate LLM-integrity verdict (paste-burst detection, invisible honeypot canary) and an environmental bot-gate (FingerprintJS BotD). Signals collapse into one human-confidence score and one quality tier (Deep Focus, Active, Passive, Background); the receipt lets any buyer verify everything offline with only our public key.
 
 The receipts are tamper-evident, privacy-preserving (no PII — just behavioral shape), and work on web and mobile. Architecturally designed to be SCIF-eligible — no content data is stored, only behavioral metrics.
 
@@ -102,12 +102,13 @@ Far enough to show you what we built, not far enough to show you revenue yet.
 
 **Shipped:**
 - Provisional patent filed at USPTO on March 17, 2026 (serial # `[FILL — input #5]`), 29 pages, 247 innovations across 24 categories, $65 micro-entity fee paid, 12-month utility conversion deadline March 17, 2027
-- Production SDK: 22 modules, 437 automated tests passing (100%), runs in ~4.7 minutes (verified 2026-04-19)
+- Production SDK: ~30 modules, **652 automated tests passing (100%)** across 33 suites, runs in ~4.4 minutes (verified 2026-04-21)
 - Live site generating real attention hashes: stevieweedseed.com (Firebase project `focus-grove-fffa8`)
-- Public proof gallery covering 9 verticals, with dual-tracked SWS vs. GA4 comparisons: **https://sws-attention-proofs.web.app**
-- Behavioral human-confidence scoring library: 15 production-validated signals (timing entropy, Fitts, Hick, scroll saccade, micro-pause, touch variance, keystroke rhythm, cross-signal correlation, two-thirds power law, and more) + 5 emergent signals in active development, with strong separation between human and bot patterns in our simulations
-- Printable compliance report for lawyers and regulators
-- W3C VC-structured receipts + differential privacy + WebAuthn device binding modules *(cryptographic signing on the roadmap)*
+- Public proof gallery covering 9 verticals, with dual-tracked SWS vs. GA4 comparisons, plus nine live public pages including a browser-side full-receipt verifier and a 3-minute proof-of-humanness credential issuer: **https://sws-attention-proofs.web.app**
+- **Seven-layer attestation stack, all live:** (1) environmental bot-detection gate via FingerprintJS BotD, (2) 15-signal behavioral composite (timing entropy, Fitts, Hick, scroll saccade, micro-pause, touch variance, keystroke rhythm, cross-signal correlation, two-thirds power law, and more), (3a) Composition Integrity — paste-burst and keystroke-cadence LLM-cheating detection (Signal 21), (3b) Honeypot Canary — invisible prompt-injection token that trips LLM-assisted sessions (Signal 22), (4) Consent attestation (GDPR Art. 7 / CCPA §1798.120), (5) Ed25519 (EdDSA) cryptographic signature with public JWKS at /.well-known/attention-pubkey.json, (6a) OpenTimestamps Bitcoin anchoring for maximum tamper-resistance, (6b) RFC 3161 Timestamp Authority (DigiCert/Sectigo/GlobalSign compatible) as a pharma-regulator-familiar alternative to Bitcoin
+- Enterprise-ready integrations: W3C Verifiable Credentials (VC Data Model 2.0), OpenBadges 3.0 issuer (LinkedIn-portable), xAPI 1.0.3 adapter (Moodle / Canvas / Articulate / D2L), compressed humanness credential URLs that fit in a standard QR code
+- 21 CFR Part 11 clause-by-clause mapping page and evidence-kit ZIP for pharma procurement qualification without a meeting
+- Printable compliance report, differential privacy, and WebAuthn device binding modules
 - One-tag embed (`<script src="...">`) that any site can drop on any page in 10 minutes
 - Trade secret catalog secured; specific calibration values deliberately kept out of the patent
 
@@ -154,7 +155,7 @@ No revenue yet. Business model when we turn it on:
 
 I'm applying to YC as a solo founder with a filed patent, a working artifact, and a narrow window. The honest frame: I am in a hard place financially and physically, and I'm building anyway. The protocol is real, the code runs, the patent is filed, and the outreach is happening whether YC funds it or not. YC accelerates this by 12-18 months; it does not make the difference between shipping and not shipping.
 
-The one asset nobody else in this space has is the combination of a granted filing date (March 17, 2026) across 247 innovations, a production hash pipeline writing real attention receipts into a cloud datastore right now, and a 15-signal behavioral library (with 5 more signals in active development) validated across 437 automated tests. Roundtable (YC S24) solved a narrower problem (proof-of-human) and solved it well; we extend that surface into *quality of attention*, not just authenticity, and we do it with cryptographic attention receipts that work in SCIF-eligible environments where Roundtable cannot operate.
+The one asset nobody else in this space has is the combination of a granted filing date (March 17, 2026) across 247 innovations, a production hash pipeline writing real attention receipts into a cloud datastore right now, and a seven-layer attestation stack — behavioral, environmental, composition-integrity, honeypot, consent, Ed25519-signature, and Bitcoin/RFC-3161-timestamp — validated across 652 automated tests (33 suites). Roundtable (YC S24) solved a narrower problem (proof-of-human) and solved it well; we extend that surface into *quality of attention plus an auditable cryptographic receipt*, and we do it in a form where any regulator, buyer, or verifier can check the receipt offline, in a browser, with only our public key — the property that makes us qualifiable for pharma 21 CFR Part 11 audits and for SCIF-eligible environments where Roundtable cannot operate.
 
 If you want me to be in the batch, I will be in the batch. If not, I will ship the first pilot this summer anyway.
 
@@ -259,7 +260,7 @@ Record this LAST, after the written application is locked. Unlisted YouTube uplo
 >
 > Everybody in analytics measures what *happened*. Nobody measures whether a human was actually *there*. That gap is where ad fraud lives, where compliance fails, where corporate training can't prove anyone learned anything, and where a nursing home can't prove someone is actually watching a resident.
 >
-> We use a 15-signal behavioral library — including timing entropy, Fitts' Law, scroll saccade, micro-pause, touch variance, Hick's Law, keystroke rhythm, and cross-signal correlation — to produce a single human-confidence score and a quality tier, and we wrap that in a SHA-256 attention receipt that works in a market research panel, an insurance audit, or a SCIF-eligible environment. Five additional signals are in active development.
+> We use a 15-signal behavioral library — timing entropy, Fitts' Law, scroll saccade, micro-pause, touch variance, Hick's Law, keystroke rhythm, cross-signal correlation — to produce a single human-confidence score and a quality tier, and we wrap that in an Ed25519-signed, optionally-Bitcoin-anchored attention receipt (W3C Verifiable Credential format) that works in a market research panel, an insurance audit, a 21 CFR Part 11-regulated pharma training module, or a SCIF-eligible environment. Two additional LLM-integrity signals (Composition Integrity + Honeypot Canary) and an environmental bot-gate ride alongside the behavioral composite; three further behavioral signals are in research.
 >
 > The patent was filed at the USPTO March 17, 2026 across 247 innovations. The protocol is live on a production site generating hashes right now. The code runs. The tests pass.
 >
