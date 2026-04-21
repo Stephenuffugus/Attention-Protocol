@@ -200,16 +200,26 @@ function renderLayers(cs) {
   if (cs.humanVerification) {
     const hv = cs.humanVerification;
     const score = typeof hv.compositeScore === 'number' ? hv.compositeScore : null;
-    const tier = cs.engagement && cs.engagement.qualityTier;
-    const status = score === null ? { cls: 'dim', label: 'no score' }
-                    : score >= 0.6 ? { cls: 'ok', label: tier || 'active' }
-                    : score >= 0.4 ? { cls: 'warn', label: tier || 'shallow' }
+    const finalScore = typeof hv.compositeScoreFinal === 'number' ? hv.compositeScoreFinal : null;
+    const hasFinal = finalScore !== null && Math.abs(finalScore - (score || 0)) > 0.001;
+    const tier = (hv.qualityTierFinal) || (cs.engagement && cs.engagement.qualityTier);
+    const displayScore = finalScore !== null ? finalScore : score;
+    const status = displayScore === null ? { cls: 'dim', label: 'no score' }
+                    : displayScore >= 0.6 ? { cls: 'ok', label: tier || 'active' }
+                    : displayScore >= 0.4 ? { cls: 'warn', label: tier || 'shallow' }
                     : { cls: 'bad', label: tier || 'low' };
-    grid.appendChild(layerCard('2. Behavioral composite', status, [
-      ['Composite', score === null ? '—' : score.toFixed(3), { code: true }],
-      ['Verdict', hv.verdict || '—'],
-      ['Duration', (cs.engagement && cs.engagement.durationFormatted) || '—']
-    ]));
+    const rows = [
+      ['Composite (behavioral)', score === null ? '—' : score.toFixed(3), { code: true }]
+    ];
+    if (finalScore !== null) {
+      rows.push(['Composite (gated)', finalScore.toFixed(3) + (hasFinal ? ' ↓' : ''), { code: true }]);
+    }
+    rows.push(['Verdict', hv.verdict || '—']);
+    rows.push(['Duration', (cs.engagement && cs.engagement.durationFormatted) || '—']);
+    if (Array.isArray(hv.gatesApplied) && hv.gatesApplied.length > 0) {
+      rows.push(['Gates applied', hv.gatesApplied.map(g => g.layer + ':' + g.reason.split(':')[0]).join(', ')]);
+    }
+    grid.appendChild(layerCard('2. Behavioral composite', status, rows));
   }
 
   // 3. Composition integrity
@@ -221,10 +231,23 @@ function renderLayers(cs) {
                     : v === 'mechanical' ? { cls: 'bad', label: 'mechanical' }
                     : v === 'suspicious' ? { cls: 'warn', label: 'suspicious' }
                     : { cls: 'dim', label: v || 'unknown' };
-    grid.appendChild(layerCard('3. Composition integrity', status, [
+    grid.appendChild(layerCard('3a. Composition integrity', status, [
       ['Score', ci.score !== null && ci.score !== undefined ? ci.score.toFixed(2) : '—', { code: true }],
       ['Paste bursts', ci.pasteBurstCount || 0],
       ['Chars observed', ci.charsObserved || 0]
+    ]));
+  }
+
+  // 3b. Honeypot canary (invisible LLM-assistance trap)
+  if (cs.honeypotCanary) {
+    const h = cs.honeypotCanary;
+    const status = h.tripped
+                    ? { cls: 'bad', label: 'CANARY TRIPPED' }
+                    : { cls: 'ok', label: 'clean' };
+    grid.appendChild(layerCard('3b. Honeypot canary', status, [
+      ['Verdict', h.verdict || '—'],
+      ['Strategies', Array.isArray(h.strategiesUsed) ? h.strategiesUsed.join(', ') : '—', { code: true }],
+      ['Detector', h.detector || '—', { code: true }]
     ]));
   }
 
@@ -246,17 +269,30 @@ function renderLayers(cs) {
     ['Issuer', cs.issuer && cs.issuer.id ? cs.issuer.id : '—', { code: true }]
   ]));
 
-  // 6. OpenTimestamps
+  // 6a. OpenTimestamps Bitcoin anchor
   if (cs.bitcoinAnchor) {
     const b = cs.bitcoinAnchor;
     const status = b.status === 'bitcoin_confirmed'
                     ? { cls: 'ok', label: 'BTC block #' + b.bitcoinBlockHeight }
                     : b.status === 'pending' ? { cls: 'warn', label: 'pending Bitcoin confirm' }
                     : { cls: 'dim', label: b.status || 'unknown' };
-    grid.appendChild(layerCard('6. Bitcoin anchor (OTS)', status, [
+    grid.appendChild(layerCard('6a. Bitcoin anchor (OTS)', status, [
       ['Stamped at', b.stampedAt || '—'],
       ['Block time', b.bitcoinBlockTime || 'pending'],
       ['Proof size', b.proofB64 ? Math.round(b.proofB64.length * 0.75) + ' bytes' : '—']
+    ]));
+  }
+
+  // 6b. RFC 3161 TSA timestamp (regulator-familiar timestamp format)
+  if (cs.rfc3161Timestamp) {
+    const t = cs.rfc3161Timestamp;
+    const status = t.status === 'signed'
+                    ? { cls: 'ok', label: 'signed by ' + (t.tsaName || 'TSA') }
+                    : { cls: 'dim', label: t.status || 'unknown' };
+    grid.appendChild(layerCard('6b. RFC 3161 timestamp', status, [
+      ['TSA', t.tsaName || '—'],
+      ['Stamped at', t.stampedAt || t.genTime || '—'],
+      ['Policy OID', t.tsaPolicyOid || '—', { code: true }]
     ]));
   }
 

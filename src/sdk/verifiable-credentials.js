@@ -258,6 +258,49 @@
       };
     }
 
+    // Receipt-wide gated composite — layers the behavioral composite on
+    // top of the independent integrity layers (env / composition / honeypot)
+    // so the receipt self-describes the aggregate judgment in one number.
+    // The pure behavioral composite is preserved as `compositeScore`; the
+    // new `compositeScoreFinal` + `gatesApplied` provide defense-in-depth
+    // aggregation with full provenance for auditors.
+    try {
+      var rcMod = null;
+      if (typeof require === 'function') {
+        rcMod = require('./receipt-composite');
+      } else if (typeof window !== 'undefined' && window.SWSReceiptComposite) {
+        rcMod = window.SWSReceiptComposite;
+      }
+      if (rcMod && typeof rcMod.computeFinalComposite === 'function') {
+        var bc = (receipt.human_verification && typeof receipt.human_verification.composite_score === 'number')
+          ? receipt.human_verification.composite_score
+          : 0;
+        var hpInput = receipt.honeypot ? { tripped: !!receipt.honeypot.tripped } : null;
+        var ciInput = credential.credentialSubject.compositionIntegrity
+          ? { verdict: credential.credentialSubject.compositionIntegrity.verdict,
+              score: credential.credentialSubject.compositionIntegrity.score }
+          : null;
+        var envInput = credential.credentialSubject.environmental
+          ? { loaded: credential.credentialSubject.environmental.loaded,
+              bot: credential.credentialSubject.environmental.bot,
+              botKind: credential.credentialSubject.environmental.botKind }
+          : null;
+        var gated = rcMod.computeFinalComposite({
+          behavioralComposite: bc,
+          environmental: envInput,
+          compositionIntegrity: ciInput,
+          honeypot: hpInput
+        });
+        credential.credentialSubject.humanVerification.compositeScoreFinal = gated.finalComposite;
+        credential.credentialSubject.humanVerification.qualityTierFinal = gated.tierFinal;
+        credential.credentialSubject.humanVerification.gatesApplied = gated.gatesApplied;
+        credential.credentialSubject.humanVerification.compositeGateVersion = gated.version;
+      }
+    } catch (_e) {
+      // Fail-silent: gated composite is additive; its absence never breaks
+      // a receipt. Existing compositeScore remains the canonical legacy field.
+    }
+
     return credential;
   }
 

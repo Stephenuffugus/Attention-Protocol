@@ -416,6 +416,34 @@ function persistSignedReceipts(signed) {
     ciFlagged.forEach(([k, r]) => {
       console.log(`  ${profiles[k].name.padEnd(20)} → ${r.composition_integrity.composition_verdict} (score ${r.composition_integrity.composition_integrity_score !== null ? r.composition_integrity.composition_integrity_score.toFixed(2) : 'n/a'})`);
     });
+
+    // Receipt-wide gated composite: behavioral + env + composition + honeypot → min-cap
+    const receiptComposite = require('../src/sdk/receipt-composite');
+    console.log('\n━━━ RECEIPT-WIDE COMPOSITE (GATED) ━━━');
+    console.log('Behavioral composite alone → single number. Gated composite → min-cap against independent layers.');
+    let gatedMin = 1.0;
+    let gatedMax = 0.0;
+    Object.entries(results).forEach(([k, r]) => {
+      if (!r) return;
+      const gated = receiptComposite.computeFinalComposite({
+        behavioralComposite: r.composite,
+        environmental: r.environmental
+          ? { loaded: r.environmental.loaded, bot: r.environmental.bot, botKind: r.environmental.bot_kind }
+          : null,
+        compositionIntegrity: r.composition_integrity
+          ? { verdict: r.composition_integrity.composition_verdict }
+          : null,
+        honeypot: null // harness doesn't exercise honeypot; LLM-in-the-loop simulator is separate
+      });
+      const gateLabels = gated.gatesApplied.map(g => g.layer + ':' + g.reason.split(':')[0]).join(', ') || 'none';
+      console.log(`  ${profiles[k].name.padEnd(20)} behavioral=${r.composite.toFixed(3)}  final=${gated.finalComposite.toFixed(3)}  tier=${gated.tierFinal}  [gates: ${gateLabels}]`);
+      if (gated.finalComposite < gatedMin) gatedMin = gated.finalComposite;
+      if (gated.finalComposite > gatedMax) gatedMax = gated.finalComposite;
+    });
+    const humanBaseline = 0.573; // Stephen 2026-04-20 reference session
+    console.log(`\nGated composite — bot range: ${gatedMin.toFixed(3)} – ${gatedMax.toFixed(3)}`);
+    console.log(`Gap to human baseline (${humanBaseline.toFixed(3)}): ${(humanBaseline - gatedMax).toFixed(3)} (strongest bot) / ${(humanBaseline - gatedMin).toFixed(3)} (weakest bot)`);
+    console.log(`Behavioral-only gap (pre-gate): ${(humanBaseline - Math.max(...composites)).toFixed(3)} strongest / ${(humanBaseline - Math.min(...composites)).toFixed(3)} weakest`);
   }
 
   // Signed-receipt block (only if a signer was available)
