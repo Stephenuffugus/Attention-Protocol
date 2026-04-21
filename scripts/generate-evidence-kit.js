@@ -449,8 +449,10 @@ async function main() {
   // Find the most recent signed-receipt bundle to use as the sample
   let receiptPath = args.receipt;
   if (!receiptPath) {
-    // Prefer the canonical six-layer demo, fall back to stephen-0573
+    // Prefer the canonical seven-layer demo (all attestation fields
+    // populated in credentialSubject), then six-layer, then stephen-0573.
     const candidates = [
+      'proof/results/verify-sample-7layer.json',
       'proof/results/verify-sample-6layer.json',
       'proof/results/stephen-0573-anchored.json'
     ];
