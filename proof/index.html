@@ -100,6 +100,7 @@
       <a href="/verify.html" class="cta cta-primary">Verify a live receipt</a>
       <a href="/part-11.html" class="cta cta-secondary">21 CFR Part 11 mapping</a>
       <a href="/demo.html" class="cta cta-secondary">Run the demo</a>
+      <a href="/cme-demo.html" class="cta cta-secondary">CME module demo</a>
     </div>
     <div class="patent">Patent Pending SWS-PROV-001 · Filed 2026-03-17 · SWS Strategic Media LLC</div>
   </div>
@@ -111,12 +112,12 @@
       <strong>YoY increase in 21 CFR Part 11 warning letters (H2 2025: 327 letters).</strong> Data-integrity and audit-trail deficiencies are the most-cited findings. "Click-through completion" in pharma training records is no longer passing FDA inspection — and LLMs just made every existing cheating defense obsolete overnight.
     </div>
 
-    <div class="section-title">A six-layer signed receipt</div>
+    <div class="section-title">A seven-layer signed receipt</div>
     <div class="section-sub">Each layer is attached to the same record, covered by the same signature, and disclosed separately. A buyer combines them per their policy — strict, lenient, or regulatory.</div>
 
     <div class="layer-stack">
       <div class="layer"><span class="num">01</span><h3>Environmental</h3><p>BotD v2 fingerprints the browser. 100% detection of Puppeteer, Selenium, and headless Chrome in ~85ms. Disclosed separately from behavioral data.</p></div>
-      <div class="layer"><span class="num">02</span><h3>Behavioral</h3><p>15 peer-reviewed signals — Fitts' Law, Hick's Law, fractal 1/f scaling, two-thirds power law, micro-pause cadence — produce a composite engagement score, not a bot/not-bot verdict.</p></div>
+      <div class="layer"><span class="num">02</span><h3>Behavioral</h3><p>20 peer-reviewed signals — Fitts' Law, Hick's Law, fractal 1/f scaling, two-thirds power law, reading-speed coherence, keystroke digraph timing, micro-pause cadence — produce a composite engagement score, not a bot/not-bot verdict.</p></div>
       <div class="layer"><span class="num">03</span><h3>Composition Integrity</h3><p>Signal 21: paste-burst + no-backspace + digraph-interval detector. Catches LLM-assisted answers that survive the other layers. Research basis: arxiv 2511.12468 (97-99% F1).</p></div>
       <div class="layer"><span class="num">04</span><h3>Consent</h3><p>Explicit user authorization recorded with ISO-8601 timestamp, version, and category list. Covered by the integrity hash — tampering breaks verification. GDPR Article 7, CCPA §1798.120 compliant by schema.</p></div>
       <div class="layer"><span class="num">05</span><h3>Ed25519 Signature</h3><p>RFC 8032 digital signature over the full VC-JWT. Public key at <code>/.well-known/attention-pubkey.json</code>. Verifiable offline in any language, any browser, forever.</p></div>
@@ -190,7 +191,7 @@
     </div>
 
     <div class="section-title">The science underneath</div>
-    <div class="section-sub">The behavioral composite uses 15 peer-reviewed signals. None of them individually solve the problem; together, they're the hardest thing in the world to fake consistently.</div>
+    <div class="section-sub">The behavioral composite uses 20 peer-reviewed signals. None of them individually solve the problem; together, they're the hardest thing in the world to fake consistently.</div>
 
     <div class="sig-grid">
       <div class="sig"><div class="name">Fitts' Law</div><div class="ref">Fitts 1954</div></div>

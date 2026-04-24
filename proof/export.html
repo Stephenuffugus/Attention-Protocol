@@ -100,8 +100,12 @@
 
         var headers = [
           'session_id', 'timestamp', 'generated', 'duration_sec', 'quality_tier', 'source_type',
-          'composite', 'timing', 'hicks', 'fitts', 'scroll', 'microPause', 'touch',
+          'composite',
+          'timing', 'hicks', 'fitts', 'scroll', 'microPause', 'touch',
           'keystroke', 'readingSpeed', 'hoverDwell', 'tabVisibility', 'inactivity',
+          'rtVariability', 'scrollBacktrack', 'fractalScaling', 'crossCorrelation',
+          'curvatureIndex', 'cursorJerk', 'velocityProfile', 'twoThirdsPower', 'deviceMotion',
+          'activeSignals',
           'hashes_earned', 'scroll_depth_pct', 'typed_words', 'device', 'screen_width', 'screen_height'
         ];
 
@@ -122,6 +126,16 @@
             (s.signals?.hoverDwell || 0).toFixed(4),
             (s.signals?.tabVisibility || 0).toFixed(4),
             (s.signals?.inactivity || 0).toFixed(4),
+            (s.signals?.rtVariability || 0).toFixed(4),
+            (s.signals?.scrollBacktrack || 0).toFixed(4),
+            (s.signals?.fractalScaling || 0).toFixed(4),
+            (s.signals?.crossCorrelation || 0).toFixed(4),
+            (s.signals?.curvatureIndex || 0).toFixed(4),
+            (s.signals?.cursorJerk || 0).toFixed(4),
+            (s.signals?.velocityProfile || 0).toFixed(4),
+            (s.signals?.twoThirdsPower || 0).toFixed(4),
+            (s.signals?.deviceMotion || 0).toFixed(4),
+            (s.signals?.activeSignals || 0),
             s.hashes_earned || 0, s.scroll_depth_pct || 0, s.typed_words || 0,
             device, s.screen?.width || '', s.screen?.height || ''
           ];

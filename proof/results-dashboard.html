@@ -208,7 +208,16 @@
             ['Reading Speed', s.signals.readingSpeed, '#8b5cf6'],
             ['Hover Dwell', s.signals.hoverDwell, '#8b5cf6'],
             ['Tab Visible', s.signals.tabVisibility, '#8b5cf6'],
-            ['Activity', s.signals.inactivity, '#8b5cf6']
+            ['Activity', s.signals.inactivity, '#8b5cf6'],
+            ['RT Variability', s.signals.rtVariability, '#f59e0b'],
+            ['Scroll Backtrack', s.signals.scrollBacktrack, '#f59e0b'],
+            ['Fractal Scaling', s.signals.fractalScaling, '#f59e0b'],
+            ['Cross-Correlation', s.signals.crossCorrelation, '#f59e0b'],
+            ['Curvature Index', s.signals.curvatureIndex, '#ef4444'],
+            ['Cursor Jerk', s.signals.cursorJerk, '#ef4444'],
+            ['Velocity Profile', s.signals.velocityProfile, '#ef4444'],
+            ['2/3 Power Law', s.signals.twoThirdsPower, '#ef4444'],
+            ['Device Motion', s.signals.deviceMotion, '#ef4444']
           ];
           sigs.forEach(function(sig) {
             var val = sig[1] || 0;

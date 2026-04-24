@@ -87,14 +87,17 @@ describe('humanness — validUntil and exp', () => {
   test('signed JWT carries exp claim mirroring validUntil', async () => {
     const kp = await signer.generateKeypair({ kid: 'exp-test' });
     const s = await signer.createSigner(kp.privateKeyHex, { kid: 'exp-test' });
-    const r = sampleReceipt({ generated_at: '2026-04-21T12:00:00.000Z' });
+    // Relative date so the JWT stays within its 24h exp window regardless of
+    // when the suite runs (earlier versions hardcoded 2026-04-21 and rotted).
+    const issuedAt = new Date();
+    const r = sampleReceipt({ generated_at: issuedAt.toISOString() });
     const cred = VC.fromReceipt(r);
     const jwt = await VC.toSignedJwt(cred, s);
     const v = await signer.verifyJwt(jwt, kp.publicKeyJwk);
     expect(v.valid).toBe(true);
     expect(typeof v.payload.exp).toBe('number');
-    // exp is Unix seconds of validUntil
-    const expected = Math.floor(new Date('2026-04-22T12:00:00.000Z').getTime() / 1000);
+    // exp mirrors validUntil (default 24h from issuance)
+    const expected = Math.floor((issuedAt.getTime() + 24 * 60 * 60 * 1000) / 1000);
     expect(v.payload.exp).toBe(expected);
   });
 });

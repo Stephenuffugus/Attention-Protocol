@@ -68,6 +68,61 @@ function runSimulation(profile) {
   };
 }
 
+/**
+ * Async variant that also exercises Day-1 signals:
+ * - profile.sections: [{id, wordCount, durationMs}] → drives readingSpeed coherence
+ * - profile.focusEvents: [{focused}] → drives tabVisibility focus coherence
+ * - profile.minSessionMs: pad the session so tabVisibility clears its 5s gate
+ *
+ * Real wall-clock durations are required: the SDK stamps Date.now() on section
+ * entry/exit, so we can't cheat time without rewriting the SDK.
+ */
+async function runSimulationAsync(profile) {
+  resetState();
+  loadSDK('../src/sdk/secure-config.js');
+  loadSDK('../src/sdk/attention-protocol.js');
+  loadSDK('../src/sdk/economy-engine.js');
+
+  SWSAttention.init({ gameId: 'bot_harness_async', debug: false, enableBehavioralAnalysis: true });
+  const startedAt = Date.now();
+
+  if (profile.decisions) {
+    profile.decisions.forEach(d => SWSAttention.recordDecision(d.options, d.responseTime));
+  }
+  if (profile.renders) {
+    profile.renders.forEach(r => SWSAttention.recordContentRender(r.complexity));
+  }
+  if (profile.events) {
+    profile.events.forEach(e => SWSAttention.earn(e.type, e.duration, e.interactions, e.tier));
+  }
+  if (profile.focusEvents) {
+    profile.focusEvents.forEach(f => SWSAttention.recordWindowFocus(f.focused));
+  }
+
+  if (profile.sections) {
+    for (const s of profile.sections) {
+      SWSAttention.recordSectionEntry(s.id, s.wordCount);
+      await new Promise(r => setTimeout(r, s.durationMs));
+      SWSAttention.recordSectionExit(s.id, 100);
+    }
+  }
+
+  if (profile.minSessionMs) {
+    const elapsed = Date.now() - startedAt;
+    if (elapsed < profile.minSessionMs) {
+      await new Promise(r => setTimeout(r, profile.minSessionMs - elapsed));
+    }
+  }
+
+  return {
+    confidence: SWSAttention.getHumanConfidence(),
+    focusScore: SWSAttention.getFocusScore(),
+    stats: SWSAttention.getStats(),
+    focusStats: SWSAttention.getFocusStats(),
+    coherence: SWSAttention.getReadingCoherence()
+  };
+}
+
 // ============================================================
 // BOT PROFILE 1: NAIVE BOT
 // ============================================================
@@ -222,6 +277,59 @@ function clickFarmProfile() {
 // Replays a captured human session. Has realistic timing from
 // the original human, but every replay is IDENTICAL — zero
 // variance across replays.
+
+// ============================================================
+// BOT PROFILE 6: SLOW MIMIC (Adversarial)
+// ============================================================
+// Adversary tries to defeat the protocol by deliberately pacing itself
+// slowly — long deliberate delays between clicks to mimic a careful human
+// reader, patient response times, long reading phase. Does NOT compensate
+// for motor artifacts, timing entropy, or cross-signal correlation —
+// because those are impossible to fake without actually being human.
+//
+// Stephen's adversarial insight (2026-04-24): "people cant just program
+// the bot to pretend to be slow." This test answers the question — if an
+// adversary pumps up Reading Speed by adding slowness, does the composite
+// still classify them as bot? Expected: YES, because the other 19 signals
+// don't move with Reading Speed, and Signal 15 (Cross-Signal Correlation)
+// flags the incoherence.
+
+function slowMimicBotProfile() {
+  // Timing: slow, but CONSTANT — no CV. A real human's timing has log-normal
+  // variance even when pacing slowly. Constant-slow is still a robot tell.
+  return {
+    name: 'Slow Mimic Bot',
+    description: 'Deliberately slow pacing to fake human-reader behavior — but timing entropy, motor signals, and cross-correlation still give it away',
+    decisions: [
+      // All "slow-human" on the surface (2-3s response), but same interval
+      // regardless of option count — violates Hick's Law.
+      { options: 2, responseTime: 2500 },
+      { options: 2, responseTime: 2500 },
+      { options: 4, responseTime: 2500 },  // Should be ~800 for human with 4 opts vs 2
+      { options: 4, responseTime: 2500 },
+      { options: 8, responseTime: 2500 },  // Should be ~1200 for 8 opts
+      { options: 8, responseTime: 2500 },
+      { options: 16, responseTime: 2500 }, // Should be ~1600 for 16 opts
+      { options: 16, responseTime: 2500 },
+      { options: 2, responseTime: 2500 },
+      { options: 4, responseTime: 2500 },
+    ],
+    renders: [
+      { complexity: 'complex' },
+      { complexity: 'complex' },
+      { complexity: 'complex' },
+    ],
+    events: [
+      // Long "reading" durations — tries to make Reading Speed look high.
+      { type: 'page_visit', duration: 180000, interactions: 3, tier: 'active' },
+      { type: 'content_read', duration: 45000, interactions: 2, tier: 'active' },
+      { type: 'content_read', duration: 45000, interactions: 2, tier: 'active' },
+      { type: 'content_read', duration: 45000, interactions: 2, tier: 'active' },
+      { type: 'survey_answer', duration: 2500, interactions: 1, tier: 'active' },
+      { type: 'survey_answer', duration: 2500, interactions: 1, tier: 'active' },
+    ]
+  };
+}
 
 function replayAttackProfile() {
   // This is a "captured" human session replayed exactly
@@ -438,6 +546,44 @@ describe('BOT PROFILE 5: Replay Attack (captured human session)', () => {
 });
 
 // ============================================================
+// BOT PROFILE 6: SLOW MIMIC (Adversarial — Stephen's challenge)
+// ============================================================
+// Directly answers: "can a bot defeat this by pretending to be slow?"
+// Expected: no. Even with artificially-slow pacing, Hick's Law still fails
+// (RT doesn't scale with options), timing CV is near-zero (constant intervals),
+// and the composite pins below human territory.
+
+describe('BOT PROFILE 6: Slow Mimic (adversarial — pretends to be slow reader)', () => {
+  let result;
+  beforeAll(() => { result = runSimulation(slowMimicBotProfile()); });
+
+  test('Hick\'s Law signal is LOW — constant RT regardless of option count', () => {
+    // Every response is 2500ms whether there are 2 options or 16. A real
+    // human's decision time scales logarithmically with choices.
+    expect(result.confidence.hicks).toBeLessThan(0.5);
+  });
+
+  test('timing entropy is LOW — zero variance in response intervals', () => {
+    // A slow-but-constant bot has CV near 0; humans have CV 0.4-1.5.
+    // The timing signal is specifically designed to catch this.
+    expect(result.confidence.timing).toBeLessThan(0.6);
+  });
+
+  test('composite stays below focused-human score despite slow pacing', () => {
+    const humanResult = runSimulation(focusedReaderProfile());
+    expect(result.confidence.composite).toBeLessThan(humanResult.confidence.composite);
+  });
+
+  test('FAKE-SLOW-READING DEFENSE: Reading Speed is not the sole discriminator', () => {
+    // This is the actual test of Stephen's adversarial question. Even when
+    // a bot specifically targets Reading Speed with slow pacing, the composite
+    // does NOT rise to human territory because the other 19 signals don't
+    // move in sympathy. Cross-signal correlation (Signal 15) is the guard.
+    expect(result.confidence.composite).toBeLessThan(0.55);
+  });
+});
+
+// ============================================================
 // TEST SUITE: HUMAN DETECTION
 // ============================================================
 
@@ -577,5 +723,201 @@ describe('DISCRIMINATION: Bots vs Humans separation', () => {
     console.log('='.repeat(70) + '\n');
 
     expect(true).toBe(true); // Always passes — the point is the output
+  });
+});
+
+// ============================================================
+// DAY-1 SIGNAL LIFT: Reading Coherence + Window Focus
+// ============================================================
+// Exercises the two signals shipped 2026-04-24:
+//   - readingSpeed coherence (WPM plausibility) via sections+wordCount
+//   - tabVisibility focus coherence via blur/focus events
+// Each profile runs twice: once with the Day-1 inputs, once without, and
+// the report compares composite, readingSpeed, and tabVisibility side-by-side.
+//
+// Bot signature: paste-like sections (~12,000 WPM) + zero focus events
+// Human signature: plausible sections (~300 WPM) + one blur/focus cycle
+// minSessionMs=6000 pads the session past the 5s tabVisibility gate.
+
+function enhanceWithDay1(profile, kind) {
+  const enhanced = Object.assign({}, profile);
+  if (kind === 'human') {
+    enhanced.sections = [
+      { id: 's1', wordCount: 5, durationMs: 1000 },  // 300 WPM, squarely plausible
+      { id: 's2', wordCount: 5, durationMs: 1000 },
+      { id: 's3', wordCount: 5, durationMs: 1000 }
+    ];
+    enhanced.focusEvents = [
+      { focused: false },
+      { focused: true } // one app-switch round-trip — the human tell
+    ];
+  } else if (kind === 'slowmimic') {
+    // ADVERSARIAL: bot tries to fake Reading Speed via realistic dwells +
+    // plausible WPM per section. This is Stephen's "pretend to be slow"
+    // attack with the sections actually executed with real time delays —
+    // the most aggressive version of the attack we can simulate from Node.
+    enhanced.sections = [
+      { id: 's1', wordCount: 36, durationMs: 8000 }, // 270 WPM — plausible human band
+      { id: 's2', wordCount: 36, durationMs: 8000 },
+      { id: 's3', wordCount: 36, durationMs: 8000 }
+    ];
+    enhanced.focusEvents = []; // never blurs — still a bot tell
+  } else {
+    enhanced.sections = [
+      { id: 's1', wordCount: 50, durationMs: 250 },  // 12,000 WPM — paste/render, implausible
+      { id: 's2', wordCount: 50, durationMs: 250 },
+      { id: 's3', wordCount: 50, durationMs: 250 }
+    ];
+    enhanced.focusEvents = []; // perfect foreground, never blurred — the bot tell
+  }
+  enhanced.minSessionMs = 6000; // clear the tabVisibility 5s sentinel
+  return enhanced;
+}
+
+describe('DAY-1 SIGNAL LIFT: Reading Coherence + Window Focus', () => {
+  let baselineBots = [];
+  let baselineHumans = [];
+  let enhancedBots = [];
+  let enhancedHumans = [];
+
+  beforeAll(async () => {
+    // Baseline: existing sync runs (no Day-1 inputs)
+    baselineBots = [
+      Object.assign({ name: 'Naive Bot' },      runSimulation(naiveBotProfile())),
+      Object.assign({ name: 'Jittered Bot' },    runSimulation(jitteredBotProfile())),
+      Object.assign({ name: 'Selenium Bot' },    runSimulation(seleniumBotProfile())),
+      Object.assign({ name: 'Click Farm' },      runSimulation(clickFarmProfile())),
+      Object.assign({ name: 'Replay Attack' },   runSimulation(replayAttackProfile())),
+      Object.assign({ name: 'Slow Mimic' },      runSimulation(slowMimicBotProfile()))
+    ];
+    baselineHumans = [
+      Object.assign({ name: 'Focused Reader' },  runSimulation(focusedReaderProfile())),
+      Object.assign({ name: 'Casual Browser' },  runSimulation(casualBrowserProfile())),
+      Object.assign({ name: 'Distracted User' }, runSimulation(distractedUserProfile()))
+    ];
+
+    // Enhanced: async runs with Day-1 inputs attached. Slow Mimic gets
+    // special treatment — it fakes plausible Reading Speed via real dwells.
+    const botBuilders = [
+      ['Naive Bot',      naiveBotProfile,      'bot'],
+      ['Jittered Bot',   jitteredBotProfile,   'bot'],
+      ['Selenium Bot',   seleniumBotProfile,   'bot'],
+      ['Click Farm',     clickFarmProfile,     'bot'],
+      ['Replay Attack',  replayAttackProfile,  'bot'],
+      ['Slow Mimic',     slowMimicBotProfile,  'slowmimic']
+    ];
+    const humanBuilders = [
+      ['Focused Reader', focusedReaderProfile],
+      ['Casual Browser', casualBrowserProfile],
+      ['Distracted User', distractedUserProfile]
+    ];
+    for (const [name, builder, kind] of botBuilders) {
+      const r = await runSimulationAsync(enhanceWithDay1(builder(), kind));
+      enhancedBots.push(Object.assign({ name }, r));
+    }
+    for (const [name, builder] of humanBuilders) {
+      const r = await runSimulationAsync(enhanceWithDay1(builder(), 'human'));
+      enhancedHumans.push(Object.assign({ name }, r));
+    }
+  }, 180000);
+
+  test('every bot profile has zero blur events (focus-coherence bot tell)', () => {
+    enhancedBots.forEach(r => {
+      expect(r.focusStats.blurCount).toBe(0);
+    });
+  });
+
+  test('every human profile has at least one blur event', () => {
+    enhancedHumans.forEach(r => {
+      expect(r.focusStats.blurCount).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  test('non-adversarial bots score readingSpeed BELOW the plausibility midline', () => {
+    // Coherence clamps implausible-majority to <= 0.25, blended 60/40 with CV
+    // scorer → paste-like bots land comfortably below 0.4. The Slow Mimic bot
+    // CAN fake readingSpeed by dwelling on each section — but defense-in-depth
+    // catches it via other signals (see the composite assertion below).
+    enhancedBots.filter(r => r.name !== 'Slow Mimic').forEach(r => {
+      expect(r.confidence.readingSpeed).toBeLessThan(0.40);
+    });
+  });
+
+  test('ADVERSARIAL: Slow Mimic successfully fakes readingSpeed — but its composite still stays below the lowest human', () => {
+    // Stephen's adversarial concern made concrete. A bot that dwells on each
+    // section for 8 seconds at plausible WPM WILL score high on readingSpeed
+    // (~0.79 measured). But its composite (~0.40) still lands below every
+    // human profile's composite because it can't fake timing entropy, Hick's
+    // Law, focus-event coherence, or cross-signal correlation simultaneously.
+    const slowMimic = enhancedBots.find(r => r.name === 'Slow Mimic');
+    expect(slowMimic).toBeDefined();
+    expect(slowMimic.confidence.readingSpeed).toBeGreaterThan(0.5); // attack worked on this signal
+    const minHumanComposite = Math.min(...enhancedHumans.map(r => r.confidence.composite));
+    expect(slowMimic.confidence.composite).toBeLessThan(minHumanComposite); // but composite still below humans
+  });
+
+  test('every human profile scores its readingSpeed ABOVE the plausibility midline', () => {
+    enhancedHumans.forEach(r => {
+      expect(r.confidence.readingSpeed).toBeGreaterThan(0.45);
+    });
+  });
+
+  test('tabVisibility: humans score strictly higher than bots', () => {
+    const minHuman = Math.min(...enhancedHumans.map(r => r.confidence.tabVisibility));
+    const maxBot = Math.max(...enhancedBots.map(r => r.confidence.tabVisibility));
+    expect(minHuman).toBeGreaterThan(maxBot);
+  });
+
+  test('average human composite > average bot composite, and the gap widened vs baseline', () => {
+    const avgB = baselineBots.reduce((s, r) => s + r.confidence.composite, 0) / baselineBots.length;
+    const avgH = baselineHumans.reduce((s, r) => s + r.confidence.composite, 0) / baselineHumans.length;
+    const avgEB = enhancedBots.reduce((s, r) => s + r.confidence.composite, 0) / enhancedBots.length;
+    const avgEH = enhancedHumans.reduce((s, r) => s + r.confidence.composite, 0) / enhancedHumans.length;
+    const baselineGap = avgH - avgB;
+    const enhancedGap = avgEH - avgEB;
+    expect(avgEH).toBeGreaterThan(avgEB);
+    // The central claim: Day-1 signals widen the gap.
+    expect(enhancedGap).toBeGreaterThan(baselineGap);
+  });
+
+  test('PRINT DAY-1 LIFT REPORT', () => {
+    const fmt = n => n.toFixed(3);
+    const row = (name, baseline, enhanced) => {
+      const delta = enhanced.confidence.composite - baseline.confidence.composite;
+      const sign = delta >= 0 ? '+' : '';
+      return `  ${name.padEnd(18)} | baseline=${fmt(baseline.confidence.composite)} → enhanced=${fmt(enhanced.confidence.composite)}  (Δ ${sign}${fmt(delta)})  rs=${fmt(enhanced.confidence.readingSpeed)} tv=${fmt(enhanced.confidence.tabVisibility)} blurs=${enhanced.focusStats.blurCount}`;
+    };
+
+    console.log('\n' + '='.repeat(86));
+    console.log('  DAY-1 SIGNAL LIFT — Reading Coherence + Window Focus (shipped 2026-04-24)');
+    console.log('='.repeat(86));
+
+    console.log('\n  BOTS (expect: readingSpeed clamp, blurs=0, tabVisibility at bot floor):');
+    console.log('  ' + '-'.repeat(82));
+    for (let i = 0; i < baselineBots.length; i++) {
+      console.log(row(baselineBots[i].name, baselineBots[i], enhancedBots[i]));
+    }
+
+    console.log('\n  HUMANS (expect: readingSpeed boost, blurs≥1, tabVisibility at human ceiling):');
+    console.log('  ' + '-'.repeat(82));
+    for (let i = 0; i < baselineHumans.length; i++) {
+      console.log(row(baselineHumans[i].name, baselineHumans[i], enhancedHumans[i]));
+    }
+
+    const avgB = baselineBots.reduce((s, r) => s + r.confidence.composite, 0) / baselineBots.length;
+    const avgH = baselineHumans.reduce((s, r) => s + r.confidence.composite, 0) / baselineHumans.length;
+    const avgEB = enhancedBots.reduce((s, r) => s + r.confidence.composite, 0) / enhancedBots.length;
+    const avgEH = enhancedHumans.reduce((s, r) => s + r.confidence.composite, 0) / enhancedHumans.length;
+    const baselineGap = avgH - avgB;
+    const enhancedGap = avgEH - avgEB;
+
+    console.log('\n  SUMMARY:');
+    console.log('  ' + '-'.repeat(82));
+    console.log(`  Baseline avg:      bot=${fmt(avgB)}  human=${fmt(avgH)}  gap=${fmt(baselineGap)}`);
+    console.log(`  Enhanced avg:      bot=${fmt(avgEB)} human=${fmt(avgEH)} gap=${fmt(enhancedGap)}`);
+    console.log(`  Gap delta:         +${fmt(enhancedGap - baselineGap)} absolute  (${((enhancedGap - baselineGap) / Math.max(1e-6, baselineGap) * 100).toFixed(1)}% relative)`);
+    console.log('='.repeat(86) + '\n');
+
+    expect(true).toBe(true); // output-only test
   });
 });

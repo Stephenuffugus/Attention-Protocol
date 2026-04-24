@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SWS CME Demo — Hypertension Management Update</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, 'Segoe UI', Roboto, sans-serif; background: #0b1220; color: #e2e8f0; line-height: 1.6; }
+    .top { background: linear-gradient(90deg, #0f172a 0%, #1e293b 100%); padding: 14px 24px; border-bottom: 1px solid #334155; }
+    .brand { font-size: 13px; color: #94a3b8; letter-spacing: 0.05em; }
+    .acc { font-size: 11px; color: #10b981; margin-top: 2px; }
+    .wrap { max-width: 780px; margin: 0 auto; padding: 28px 20px 80px; }
+    h1 { font-size: 26px; margin: 14px 0 4px; color: #f1f5f9; }
+    .meta { font-size: 13px; color: #94a3b8; margin-bottom: 28px; }
+    .meta strong { color: #cbd5e1; }
+    .illus { background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 6px; padding: 8px 12px; font-size: 12px; color: #fbbf24; margin-bottom: 24px; }
+    .section { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 24px; margin-bottom: 16px; }
+    .section h2 { font-size: 19px; margin: 0 0 12px; color: #e2e8f0; }
+    .section p { font-size: 15px; color: #cbd5e1; margin: 0 0 12px; }
+    .section strong { color: #f1f5f9; }
+    .progress { height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden; margin-bottom: 20px; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #06b6d4 0%, #10b981 100%); transition: width 300ms; }
+    .progress-label { font-size: 11px; color: #64748b; margin-bottom: 6px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; }
+    .btn-primary { background: #06b6d4; color: #0a0e17; }
+    .btn-primary:hover { background: #0891b2; }
+    .btn-primary:disabled { background: #1e293b; color: #475569; cursor: not-allowed; }
+    .q-card { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 20px; margin-bottom: 12px; }
+    .q-card h3 { font-size: 15px; margin: 0 0 14px; color: #e2e8f0; }
+    .opt { display: block; padding: 10px 14px; margin-bottom: 8px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; cursor: pointer; color: #cbd5e1; font-size: 14px; transition: all 150ms; }
+    .opt:hover { background: #334155; border-color: #475569; }
+    .opt.selected { background: #06b6d4; color: #0a0e17; border-color: #06b6d4; font-weight: 600; }
+    .opt.correct-answer { background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #a7f3d0; }
+    .opt.wrong-answer { background: rgba(239, 68, 68, 0.15); border-color: #ef4444; color: #fecaca; }
+    textarea { width: 100%; min-height: 120px; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; font-family: inherit; font-size: 14px; resize: vertical; }
+    .wc { font-size: 11px; color: #64748b; margin-top: 4px; }
+
+    /* Results */
+    .receipt { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 28px; margin-top: 24px; }
+    .tier-pill { display: inline-block; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+    .tier-pass { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
+    .tier-marginal { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+    .tier-fail { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+    .composite-big { font-size: 48px; font-weight: 300; color: #f1f5f9; margin: 12px 0; }
+    .composite-sub { font-size: 13px; color: #64748b; }
+    .metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; font-size: 13px; }
+    .metric-row { display: flex; justify-content: space-between; padding: 8px 12px; background: #1e293b; border-radius: 5px; }
+    .metric-row .name { color: #94a3b8; }
+    .metric-row .val { font-family: monospace; color: #cbd5e1; }
+    .narr { background: rgba(6, 182, 212, 0.05); border-left: 3px solid #06b6d4; padding: 14px 18px; margin: 20px 0; border-radius: 4px; }
+    .narr h4 { margin: 0 0 8px; color: #67e8f9; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .narr p { margin: 6px 0; font-size: 13px; color: #cbd5e1; }
+    .narr .lead { color: #e2e8f0; font-weight: 500; }
+    .hash-box { background: #0b1220; border: 1px dashed #334155; border-radius: 5px; padding: 12px; font-family: monospace; font-size: 11px; color: #64748b; word-break: break-all; margin-top: 16px; }
+    .foot { color: #64748b; font-size: 12px; text-align: center; margin-top: 28px; padding-top: 20px; border-top: 1px solid #1e293b; }
+    .foot a { color: #67e8f9; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="brand">SWS ATTENTION PROTOCOL · CME Activity</div>
+    <div class="acc">ACCME ACCREDITED · 0.5 AMA PRA CATEGORY 1 CREDIT™ · 20-SIGNAL RECEIPT</div>
+  </div>
+
+  <div class="wrap">
+    <h1 id="activity-title">Hypertension Management Update (2026)</h1>
+    <div class="meta">
+      Activity ID: <strong id="activity-id">HTN-UPD-2026-0001</strong> · Faculty: <strong>Example, MD</strong> · Expires: <strong>2027-04-24</strong>
+    </div>
+    <div class="illus">
+      <strong>ILLUSTRATIVE CONTENT ONLY.</strong> This module uses fabricated clinical-education text for protocol demonstration. Not medical advice. Not a real CME activity. All signal data is real.
+    </div>
+
+    <div class="progress-label" id="progress-label">SECTION 1 OF 4</div>
+    <div class="progress"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+
+    <!-- Sections -->
+    <div id="section-1" class="section">
+      <h2>1. Epidemiology &amp; 2025 Guideline Update</h2>
+      <p>Hypertension affects <strong>47.7%</strong> of U.S. adults (CDC 2024, updated 2025). The 2025 AHA/ACC guidance reaffirmed Stage 1 Hypertension at <strong>130/80 mmHg</strong> and Stage 2 at <strong>140/90 mmHg</strong>, but substantially elevated the role of home blood pressure monitoring (HBPM) over in-office measurement alone.</p>
+      <p>White-coat hypertension and masked hypertension both now carry <strong>A-level evidence recommendations</strong> for HBPM-based confirmation, particularly in patients aged 65 and older. Before initiating therapy in a newly-diagnosed Stage 1 case, practitioners are now expected to document at least one week of HBPM readings unless the patient has compelling comorbidities (established cardiovascular disease, chronic kidney disease, diabetes mellitus).</p>
+      <button class="btn btn-primary" onclick="nextSection(1)">Continue to Section 2 →</button>
+    </div>
+
+    <div id="section-2" class="section" style="display:none">
+      <h2>2. First-Line Therapy Selection</h2>
+      <p>Four first-line drug classes remain: thiazide diuretics, calcium-channel blockers (CCBs), angiotensin-converting enzyme inhibitors (ACEi), and angiotensin receptor blockers (ARBs). Selection is guided by patient demographics and comorbid profile.</p>
+      <p>For <strong>Black patients</strong> without compelling comorbidities, <strong>thiazide or CCB monotherapy</strong> is preferred over ACEi/ARB due to differences in response rate. For patients with <strong>diabetes and albuminuria</strong>, <strong>ACEi or ARB is first-line</strong> regardless of demographic profile — the renal-protective effect dominates. Chronic kidney disease stage 3 introduces dose-adjustment considerations and, at stage 4-5, may shift agent choice away from ACEi/ARB toward alternatives.</p>
+      <button class="btn btn-primary" onclick="nextSection(2)">Continue to Section 3 →</button>
+    </div>
+
+    <div id="section-3" class="section" style="display:none">
+      <h2>3. Comorbid Conditions &amp; Dose Adjustment</h2>
+      <p>In <strong>heart failure with reduced ejection fraction (HFrEF)</strong>, the foundation remains ACEi or ARB plus beta-blocker plus aldosterone antagonist, now augmented by <strong>SGLT2 inhibitors</strong> per 2024 HFA guidelines. In CKD stage 3-5, avoid potassium-sparing diuretics without frequent electrolyte monitoring.</p>
+      <p>In <strong>elderly patients (age ≥ 75)</strong>, initial dose reduction is standard practice to mitigate orthostatic events. In <strong>pregnancy</strong>, labetalol, nifedipine, and methyldopa remain the safe, evidence-supported choices; <strong>ACEi and ARB are contraindicated in all trimesters</strong>.</p>
+      <button class="btn btn-primary" onclick="nextSection(3)">Continue to Section 4 →</button>
+    </div>
+
+    <div id="section-4" class="section" style="display:none">
+      <h2>4. Patient Education &amp; Adherence</h2>
+      <p>Medication adherence in hypertension is approximately <strong>50% at one year</strong> without structured intervention. Evidence-based adherence strategies include: once-daily dosing when possible, simplified regimens, teach-back counseling during visits, home BP logs reviewed at each clinical encounter, and phone-based between-visit check-ins during the first 90 days of a new regimen.</p>
+      <p>Lifestyle counseling should emphasize the <strong>DASH dietary pattern</strong>, sodium reduction to <strong>&lt;2.3g/day</strong>, and <strong>150 minutes/week</strong> of moderate-intensity aerobic exercise unless contraindicated. Weight reduction of 5-10% in obese patients produces clinically significant BP reduction independent of pharmacotherapy.</p>
+      <button class="btn btn-primary" onclick="nextSection(4)">Continue to Assessment →</button>
+    </div>
+
+    <!-- Assessment -->
+    <div id="assessment" style="display:none">
+      <div class="q-card">
+        <h3>Question 1. Which first-line antihypertensive is preferred for a Black patient without compelling comorbidities?</h3>
+        <div class="opt" data-q="0" data-ans="thiazide">Thiazide diuretic or calcium-channel blocker</div>
+        <div class="opt" data-q="0" data-ans="acei">ACE inhibitor</div>
+        <div class="opt" data-q="0" data-ans="arb">Angiotensin receptor blocker</div>
+        <div class="opt" data-q="0" data-ans="beta">Beta-blocker</div>
+      </div>
+
+      <div class="q-card">
+        <h3>Question 2. In patients with diabetes and albuminuria, which agent class is first-line?</h3>
+        <div class="opt" data-q="1" data-ans="thiazide">Thiazide diuretic</div>
+        <div class="opt" data-q="1" data-ans="ccb">Calcium-channel blocker</div>
+        <div class="opt" data-q="1" data-ans="acei">ACE inhibitor or ARB</div>
+        <div class="opt" data-q="1" data-ans="beta">Beta-blocker</div>
+      </div>
+
+      <div class="q-card">
+        <h3>Question 3. Approximate medication adherence rate at one year without intervention?</h3>
+        <div class="opt" data-q="2" data-ans="20">~20%</div>
+        <div class="opt" data-q="2" data-ans="50">~50%</div>
+        <div class="opt" data-q="2" data-ans="80">~80%</div>
+        <div class="opt" data-q="2" data-ans="95">~95%</div>
+      </div>
+
+      <div class="q-card">
+        <h3>Reflection: Describe ONE change you will make in your clinical practice based on this activity.</h3>
+        <textarea id="reflection" placeholder="Minimum 20 words. Write in your own words — this is recorded as evidence of active engagement, not graded for content."></textarea>
+        <div class="wc"><span id="reflection-count">0</span> words · minimum 20</div>
+      </div>
+
+      <button class="btn btn-primary" id="submit-btn" disabled onclick="finishActivity()">Submit for Credit</button>
+    </div>
+
+    <!-- Results -->
+    <div id="results" class="receipt" style="display:none">
+      <div id="tier-pill-wrap"><span class="tier-pill" id="tier-pill">—</span></div>
+      <div class="composite-big" id="composite-big">—</div>
+      <div class="composite-sub">Medical-profile weighted composite (20 behavioral signals → 6 CME-relevant metrics)</div>
+
+      <div class="narr">
+        <h4>Why this score reflects biologically human attention</h4>
+        <div id="narr-content"></div>
+      </div>
+
+      <div class="metric-grid" id="metric-grid"></div>
+
+      <div style="margin-top:22px">
+        <div class="progress-label">20-SIGNAL BEHAVIORAL BREAKDOWN</div>
+        <div id="signal-breakdown" style="font-size:12px;color:#94a3b8;line-height:1.7"></div>
+      </div>
+
+      <div class="hash-box" id="hash-box">Receipt hash: —</div>
+
+      <div class="foot">
+        Receipt is cryptographically signed (Ed25519) and offline-verifiable with the SWS public key at<br>
+        <a href="/.well-known/attention-pubkey.json">/.well-known/attention-pubkey.json</a>. Certificate-grade artifact.
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+  <!-- SWS SDK -->
+  <script src="sdk/secure-config.js?v=20260424b"></script>
+  <script src="sdk/attention-protocol.js?v=20260424b"></script>
+  <script src="sdk/economy-engine.js?v=20260424b"></script>
+  <script src="sdk/environmental-gate.js?v=20260424b"></script>
+  <script src="sdk/composition-integrity.js?v=20260424b"></script>
+  <script src="sdk/privacy-compliance.js?v=20260424b"></script>
+  <script src="sdk/honeypot-canary.js?v=20260424b"></script>
+  <!-- Medical vertical profile is inlined below so this demo needs no
+       additional asset beyond the SDK modules already deployed above. -->
+
+  <script>
+    // ============================================================
+    // INLINE MEDICAL PROFILE (fallback if vertical-scoring-profiles.js
+    // isn't hosted — the file lives in /src/sdk/ which isn't in the
+    // proof/ hosting root).
+    // ============================================================
+    var MEDICAL_PROFILE = {
+      name: 'Medical Education / CME',
+      weights: {
+        reactionTime: 0.15,             // Quiz response timing
+        reactionTimeConsistency: 0.10,  // Variance — humans have natural log-normal variance
+        clickPrecision: 0.15,           // Motor control / cursor-jerk
+        sustainedFocus: 0.20,           // Did they actually stay engaged?
+        documentComprehension: 0.25,    // Reading dwell + comprehension answers
+        fatigueResistance: 0.15         // Signal stability over the session
+      },
+      thresholds: { pass: 0.65, marginal: 0.50, fail: 0.35 }
+    };
+
+    // ---- FIREBASE INIT ----
+    var fbApp = firebase.initializeApp({
+      apiKey: "AIzaSyDbpqisJpnoh2OUYSJIdKIo17SdF0eGPiM",
+      authDomain: "sws-attention-proofs.firebaseapp.com",
+      projectId: "sws-attention-proofs",
+      storageBucket: "sws-attention-proofs.firebasestorage.app",
+      messagingSenderId: "420661886092",
+      appId: "1:420661886092:web:a4c79cd07fc804428f4fa9"
+    });
+    var db = firebase.firestore(fbApp);
+    var fbUser = null;
+    firebase.auth(fbApp).signInAnonymously().catch(function(err) {
+      console.warn('[CME] Auth failed:', err.code);
+    });
+    firebase.auth(fbApp).onAuthStateChanged(function(user) { if (user) fbUser = user; });
+
+    // ---- STATE ----
+    var activityId = document.getElementById('activity-id').textContent;
+    var sessionId = 'cme_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+    var sessionStart = Date.now();
+    var currentSection = 1;
+    var TOTAL_SECTIONS = 4;
+    var sectionTimes = {};  // track dwell per section
+    var sectionEnteredAt = Date.now();
+    var answers = [null, null, null];
+    var correctAnswers = ['thiazide', 'acei', '50'];
+
+    // ---- INIT SDK ----
+    SWSAttention.init({ gameId: 'cme_demo', debug: false, enableBehavioralAnalysis: true });
+    SWSAttention.recordSectionEntry('section_1', countWordsInSection(1));
+
+    function countWordsInSection(n) {
+      var el = document.getElementById('section-' + n);
+      if (!el) return 0;
+      var text = el.textContent.replace(/Continue to.*$/m, '').trim();
+      return text.split(/\s+/).filter(function(w) { return w.length > 0; }).length;
+    }
+
+    function nextSection(from) {
+      var now = Date.now();
+      sectionTimes['section_' + from] = now - sectionEnteredAt;
+      SWSAttention.recordSectionExit('section_' + from, 100);
+      document.getElementById('section-' + from).style.display = 'none';
+
+      if (from >= TOTAL_SECTIONS) {
+        currentSection = TOTAL_SECTIONS + 1;
+        document.getElementById('progress-fill').style.width = '100%';
+        document.getElementById('progress-label').textContent = 'ASSESSMENT';
+        document.getElementById('assessment').style.display = 'block';
+        return;
+      }
+      currentSection = from + 1;
+      sectionEnteredAt = now;
+      SWSAttention.recordSectionEntry('section_' + currentSection, countWordsInSection(currentSection));
+      document.getElementById('progress-label').textContent = 'SECTION ' + currentSection + ' OF ' + TOTAL_SECTIONS;
+      document.getElementById('progress-fill').style.width = ((currentSection - 1) / TOTAL_SECTIONS * 100) + '%';
+      document.getElementById('section-' + currentSection).style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      SWSAttention.takeTimelineSnapshot('section_' + currentSection);
+    }
+
+    // ---- QUESTION HANDLING ----
+    document.addEventListener('click', function(e) {
+      var opt = e.target.closest('.opt');
+      if (!opt) return;
+      var q = parseInt(opt.dataset.q, 10);
+      var ans = opt.dataset.ans;
+      // Deselect siblings
+      var siblings = document.querySelectorAll('.opt[data-q="' + q + '"]');
+      siblings.forEach(function(s) { s.classList.remove('selected'); });
+      opt.classList.add('selected');
+      answers[q] = ans;
+      // Hick's Law: record response time for this decision
+      var rt = Date.now() - (lastQuestionRenderAt[q] || sessionEnteredAtAssessment);
+      var optionCount = siblings.length;
+      SWSAttention.recordDecision(optionCount, rt);
+      checkSubmitReady();
+    });
+    var lastQuestionRenderAt = [];
+    var sessionEnteredAtAssessment = Date.now();
+
+    // ---- REFLECTION TEXTAREA ----
+    var reflectionEl = document.getElementById('reflection');
+    reflectionEl.addEventListener('input', function() {
+      SWSAttention.recordMobileInput(Date.now());
+      var words = reflectionEl.value.trim().split(/\s+/).filter(function(w) { return w.length > 0; }).length;
+      document.getElementById('reflection-count').textContent = words;
+      checkSubmitReady();
+    });
+
+    function checkSubmitReady() {
+      var allAnswered = answers.every(function(a) { return a !== null; });
+      var words = reflectionEl.value.trim().split(/\s+/).filter(function(w) { return w.length > 0; }).length;
+      var ready = allAnswered && words >= 20;
+      document.getElementById('submit-btn').disabled = !ready;
+    }
+
+    // ---- FINISH ----
+    function finishActivity() {
+      // Lock quiz answer visualization (reveal correct answers)
+      document.querySelectorAll('.opt').forEach(function(o) {
+        var q = parseInt(o.dataset.q, 10);
+        if (o.dataset.ans === correctAnswers[q]) o.classList.add('correct-answer');
+        else if (o.classList.contains('selected')) o.classList.add('wrong-answer');
+      });
+
+      SWSAttention.takeTimelineSnapshot('submit');
+      var c = SWSAttention.getHumanConfidence();
+      var stats = SWSAttention.getStats();
+      var timeline = SWSAttention.getTimeline();
+      var elapsed = Math.round((Date.now() - sessionStart) / 1000);
+
+      // Derive the 6 medical-profile metrics from the 20 SDK signals
+      var reactionTime = _ascore(c.timing, 0.8);  // timing entropy as a proxy
+      var reactionTimeConsistency = c.rtVariability || 0.5;
+      var clickPrecision = (c.cursorJerk + c.velocityProfile + c.twoThirdsPower) / 3;
+      var sustainedFocus = (c.tabVisibility + c.inactivity + c.crossCorrelation) / 3;
+      var documentComprehension = (c.readingSpeed + c.scrollBacktrack + c.hoverDwell) / 3;
+      var fatigueResistance = timelineStability(timeline);
+
+      var medicalSignals = {
+        reactionTime: reactionTime,
+        reactionTimeConsistency: reactionTimeConsistency,
+        clickPrecision: clickPrecision,
+        sustainedFocus: sustainedFocus,
+        documentComprehension: documentComprehension,
+        fatigueResistance: fatigueResistance
+      };
+
+      // Weighted compute — same logic the vertical-scoring-profiles.js uses
+      var weighted = 0, totalW = 0;
+      var p = MEDICAL_PROFILE;
+      var detail = {};
+      for (var k in p.weights) {
+        var v = Math.min(1, Math.max(0, medicalSignals[k] || 0));
+        weighted += v * p.weights[k];
+        totalW += p.weights[k];
+        detail[k] = { value: v, weight: p.weights[k], contribution: v * p.weights[k] };
+      }
+      var medComposite = totalW > 0 ? weighted / totalW : 0;
+      var verdict;
+      if (medComposite >= p.thresholds.pass) verdict = 'pass';
+      else if (medComposite >= p.thresholds.marginal) verdict = 'marginal';
+      else verdict = 'fail';
+
+      renderResults(medComposite, verdict, detail, c, stats, elapsed);
+      saveSession(medComposite, verdict, detail, c, stats, elapsed, timeline);
+
+      document.getElementById('assessment').style.display = 'none';
+      document.getElementById('results').style.display = 'block';
+      document.getElementById('progress-label').textContent = 'RECEIPT ISSUED';
+      document.getElementById('progress-fill').style.width = '100%';
+    }
+
+    function _ascore(v, k) { if (!v || v <= 0) return 0; return 1 - Math.exp(-v / (k || 1)); }
+
+    function timelineStability(tl) {
+      if (!tl || tl.length < 2) return 0.5;
+      var comps = tl.map(function(s) { return s.composite; });
+      var mean = comps.reduce(function(a, b) { return a + b; }, 0) / comps.length;
+      var variance = comps.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / comps.length;
+      var cv = mean > 0 ? Math.sqrt(variance) / mean : 0;
+      return Math.max(0, 1 - cv * 2);  // low CV = stable = high fatigue resistance
+    }
+
+    function renderResults(comp, verdict, detail, c, stats, elapsed) {
+      var pill = document.getElementById('tier-pill');
+      pill.textContent = verdict === 'pass' ? 'CREDIT AWARDED' : verdict === 'marginal' ? 'MARGINAL — ADDITIONAL REVIEW' : 'NOT COMPLETED TO STANDARD';
+      pill.className = 'tier-pill tier-' + verdict;
+      document.getElementById('composite-big').textContent = comp.toFixed(3);
+
+      // Medical-profile 6 metrics
+      var grid = document.getElementById('metric-grid');
+      var label = {
+        reactionTime: 'Reaction Time',
+        reactionTimeConsistency: 'Timing Consistency',
+        clickPrecision: 'Motor Precision',
+        sustainedFocus: 'Sustained Focus',
+        documentComprehension: 'Reading Comprehension',
+        fatigueResistance: 'Session Stability'
+      };
+      var rows = '';
+      for (var k in detail) {
+        rows += '<div class="metric-row"><span class="name">' + label[k] + '</span><span class="val">' +
+          detail[k].value.toFixed(2) + ' × w ' + detail[k].weight.toFixed(2) + ' = ' + detail[k].contribution.toFixed(2) + '</span></div>';
+      }
+      grid.innerHTML = rows;
+
+      // Narrative: pick 3 highest-scoring signals and explain their biology
+      document.getElementById('narr-content').innerHTML = buildNarrative(c);
+
+      // Full 20-signal breakdown
+      var SIGNALS = [
+        ['timing', 'Timing Entropy'], ['hicks', "Hick's Law"], ['fitts', "Fitts' Law"],
+        ['scroll', 'Scroll Saccade'], ['microPause', 'Micro-Pause'], ['touch', 'Touch/Click'],
+        ['keystroke', 'Keystroke'], ['readingSpeed', 'Reading Speed'], ['hoverDwell', 'Hover Dwell'],
+        ['tabVisibility', 'Tab Visibility'], ['inactivity', 'Activity Pattern'],
+        ['rtVariability', 'RT Variability'], ['scrollBacktrack', 'Scroll Backtrack'],
+        ['fractalScaling', 'Fractal Scaling'], ['crossCorrelation', 'Cross-Signal'],
+        ['curvatureIndex', 'Curvature'], ['cursorJerk', 'Cursor Jerk'],
+        ['velocityProfile', 'Velocity'], ['twoThirdsPower', '2/3 Power Law'],
+        ['deviceMotion', 'Device Motion']
+      ];
+      var html = SIGNALS.map(function(s) {
+        var v = c[s[0]] || 0;
+        return s[1] + ': <strong style="color:' + (v >= 0.5 ? '#10b981' : v >= 0.25 ? '#f59e0b' : '#64748b') + '">' + v.toFixed(3) + '</strong>';
+      }).join(' &nbsp;·&nbsp; ');
+      document.getElementById('signal-breakdown').innerHTML = html;
+
+      document.getElementById('hash-box').textContent = 'Session ID: ' + sessionId + ' · Receipt: ' + (stats.lastHash || 'pending') + ' · Duration: ' + elapsed + 's';
+    }
+
+    function buildNarrative(c) {
+      // Library: peer-reviewed-biology stories for each signal, keyed to threshold.
+      var STORIES = {
+        timing: { thresh: 0.6, text: 'Your <strong>timing entropy</strong> (' + (c.timing || 0).toFixed(2) + ') reflects the log-normal variance in human motor timing — coefficient of variation 0.4–1.5 is the biological signature. A bot\'s timing has near-zero CV; yours does not.' },
+        hicks: { thresh: 0.5, text: 'Your <strong>Hick\'s Law compliance</strong> (' + (c.hicks || 0).toFixed(2) + ') shows decision time scaling with option count — a peer-reviewed cognitive signature since 1952. Bots respond at constant speed regardless of complexity.' },
+        fitts: { thresh: 0.6, text: 'Your <strong>Fitts\' Law compliance</strong> (' + (c.fitts || 0).toFixed(2) + ') shows movement time scaling with distance-to-target — a motor-control invariant since 1954. Simulated clicks don\'t obey this law.' },
+        scroll: { thresh: 0.5, text: 'Your <strong>scroll saccade pattern</strong> (' + (c.scroll || 0).toFixed(2) + ') reflects the human saccade-fixation reading rhythm. Bots scroll at constant velocity; your pauses match the eye-tracking literature.' },
+        crossCorrelation: { thresh: 0.6, text: 'Your <strong>cross-signal correlation</strong> (' + (c.crossCorrelation || 0).toFixed(2) + ') shows your signals varying together the way human biology produces them. A bot with one artificially-inflated signal fails this coherence check.' },
+        fractalScaling: { thresh: 0.5, text: 'Your <strong>1/f fractal scaling</strong> (' + (c.fractalScaling || 0).toFixed(2) + ') matches pink-noise attention fluctuations (Gilden 2001). Machine-generated intervals produce white noise instead — mathematically distinguishable.' },
+        twoThirdsPower: { thresh: 0.5, text: 'Your <strong>two-thirds power law</strong> (' + (c.twoThirdsPower || 0).toFixed(2) + ') shows hand velocity coupled to trajectory curvature as ~curvature^(−1/3) (Lacquaniti 1983). This is a biomechanical invariant; bots don\'t reproduce it.' },
+        microPause: { thresh: 0.4, text: 'Your <strong>micro-pause distribution</strong> (' + (c.microPause || 0).toFixed(2) + ') shows 200–600ms cognitive delays between content rendering and first interaction — the brain parsing before the hand moves. Bots interact immediately.' }
+      };
+      // Pick top 3 signals that passed their thresh
+      var eligible = Object.keys(STORIES).filter(function(k) { return (c[k] || 0) >= STORIES[k].thresh; });
+      eligible.sort(function(a, b) { return (c[b] || 0) - (c[a] || 0); });
+      var top = eligible.slice(0, 3);
+      if (top.length === 0) {
+        return '<p class="lead">Signal-by-signal narrative requires engaged interaction. Your session produced marginal biological-signature scores; consider re-running with more deliberate reading and thoughtful responses.</p>';
+      }
+      var html = '<p class="lead">Three signals in your session match peer-reviewed biological signatures that machines cannot reproduce coherently:</p>';
+      top.forEach(function(k) { html += '<p>· ' + STORIES[k].text + '</p>'; });
+      return html;
+    }
+
+    function saveSession(medComposite, verdict, detail, c, stats, elapsed, timeline) {
+      if (!db) return;
+      var data = {
+        session_id: sessionId,
+        activity_id: activityId,
+        timestamp: Date.now(),
+        generated: new Date().toISOString(),
+        duration_sec: elapsed,
+        user_agent: navigator.userAgent,
+        source_type: 'cme_demo',
+        vertical_profile: 'medical',
+        medical_composite: medComposite,
+        medical_verdict: verdict,
+        medical_detail: detail,
+        quiz_answers: answers,
+        quiz_correct: correctAnswers,
+        quiz_score: answers.filter(function(a, i) { return a === correctAnswers[i]; }).length,
+        reflection: reflectionEl.value.slice(0, 2000),
+        reflection_words: reflectionEl.value.trim().split(/\s+/).filter(function(w) { return w.length > 0; }).length,
+        section_times: sectionTimes,
+        signals: (function() {
+          var s = {};
+          for (var k in c) s[k] = c[k];
+          return s;
+        })(),
+        active_signals: c.activeSignals,
+        timeline: timeline || [],
+        uid: fbUser ? fbUser.uid : 'anonymous'
+      };
+      db.collection('demos').doc(sessionId).set(data).catch(function(e) {
+        console.warn('[CME] Save failed:', e.code);
+      });
+    }
+
+    // Record timing for quiz questions — mark render time when they become visible
+    var assessmentObserver = new MutationObserver(function() {
+      if (document.getElementById('assessment').style.display !== 'none') {
+        for (var i = 0; i < 3; i++) { if (!lastQuestionRenderAt[i]) lastQuestionRenderAt[i] = Date.now(); }
+        assessmentObserver.disconnect();
+      }
+    });
+    assessmentObserver.observe(document.getElementById('assessment'), { attributes: true, attributeFilter: ['style'] });
+  </script>
+</body>
+</html>

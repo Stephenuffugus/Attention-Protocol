@@ -127,7 +127,11 @@ describe('canonical fixtures — signature validity against env key', () => {
     async (name, p) => {
       const f = loadFixture(p);
       const s = await signer.loadSignerFromEnv();
-      const result = await signer.verifyJwt(f.signed_jwt, s.publicKeyHex);
+      // ignoreExp: the point of this regression test is that the fixture is
+      // signed by the current key, not that it's within its humanness-freshness
+      // window. Static fixtures would otherwise rot every 24h; the exp behavior
+      // itself is covered by humanness.test.js's dedicated exp-enforcement block.
+      const result = await signer.verifyJwt(f.signed_jwt, s.publicKeyHex, { ignoreExp: true });
       expect(result.valid).toBe(true);
       expect(result.header.kid).toBe(s.kid);
     }

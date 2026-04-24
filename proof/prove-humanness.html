@@ -91,7 +91,7 @@
     <div class="panel">
       <h2>1. Run a 3-minute session</h2>
       <p>
-        Complete the five-phase behavioral demo. We measure 15 signals from peer-reviewed
+        Complete the five-phase behavioral demo. We measure 20 signals from peer-reviewed
         behavioral science research, run environmental bot-detection (BotD), and verify your
         typing patterns aren't paste-bursts from an LLM. At the end, you get a signed
         credential.
@@ -475,8 +475,22 @@ document.getElementById('mode-verify').addEventListener('click', () => {
   document.getElementById('panel-claim').classList.add('hidden');
 });
 document.getElementById('verify-btn').addEventListener('click', doVerify);
-document.getElementById('sample-btn').addEventListener('click', () => {
-  document.getElementById('input').value = SAMPLE_JWT;
+document.getElementById('sample-btn').addEventListener('click', async () => {
+  // Fetch the current fresh fixture — refreshed by scripts/refresh-demo-fixtures.js.
+  // Falls back to the inline SAMPLE_JWT (which may be expired) only if the
+  // fetch fails, so running the refresher is the single step to keep the
+  // demo credential unexpired.
+  let jwt = SAMPLE_JWT;
+  try {
+    const res = await fetch('results/humanness-sample.json', { cache: 'no-cache' });
+    if (res.ok) {
+      const fixture = await res.json();
+      if (fixture && typeof fixture.signed_jwt === 'string') {
+        jwt = fixture.signed_jwt;
+      }
+    }
+  } catch (_) { /* offline — use inline fallback */ }
+  document.getElementById('input').value = jwt;
   doVerify();
 });
 document.getElementById('clear-btn').addEventListener('click', () => {

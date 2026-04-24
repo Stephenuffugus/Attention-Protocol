@@ -164,6 +164,118 @@ describe('Signal 7: Keystroke Dynamics', () => {
 });
 
 // ============================================================
+// Signal 7b: Digraph (class-pair transition) timing
+// ============================================================
+// Helper: dispatch keydown/keyup pairs with a specific `key` string (so the
+// SDK's class bucketing picks up varied character classes) and per-pair flight
+// time. Each step is sync-ish via setTimeout chaining.
+function simulateTypedSequence(steps, callback) {
+  let i = 0;
+  function go() {
+    if (i >= steps.length) { callback(); return; }
+    const step = steps[i++];
+    // keydown
+    dispatchDocEvent('keydown', { type: 'keydown', keyCode: step.keyCode || 0, key: step.key });
+    setTimeout(() => {
+      // keyup at +holdTime
+      dispatchDocEvent('keyup', { type: 'keyup', keyCode: step.keyCode || 0, key: step.key });
+      setTimeout(go, step.flight);
+    }, step.hold);
+  }
+  go();
+}
+
+// Convenience: build a "typed phrase" step list with per-digit hold/flight jitter.
+function buildTypedSteps(phrase, baseHold, baseFlight, jitter) {
+  const steps = [];
+  for (let i = 0; i < phrase.length; i++) {
+    const ch = phrase[i];
+    steps.push({
+      key: ch,
+      keyCode: ch.charCodeAt(0),
+      hold: Math.max(30, baseHold + Math.floor(Math.sin(i * 1.7) * jitter)),
+      flight: Math.max(40, baseFlight + Math.floor(Math.cos(i * 1.3) * jitter))
+    });
+  }
+  return steps;
+}
+
+describe('Signal 7b: Digraph (class-pair) timing', () => {
+  test('returns null when fewer than 8 keystrokes are logged', (done) => {
+    simulateTypedSequence(buildTypedSteps('abc', 80, 120, 40), () => {
+      const dg = SWSAttention.getDigraphStats();
+      expect(dg).toBeNull();
+      done();
+    });
+  }, 10000);
+
+  test('returns null when only one class-pair type is observed (all letters)', (done) => {
+    // 12 lowercase letters in a row → every transition is l→l (one pair type)
+    simulateTypedSequence(buildTypedSteps('abcdefghijkl', 90, 130, 30), () => {
+      const dg = SWSAttention.getDigraphStats();
+      expect(dg).toBeNull();
+      done();
+    });
+  }, 10000);
+
+  test('returns a well-shaped result for diverse human-like typing', (done) => {
+    // Letters + spaces + punctuation → 4+ distinct class-pair types
+    const phrase = 'hello world, this is a test.';
+    simulateTypedSequence(buildTypedSteps(phrase, 95, 140, 45), () => {
+      const dg = SWSAttention.getDigraphStats();
+      expect(dg).not.toBeNull();
+      expect(dg.pairTypes).toBeGreaterThanOrEqual(4);
+      expect(dg.score).toBeGreaterThan(0);
+      expect(dg.score).toBeLessThanOrEqual(1);
+      expect(dg.diversity).toBeGreaterThan(0);
+      expect(dg.within).toBeGreaterThanOrEqual(0);
+      expect(dg.cross).toBeGreaterThanOrEqual(0);
+      done();
+    });
+  }, 15000);
+
+  test('human varied typing scores strictly higher than robotic uniform-paste', (done) => {
+    // Human: diverse classes + natural within-pair jitter
+    const humanPhrase = 'the quick brown fox jumps, over 3 lazy dogs.';
+    simulateTypedSequence(buildTypedSteps(humanPhrase, 95, 145, 55), () => {
+      const humanDg = SWSAttention.getDigraphStats();
+      const humanScore = humanDg ? humanDg.score : -1;
+      reloadSDK();
+
+      // Robot: same diversity of classes (so diversity isn't the only lever)
+      // but zero within-pair variability — every flight time is identical.
+      const botPhrase = 'the quick brown fox jumps, over 3 lazy dogs.';
+      const botSteps = [];
+      for (let i = 0; i < botPhrase.length; i++) {
+        botSteps.push({
+          key: botPhrase[i],
+          keyCode: botPhrase.charCodeAt(i),
+          hold: 80,   // fixed
+          flight: 120 // fixed — no jitter at all
+        });
+      }
+      simulateTypedSequence(botSteps, () => {
+        const botDg = SWSAttention.getDigraphStats();
+        const botScore = botDg ? botDg.score : -1;
+        expect(humanScore).toBeGreaterThan(botScore);
+        done();
+      });
+    });
+  }, 20000);
+
+  test('keystroke sub-composite integrates digraph signal end-to-end', (done) => {
+    // With diverse typing, the full keystroke composite should still return a
+    // valid [0,1] score. This is the regression guard for the fold-in change.
+    simulateTypedSequence(buildTypedSteps('hello world, 2026 is here.', 95, 140, 40), () => {
+      const c = SWSAttention.getHumanConfidence();
+      expect(c.keystroke).toBeGreaterThan(0);
+      expect(c.keystroke).toBeLessThanOrEqual(1);
+      done();
+    });
+  }, 15000);
+});
+
+// ============================================================
 // Signal 8: Reading Speed Inference
 // ============================================================
 describe('Signal 8: Reading Speed Inference', () => {
@@ -223,6 +335,150 @@ describe('Signal 8: Reading Speed Inference', () => {
     const c = SWSAttention.getHumanConfidence();
     expect(c.readingSpeed).toBe(0);
   });
+});
+
+// ============================================================
+// Signal 8b: Reading-Speed Coherence (WPM plausibility)
+// ============================================================
+describe('Signal 8b: Reading-Speed Coherence (WPM)', () => {
+  test('getReadingCoherence returns null when no sections have wordCount', (done) => {
+    SWSAttention.recordSectionEntry('s1');
+    setTimeout(() => {
+      SWSAttention.recordSectionExit('s1', 100);
+      SWSAttention.recordSectionEntry('s2');
+      setTimeout(() => {
+        SWSAttention.recordSectionExit('s2', 100);
+        expect(SWSAttention.getReadingCoherence()).toBeNull();
+        done();
+      }, 150);
+    }, 150);
+  }, 5000);
+
+  test('getReadingCoherence returns null with only one wordCount section', (done) => {
+    SWSAttention.recordSectionEntry('s1', 5);
+    setTimeout(() => {
+      SWSAttention.recordSectionExit('s1', 100);
+      SWSAttention.recordSectionEntry('s2'); // no wordCount
+      setTimeout(() => {
+        SWSAttention.recordSectionExit('s2', 100);
+        expect(SWSAttention.getReadingCoherence()).toBeNull();
+        done();
+      }, 300);
+    }, 300);
+  }, 5000);
+
+  test('plausible WPM sections score near 1.0 on coherence', (done) => {
+    // 5 words in 1000ms = 300 WPM (squarely in the reading band)
+    SWSAttention.recordSectionEntry('s1', 5);
+    setTimeout(() => {
+      SWSAttention.recordSectionExit('s1', 100);
+      SWSAttention.recordSectionEntry('s2', 5);
+      setTimeout(() => {
+        SWSAttention.recordSectionExit('s2', 100);
+        SWSAttention.recordSectionEntry('s3', 5);
+        setTimeout(() => {
+          SWSAttention.recordSectionExit('s3', 100);
+          const coh = SWSAttention.getReadingCoherence();
+          expect(coh).not.toBeNull();
+          expect(coh.sections).toBe(3);
+          expect(coh.score).toBeGreaterThan(0.8);
+          expect(coh.implausibleRatio).toBe(0);
+          done();
+        }, 1000);
+      }, 1000);
+    }, 1000);
+  }, 8000);
+
+  test('implausibly fast WPM sections score low on coherence', (done) => {
+    // 50 words in 250ms = 12000 WPM per section (paste-like)
+    SWSAttention.recordSectionEntry('s1', 50);
+    setTimeout(() => {
+      SWSAttention.recordSectionExit('s1', 100);
+      SWSAttention.recordSectionEntry('s2', 50);
+      setTimeout(() => {
+        SWSAttention.recordSectionExit('s2', 100);
+        SWSAttention.recordSectionEntry('s3', 50);
+        setTimeout(() => {
+          SWSAttention.recordSectionExit('s3', 100);
+          const coh = SWSAttention.getReadingCoherence();
+          expect(coh).not.toBeNull();
+          expect(coh.implausibleRatio).toBeGreaterThanOrEqual(0.5);
+          expect(coh.score).toBeLessThanOrEqual(0.25);
+          done();
+        }, 250);
+      }, 250);
+    }, 250);
+  }, 5000);
+
+  test('plausible-WPM readingSpeed scores strictly higher than implausible-WPM', (done) => {
+    // Human: 5 words per 1000ms (300 WPM)
+    SWSAttention.recordSectionEntry('s1', 5);
+    setTimeout(() => {
+      SWSAttention.recordSectionExit('s1', 100);
+      SWSAttention.recordSectionEntry('s2', 5);
+      setTimeout(() => {
+        SWSAttention.recordSectionExit('s2', 100);
+        SWSAttention.recordSectionEntry('s3', 5);
+        setTimeout(() => {
+          SWSAttention.recordSectionExit('s3', 100);
+          const human = SWSAttention.getHumanConfidence().readingSpeed;
+          reloadSDK();
+
+          // Bot: 50 words per 250ms (12000 WPM) — bypasses the mean<200 gate
+          SWSAttention.recordSectionEntry('s1', 50);
+          setTimeout(() => {
+            SWSAttention.recordSectionExit('s1', 100);
+            SWSAttention.recordSectionEntry('s2', 50);
+            setTimeout(() => {
+              SWSAttention.recordSectionExit('s2', 100);
+              SWSAttention.recordSectionEntry('s3', 50);
+              setTimeout(() => {
+                SWSAttention.recordSectionExit('s3', 100);
+                const bot = SWSAttention.getHumanConfidence().readingSpeed;
+                expect(human).toBeGreaterThan(bot);
+                done();
+              }, 250);
+            }, 250);
+          }, 250);
+        }, 1000);
+      }, 1000);
+    }, 1000);
+  }, 15000);
+
+  test('readingSpeed stays unchanged when no wordCount is provided (backcompat)', (done) => {
+    SWSAttention.recordSectionEntry('s1');
+    setTimeout(() => {
+      SWSAttention.recordSectionExit('s1', 100);
+      SWSAttention.recordSectionEntry('s2');
+      setTimeout(() => {
+        SWSAttention.recordSectionExit('s2', 100);
+        SWSAttention.recordSectionEntry('s3');
+        setTimeout(() => {
+          SWSAttention.recordSectionExit('s3', 100);
+          expect(SWSAttention.getReadingCoherence()).toBeNull();
+          const c = SWSAttention.getHumanConfidence();
+          expect(c.readingSpeed).toBeGreaterThan(0);
+          expect(c.readingSpeed).toBeLessThanOrEqual(1);
+          done();
+        }, 250);
+      }, 250);
+    }, 250);
+  }, 5000);
+
+  test('wordCount can be provided at exit instead of entry', (done) => {
+    SWSAttention.recordSectionEntry('s1'); // no wordCount
+    setTimeout(() => {
+      SWSAttention.recordSectionExit('s1', 100, 5); // wordCount on exit
+      SWSAttention.recordSectionEntry('s2');
+      setTimeout(() => {
+        SWSAttention.recordSectionExit('s2', 100, 5);
+        const coh = SWSAttention.getReadingCoherence();
+        expect(coh).not.toBeNull();
+        expect(coh.sections).toBe(2);
+        done();
+      }, 1000);
+    }, 1000);
+  }, 5000);
 });
 
 // ============================================================
@@ -298,6 +554,107 @@ describe('Signal 10: Tab Visibility Patterns', () => {
       done();
     }, 5200);
   }, 10000);
+});
+
+// ============================================================
+// Signal 10b: Active Window-Focus Tracking
+// ============================================================
+describe('Signal 10b: Window-Focus Tracking', () => {
+  test('getFocusStats returns zero state on a fresh session', () => {
+    const s = SWSAttention.getFocusStats();
+    expect(s.blurCount).toBe(0);
+    expect(s.focusCount).toBe(0);
+    expect(s.events).toBe(0);
+    expect(s.currentlyFocused).toBe(true);
+  });
+
+  test('recordWindowFocus captures blur/focus events in order', () => {
+    SWSAttention.recordWindowFocus(false);
+    SWSAttention.recordWindowFocus(true);
+    SWSAttention.recordWindowFocus(false);
+    const s = SWSAttention.getFocusStats();
+    expect(s.blurCount).toBe(2);
+    expect(s.focusCount).toBe(1);
+    expect(s.events).toBe(3);
+    expect(s.currentlyFocused).toBe(false);
+  });
+
+  test('truthy/falsy inputs are coerced to booleans', () => {
+    SWSAttention.recordWindowFocus(0);
+    SWSAttention.recordWindowFocus(1);
+    SWSAttention.recordWindowFocus('');
+    const s = SWSAttention.getFocusStats();
+    expect(s.blurCount).toBe(2);
+    expect(s.focusCount).toBe(1);
+  });
+
+  test('session with a blur event scores tabVisibility strictly higher than a matched no-event session', (done) => {
+    // Session A: 5.2s, no visibility and no focus events → baseline 0.75
+    setTimeout(() => {
+      const a = SWSAttention.getHumanConfidence().tabVisibility;
+      reloadSDK();
+      // Session B: 5.2s, no visibility events, one blur + one focus → 0.78
+      SWSAttention.recordWindowFocus(false);
+      setTimeout(() => {
+        SWSAttention.recordWindowFocus(true);
+      }, 120);
+      setTimeout(() => {
+        const b = SWSAttention.getHumanConfidence().tabVisibility;
+        expect(b).toBeGreaterThan(a);
+        done();
+      }, 5200);
+    }, 5200);
+  }, 20000);
+
+  test('focus events do not crash when driven through the public API', () => {
+    expect(() => {
+      for (let i = 0; i < 10; i++) {
+        SWSAttention.recordWindowFocus(i % 2 === 0);
+      }
+      SWSAttention.getFocusStats();
+      SWSAttention.getHumanConfidence();
+    }).not.toThrow();
+  });
+});
+
+// ============================================================
+// Timeline ring-buffer (retention cap)
+// ============================================================
+describe('Timeline ring-buffer retention', () => {
+  test('getTimelineMeta reports a fresh session as complete with retained=0', () => {
+    const meta = SWSAttention.getTimelineMeta();
+    expect(meta.retained).toBe(0);
+    expect(meta.truncated).toBe(0);
+    expect(meta.complete).toBe(true);
+    expect(meta.cap).toBe(10000);
+  });
+
+  test('snapshots below the cap are all retained, nothing truncated', () => {
+    for (let i = 0; i < 50; i++) SWSAttention.takeTimelineSnapshot('t' + i);
+    const meta = SWSAttention.getTimelineMeta();
+    expect(meta.retained).toBe(50);
+    expect(meta.truncated).toBe(0);
+    expect(meta.complete).toBe(true);
+    expect(SWSAttention.getTimeline().length).toBe(50);
+  });
+
+  test('snapshots beyond the cap evict the oldest (FIFO), count reported honestly', () => {
+    // Exceed the cap by a small margin to exercise the ring-buffer path
+    // without slowing the test suite unnecessarily.
+    const over = 25;
+    const total = 10000 + over;
+    for (let i = 0; i < total; i++) SWSAttention.takeTimelineSnapshot('t' + i);
+    const meta = SWSAttention.getTimelineMeta();
+    expect(meta.retained).toBe(10000);
+    expect(meta.truncated).toBe(over);
+    expect(meta.complete).toBe(false);
+    const tl = SWSAttention.getTimeline();
+    expect(tl.length).toBe(10000);
+    // Newest snapshot's phase matches the last one we recorded
+    expect(tl[tl.length - 1].phase).toBe('t' + (total - 1));
+    // Truncation annotation is present (non-enumerable, so doesn't leak into JSON)
+    expect(tl._truncated).toBe(over);
+  }, 30000);
 });
 
 // ============================================================
@@ -591,6 +948,31 @@ describe('Signal 20: Device Motion', () => {
         const c = SWSAttention.getHumanConfidence();
         expect(c.deviceMotion).toBeGreaterThan(0);
         expect(c.deviceMotion).toBeLessThanOrEqual(1);
+        done();
+      }
+    }
+    go();
+  }, 10000);
+
+  test('weak-signal laptop motion (below hand-tremor floor) returns -1 not a partial score', (done) => {
+    // Regression for the desktop laptop bug (observed 2026-04-24): MacBook-style
+    // lid-tilt sensors produce tiny nonzero accelerometer values (SD 0.001-0.003)
+    // that are above the all-zero check but below the human hand-tremor floor.
+    // Prior logic amplified this into ~0.30. Should return -1 (sentinel → 0).
+    let count = 0;
+    function go() {
+      if (count < 110) {
+        // Tiny-signal values: SD will be around 0.001-0.002, well below the
+        // 0.005 hand-tremor floor.
+        const tinyAx = 0.0001 + Math.sin(count * 0.1) * 0.001;
+        const tinyAy = 0.0001 + Math.cos(count * 0.1) * 0.001;
+        const tinyGz = 0.00005 + Math.sin(count * 0.05) * 0.0001;
+        SWSAttention.recordDeviceMotion(tinyAx, tinyAy, 0.001, 0, 0, tinyGz);
+        count++;
+        setTimeout(go, 55);
+      } else {
+        const c = SWSAttention.getHumanConfidence();
+        expect(c.deviceMotion).toBe(0); // -1 sentinel → 0 in output
         done();
       }
     }

@@ -95,17 +95,24 @@
   var _pendingRender = false;
 
   // New behavioral signals (v2)
-  var _keystrokeLog = [];     // [{key, holdTime, flightTime, t}, ...]
+  // Each entry: {cls, holdTime, flightTime, t}. `cls` is a privacy-safe
+  // character-class bucket (letter/number/space/punct/modifier/nav/enter/other).
+  // We never store the actual key or its content — only the class, which lets
+  // us compute digraph (class-pair) timing without capturing what the user typed.
+  var _keystrokeLog = [];
   var _keyDownTimes = {};     // {keyCode: timestamp} for hold time calc
   var _lastKeyUpTime = 0;
   var _hoverLog = [];         // [{element, enterTime, leaveTime, dwellMs}, ...]
   var _currentHover = null;
   var _tabVisLog = [];        // [{visible: bool, t: timestamp}, ...]
+  var _windowFocusLog = [];   // [{focused: bool, t: timestamp}, ...] — window blur/focus, orthogonal to tab-hide
   var _inactivityGaps = [];   // [{startTime, endTime, durationMs}, ...]
   var _lastActivityTime = Date.now();
   var _inactivityThreshold = 3000; // 3s of no interaction = gap
   var _sectionTimings = [];   // [{sectionId, enterTime, exitTime, scrollPct}, ...]
   var _timeline = [];         // [{t, composite, tier, signals, phase}, ...] every 10s
+  var _timelineMax = 10000;   // cap: 10k snapshots = ~4 MB JSON, covers ~27h at 10s cadence
+  var _timelineTruncated = 0; // count of entries evicted — surfaced in getTimeline for audit
 
   // Daily cap tracking
   var _dailyCaps = {};
@@ -138,6 +145,36 @@
 
   function _getCurrentUid() {
     return _currentUid;
+  }
+
+  // ============================================================
+  // KEYSTROKE CLASS BUCKETING (privacy-preserving digraph input)
+  // ============================================================
+  // Classes: l=letter, n=number, s=space, p=punct/symbol, m=modifier,
+  // b=backspace/nav, e=enter, x=other. We only ever store the class,
+  // never the key itself, so the digraph signal stays PII-free.
+  function _keyClass(key, keyCode) {
+    if (key != null && typeof key === 'string') {
+      if (key.length === 1) {
+        var code = key.charCodeAt(0);
+        if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122)) return 'l';
+        if (code >= 48 && code <= 57) return 'n';
+        if (key === ' ') return 's';
+        return 'p';
+      }
+      if (key === 'Shift' || key === 'Control' || key === 'Alt' || key === 'Meta' || key === 'CapsLock') return 'm';
+      if (key === 'Backspace' || key === 'Delete' || key === 'Tab' || key === 'Home' || key === 'End' || key === 'PageUp' || key === 'PageDown' || (key.length > 5 && key.indexOf('Arrow') === 0)) return 'b';
+      if (key === 'Enter') return 'e';
+      return 'x';
+    }
+    if (keyCode == null) return 'x';
+    if (keyCode >= 65 && keyCode <= 90) return 'l';
+    if ((keyCode >= 48 && keyCode <= 57) || (keyCode >= 96 && keyCode <= 105)) return 'n';
+    if (keyCode === 32) return 's';
+    if (keyCode === 13) return 'e';
+    if (keyCode === 8 || keyCode === 46 || keyCode === 9 || (keyCode >= 33 && keyCode <= 40)) return 'b';
+    if (keyCode === 16 || keyCode === 17 || keyCode === 18 || keyCode === 20 || keyCode === 91 || keyCode === 93) return 'm';
+    return 'p';
   }
 
   // ============================================================
@@ -244,6 +281,23 @@
     return 1 - Math.exp(-value / (k || 1));
   }
 
+  // Reading-speed plausibility curve (words per minute).
+  // Bands derived from the reading literature: typical adult 200-300 WPM,
+  // skilled skim 400-700, speed-reader ceiling ~1200, paste/render >> 2000.
+  // Returns a [0,1] plausibility score, or null when the rate is so slow
+  // the section is more likely a tab-switch than reading (don't penalize).
+  function _wpmPlausibility(wpm) {
+    if (wpm == null || !isFinite(wpm)) return null;
+    if (wpm < 50) return null;                   // skip — tab-switched, not signal
+    if (wpm >= 150 && wpm <= 700) return 1.0;    // normal reading band
+    if (wpm >= 100 && wpm < 150) return 0.8;     // slow/dabble reading
+    if (wpm > 700 && wpm <= 1200) return 0.7;    // fast skim, still plausible
+    if (wpm > 1200 && wpm <= 2000) return 0.35;  // edge of human
+    if (wpm > 2000 && wpm <= 3500) return 0.15;  // implausible — bot tell
+    if (wpm > 3500) return 0.05;                 // absurd — hard flag
+    return 0.5;                                  // 50-100, rare; mild neutral
+  }
+
   // Click coordinate variance for desktop fallback
   var _clickCoords = [];
   var _mobileInputTimes = [];
@@ -320,6 +374,11 @@
       var y = (scrollY !== undefined) ? scrollY : window.scrollY;
       _scrollLog.push({ y: y, t: Date.now() });
       if (_scrollLog.length > 500) _scrollLog.shift();
+      // Scrolling IS activity. Without this, a mobile reading session (which
+      // has no mousemove events) logs the entire reading phase as an
+      // inactivity gap, pushing gapRatio above 0.7 and making the inactivity
+      // signal return -1 for otherwise-engaged humans.
+      this.recordActivity();
     },
 
     computeScrollSaccade: function() {
@@ -510,7 +569,8 @@
       var now = Date.now();
       var holdTime = _keyDownTimes[event.keyCode] ? now - _keyDownTimes[event.keyCode] : 0;
       var flightTime = _lastKeyUpTime ? now - _lastKeyUpTime : 0;
-      _keystrokeLog.push({ holdTime: holdTime, flightTime: flightTime, t: now });
+      var cls = _keyClass(event.key, event.keyCode);
+      _keystrokeLog.push({ cls: cls, holdTime: holdTime, flightTime: flightTime, t: now });
       if (_keystrokeLog.length > 200) _keystrokeLog.shift();
       _lastKeyUpTime = now;
       delete _keyDownTimes[event.keyCode];
@@ -537,6 +597,15 @@
           var flightCV = cv(flightTimes);
           var holdInRange = holdTimes.filter(function(h) { return h >= 50 && h <= 300; }).length / holdTimes.length;
           var rhythmScore = _ascore((holdCV + flightCV) / 2, 0.6);
+          var dg = this.computeDigraphStats();
+          if (dg) {
+            // Digraph path: weight the class-pair-transition signal into the
+            // keystroke sub-composite. Humans emit diverse class-pairs with
+            // natural within-pair variability and cross-pair differentiation
+            // (e.g., letter→space transitions are typically faster than
+            // letter→punct). Robotic typing collapses these distinctions.
+            return rhythmScore * 0.25 + holdInRange * 0.25 + dg.score * 0.50;
+          }
           return rhythmScore * 0.5 + holdInRange * 0.5;
         }
       }
@@ -556,24 +625,181 @@
       return -1; // insufficient data sentinel
     },
 
-    // Pattern 8: Reading Speed Inference
-    recordSectionEntry: function(sectionId) {
-      _sectionTimings.push({ sectionId: sectionId, enterTime: Date.now(), exitTime: null, scrollPct: 0 });
+    // Pattern 7b: Digraph (class-pair transition) timing.
+    // Returns null when data is insufficient so callers can fall back to
+    // the legacy hold/flight formula. The return shape is stable (documented
+    // in tests) and exposed via getHumanConfidence for buyer-auditable proofs.
+    computeDigraphStats: function() {
+      if (!_keystrokeLog || _keystrokeLog.length < 8) return null;
+      var pairs = {};
+      for (var i = 1; i < _keystrokeLog.length; i++) {
+        var prev = _keystrokeLog[i - 1];
+        var curr = _keystrokeLog[i];
+        if (!prev || !curr) continue;
+        if (prev.cls == null || curr.cls == null) continue;
+        var ft = curr.flightTime;
+        if (!(ft > 0 && ft < 2000)) continue;
+        var k = prev.cls + curr.cls;
+        if (!pairs[k]) pairs[k] = [];
+        pairs[k].push(ft);
+      }
+      var keys = Object.keys(pairs);
+      if (keys.length < 2) return null;
+
+      // Diversity: number of distinct class-pair transitions observed.
+      // 4+ distinct pairs is typical for any real typing in English-like prose.
+      // 1-2 pairs is machine-generated monotone input.
+      var diversityScore = Math.min(1, keys.length / 4);
+
+      // Within-pair CV: for each pair-type, how variable is the flight time?
+      // Humans cluster around 0.3-0.8. Bots uniform-paste collapse toward 0.
+      var pairMeans = [];
+      var withinCVs = [];
+      for (var p = 0; p < keys.length; p++) {
+        var vals = pairs[keys[p]];
+        if (!vals || vals.length === 0) continue;
+        var sum = 0;
+        for (var q = 0; q < vals.length; q++) sum += vals[q];
+        var mean = sum / vals.length;
+        pairMeans.push(mean);
+        if (vals.length >= 2 && mean > 0) {
+          var vsum = 0;
+          for (var r = 0; r < vals.length; r++) vsum += Math.pow(vals[r] - mean, 2);
+          withinCVs.push(Math.sqrt(vsum / vals.length) / mean);
+        }
+      }
+
+      function _scoreWithin(cv) {
+        if (cv < 0.10) return 0.00;
+        if (cv < 0.25) return (cv - 0.10) / 0.15 * 0.60;
+        if (cv <= 0.80) return 0.60 + (cv - 0.25) * 0.40 / 0.55;
+        if (cv <= 1.50) return 1.00 - (cv - 0.80) * 0.40 / 0.70;
+        return 0.20;
+      }
+
+      var avgWithinCV = withinCVs.length
+        ? withinCVs.reduce(function(a, b) { return a + b; }, 0) / withinCVs.length
+        : 0;
+      var withinScore = withinCVs.length ? _scoreWithin(avgWithinCV) : 0.40;
+
+      // Cross-pair differentiation: do different pair types occupy different
+      // timing bands? Humans: yes (space-letter transitions are typically
+      // faster than letter-punct). Bots pasting uniformly: all pairs collapse
+      // to one band.
+      var crossCV = 0;
+      if (pairMeans.length >= 2) {
+        var gm = 0;
+        for (var s = 0; s < pairMeans.length; s++) gm += pairMeans[s];
+        gm = gm / pairMeans.length;
+        if (gm > 0) {
+          var cv = 0;
+          for (var u = 0; u < pairMeans.length; u++) cv += Math.pow(pairMeans[u] - gm, 2);
+          crossCV = Math.sqrt(cv / pairMeans.length) / gm;
+        }
+      }
+      var crossScore;
+      if (crossCV < 0.05) crossScore = 0.10;
+      else if (crossCV < 0.15) crossScore = 0.10 + (crossCV - 0.05) * 0.50 / 0.10;
+      else if (crossCV <= 0.50) crossScore = 0.60 + (crossCV - 0.15) * 0.40 / 0.35;
+      else crossScore = Math.max(0.40, 1.00 - (crossCV - 0.50) * 0.60 / 0.50);
+
+      return {
+        pairTypes: keys.length,
+        diversity: diversityScore,
+        withinCV: avgWithinCV,
+        within: withinScore,
+        crossCV: crossCV,
+        cross: crossScore,
+        score: diversityScore * 0.25 + withinScore * 0.40 + crossScore * 0.35
+      };
     },
 
-    recordSectionExit: function(sectionId, scrollPct) {
+    // Pattern 8: Reading Speed Inference
+    // Optional wordCount arg enables WPM-coherence scoring: callers that
+    // know how much visible text is in a section can pass its word count so
+    // we can detect "read 2000 words in 300ms" patterns (paste, render-only).
+    recordSectionEntry: function(sectionId, wordCount) {
+      _sectionTimings.push({
+        sectionId: sectionId,
+        enterTime: Date.now(),
+        exitTime: null,
+        scrollPct: 0,
+        wordCount: (typeof wordCount === 'number' && wordCount > 0) ? wordCount : null
+      });
+    },
+
+    recordSectionExit: function(sectionId, scrollPct, wordCount) {
       for (var i = _sectionTimings.length - 1; i >= 0; i--) {
         if (_sectionTimings[i].sectionId === sectionId && !_sectionTimings[i].exitTime) {
           _sectionTimings[i].exitTime = Date.now();
           _sectionTimings[i].scrollPct = scrollPct || 100;
+          if (typeof wordCount === 'number' && wordCount > 0) {
+            _sectionTimings[i].wordCount = wordCount;
+          }
           break;
         }
       }
     },
 
+    // Reading-speed coherence: per-section WPM vs. what a human can physically
+    // read. Returns null when fewer than 2 sections have word counts (can't
+    // judge), otherwise {score, sections, meanPlausibility, implausibleRatio}.
+    computeReadingCoherence: function() {
+      var scores = [];
+      var implausible = 0;
+      for (var i = 0; i < _sectionTimings.length; i++) {
+        var s = _sectionTimings[i];
+        if (!s.exitTime || typeof s.wordCount !== 'number' || s.wordCount <= 0) continue;
+        var durMs = s.exitTime - s.enterTime;
+        if (durMs < 200) continue; // scroll-through artifact, not a read
+        var durMin = durMs / 60000;
+        var wpm = s.wordCount / durMin;
+        var p = _wpmPlausibility(wpm);
+        if (p === null) continue; // too slow = tab-switch, don't count either way
+        scores.push(p);
+        if (p < 0.25) implausible++;
+      }
+      if (scores.length < 2) return null;
+      var mean = scores.reduce(function(a, b) { return a + b; }, 0) / scores.length;
+      var implausibleRatio = implausible / scores.length;
+      var score = mean;
+      // Hard clamp: if majority of sections are physically implausible, the
+      // session reads like a bot regardless of average.
+      if (implausibleRatio >= 0.5) score = Math.min(score, 0.25);
+      return {
+        score: score,
+        sections: scores.length,
+        meanPlausibility: mean,
+        implausibleRatio: implausibleRatio
+      };
+    },
+
     computeReadingSpeed: function() {
-      var completed = _sectionTimings.filter(function(s) { return s.exitTime; });
-      // Need enough sections to produce a stable CV.
+      // Two-band filter:
+      //   - Scroll-through artifacts (< 200ms per section) are NOT real reads.
+      //     They happen when a user orients themselves by scrolling, or when
+      //     a bot scrolls rapidly through the content.
+      //   - Valid reads (>= 200ms) are what we score against.
+      // But we can't just drop artifacts silently — paste-pattern bots that
+      // produce only sub-200ms sections would then fall into "insufficient
+      // data -> signal inactive" and effectively escape the penalty. Fix:
+      // if the majority of sections are artifacts, flag as "impossibly
+      // fast skim" (0.2) regardless of what the remaining valid sections say.
+      var all = _sectionTimings.filter(function(s) { return s.exitTime; });
+      if (all.length < 3) return -1;
+      var artifacts = 0;
+      var completed = [];
+      for (var i = 0; i < all.length; i++) {
+        if ((all[i].exitTime - all[i].enterTime) >= 200) {
+          completed.push(all[i]);
+        } else {
+          artifacts++;
+        }
+      }
+      // Paste / scroll-through pattern — majority of sections are sub-200ms.
+      // This was the bot tell before the artifact filter was added; preserve it.
+      if (artifacts >= 3 && artifacts > completed.length) return 0.2;
+      // Need enough valid sections to produce a stable CV.
       if (completed.length < 3) return -1;
       var durations = completed.map(function(s) { return s.exitTime - s.enterTime; });
       var mean = durations.reduce(function(a, b) { return a + b; }, 0) / durations.length;
@@ -584,7 +810,14 @@
       // Mobile users read sections in 1-8 seconds typically
       var speedScore = _ascore(mean, 3000);
       var varianceScore = _ascore(cv, 0.4);
-      return speedScore * 0.5 + varianceScore * 0.5;
+      var existing = speedScore * 0.5 + varianceScore * 0.5;
+
+      // Blend in WPM coherence when word counts are available. Coherence is
+      // the stronger signal (it catches paste patterns the CV-only scorer
+      // can't see), so it gets higher weight in the blend.
+      var coh = this.computeReadingCoherence();
+      if (coh === null) return existing;
+      return existing * 0.4 + coh.score * 0.6;
     },
 
     // Pattern 9: Cursor/Hover Dwell Time
@@ -623,20 +856,61 @@
       return ratioScore * 0.5 + varianceScore * 0.5;
     },
 
-    // Pattern 10: Tab Visibility
+    // Pattern 10: Tab Visibility (with orthogonal window-focus evidence)
     recordVisibilityChange: function(visible) {
       _tabVisLog.push({ visible: visible, t: Date.now() });
+    },
+
+    // Window blur/focus is orthogonal to document visibility:
+    // - visibilitychange fires when the tab is hidden/shown
+    // - blur/focus fires when the window loses OS-level focus (alt-tab, click
+    //   to another app) even while the tab remains "visible"
+    // Together, an always-foreground, never-blurred session is a stronger
+    // bot tell than either signal alone.
+    recordWindowFocus: function(focused) {
+      _windowFocusLog.push({ focused: !!focused, t: Date.now() });
+      if (_windowFocusLog.length > 200) _windowFocusLog.shift();
+    },
+
+    getFocusStats: function() {
+      var sessionSec = (Date.now() - _sessionStartTime) / 1000;
+      var blurs = 0;
+      var focuses = 0;
+      for (var i = 0; i < _windowFocusLog.length; i++) {
+        if (_windowFocusLog[i].focused) focuses++; else blurs++;
+      }
+      var last = _windowFocusLog.length > 0 ? _windowFocusLog[_windowFocusLog.length - 1].focused : true;
+      return {
+        blurCount: blurs,
+        focusCount: focuses,
+        events: _windowFocusLog.length,
+        currentlyFocused: last,
+        sessionSeconds: sessionSec
+      };
     },
 
     computeTabVisibility: function() {
       var totalTime = Date.now() - _sessionStartTime;
       if (totalTime < 5000) return -1; // too short to judge
+
+      var focusBlurs = 0;
+      for (var j = 0; j < _windowFocusLog.length; j++) {
+        if (!_windowFocusLog[j].focused) focusBlurs++;
+      }
+
       if (_tabVisLog.length === 0) {
-        // No visibility changes at all — suspicious if session is long
-        // Bots never leave; humans occasionally do
-        if (totalTime > 120000) return 0.6; // 2+ min with zero tab switches
+        // No tab-hide events. Window-focus events are a second chance to
+        // detect normal human context-switching even when the tab stayed
+        // "visible" the whole time.
+        if (focusBlurs >= 1) {
+          // User alt-tabbed / clicked another app at least once — human.
+          return totalTime > 30000 ? 0.85 : 0.78;
+        }
+        // Neither signal shows any away-event.
+        if (totalTime > 120000) return 0.55; // two signals agree: suspiciously perfect
         return 0.75; // short session, no switches is normal
       }
+
       var visibleTime = 0;
       var lastVisible = _sessionStartTime;
       var switchCount = 0;
@@ -651,12 +925,22 @@
       });
       if (lastVisible) visibleTime += Date.now() - lastVisible;
       var visibleRatio = visibleTime / totalTime;
-      // High visibility is good, but some switching is MORE human
-      // Sweet spot: 70-95% visible with 1-3 switches
-      if (visibleRatio > 0.95 && switchCount === 0) return 0.65; // suspiciously perfect
-      if (visibleRatio >= 0.7 && switchCount >= 1) return _ascore(visibleRatio, 0.85); // human-like
-      if (visibleRatio < 0.5) return 0.2; // mostly hidden — likely abandoned
-      return _ascore(visibleRatio * 0.8 + (switchCount > 0 ? 0.15 : 0), 0.7);
+
+      var baseScore;
+      // High visibility is good, but some switching is MORE human.
+      // Sweet spot: 70-95% visible with 1-3 switches.
+      if (visibleRatio > 0.95 && switchCount === 0) baseScore = 0.65; // suspiciously perfect
+      else if (visibleRatio >= 0.7 && switchCount >= 1) baseScore = _ascore(visibleRatio, 0.85);
+      else if (visibleRatio < 0.5) baseScore = 0.2; // mostly hidden — likely abandoned
+      else baseScore = _ascore(visibleRatio * 0.8 + (switchCount > 0 ? 0.15 : 0), 0.7);
+
+      // Focus-coherence bonus: tab stayed visible but window lost focus at
+      // least once — that's a real human context switch the tab-only path
+      // can't see. Small, bounded bump.
+      if (visibleRatio > 0.9 && focusBlurs >= 1) {
+        baseScore = Math.min(1.0, baseScore + 0.05);
+      }
+      return baseScore;
     },
 
     // Pattern 11: Inactivity Gap Analysis
@@ -713,9 +997,36 @@
         activeSignals: c.activeSignals,
         phase: phase || 'unknown'
       });
+      // Ring-buffer cap: evict oldest if we've exceeded the retention window.
+      // At 10k entries + ~400 B each, the serialized payload stays under 4 MB
+      // which is well inside any practical receipt-transport budget.
+      if (_timeline.length > _timelineMax) {
+        var overflow = _timeline.length - _timelineMax;
+        _timeline.splice(0, overflow);
+        _timelineTruncated += overflow;
+      }
     },
 
-    getTimeline: function() { return _timeline.slice(); },
+    getTimeline: function() {
+      // Attach truncation state so a verifier can tell whether they're
+      // looking at the full session or a tail-only view.
+      var out = _timeline.slice();
+      if (_timelineTruncated > 0) {
+        Object.defineProperty(out, '_truncated', {
+          value: _timelineTruncated, enumerable: false
+        });
+      }
+      return out;
+    },
+
+    getTimelineMeta: function() {
+      return {
+        retained: _timeline.length,
+        truncated: _timelineTruncated,
+        cap: _timelineMax,
+        complete: _timelineTruncated === 0
+      };
+    },
 
     // ============================================================
     // TIER 1: NEW SIGNALS (zero new data needed)
@@ -925,6 +1236,11 @@
     // Signal 16: Curvature Index (path efficiency)
     // MacKenzie et al. 2001 — ratio of actual path to straight-line distance
     computeCurvatureIndex: function() {
+      // Threshold chosen to activate alongside cursorJerk/velocityProfile on
+      // typical desktop sessions (20+ samples, 2+ movements). Prior threshold
+      // of 3+ movements caused curvatureIndex to stay at -1 (sentinel) while
+      // the neighbouring motor signals activated normally — inconsistent
+      // coverage on legitimate desktop data.
       if (_mouseMoveLog.length < 20) return -1;
       // Segment movements by velocity pauses (>100ms gap = new movement)
       var movements = [];
@@ -937,7 +1253,7 @@
         current.push(_mouseMoveLog[i]);
       }
       if (current.length >= 5) movements.push(current);
-      if (movements.length < 3) return -1;
+      if (movements.length < 2) return -1;
 
       var indices = [];
       movements.forEach(function(m) {
@@ -1124,10 +1440,15 @@
       var ayStats = stats(ayVals);
       var gzStats = stats(gzVals);
 
-      // Check 1: If accelerometer/gyro exist but are reporting flat zeros,
-      // that's a device-quirk indicator, not a bot signal. Treat as
-      // insufficient-data so the composite doesn't penalize the session.
-      if (axStats.sd < 0.001 && ayStats.sd < 0.001 && gzStats.sd < 0.001) return -1;
+      // Check 1: If accelerometer/gyro values are either all-zero (emulator /
+      // permission-denied) OR below the human hand-tremor floor (desktop with
+      // a weak lid-tilt sensor that produces noise but no biometric signal),
+      // treat as insufficient-data. Prior threshold of 0.001 let desktop
+      // laptops with tiny accelerometer noise (SD 0.001-0.005) fall through
+      // to the drift calc, where tiny denominators amplified into spurious
+      // mid-range scores (observed: 0.277/0.333 on a laptop with no meaningful
+      // motion sensor). Raising to the hand-tremor floor fixes that cleanly.
+      if (axStats.sd < 0.005 && ayStats.sd < 0.005 && gzStats.sd < 0.0005) return -1;
 
       // Check 2: Human hand tremor produces characteristic SD ranges
       // Accelerometer SD: 0.01-0.5 m/s² for stationary holding
@@ -1156,7 +1477,10 @@
       var secondHalf = _motionLog.slice(Math.floor(_motionLog.length / 2));
       var firstSD = stats(firstHalf.map(function(m){return m.ax;})).sd;
       var secondSD = stats(secondHalf.map(function(m){return m.ax;})).sd;
-      var motionDrift = Math.abs(firstSD - secondSD) / ((firstSD + secondSD) / 2 || 1);
+      // Cap the denominator at the hand-tremor floor so tiny-signal noise
+      // can't amplify into huge relative-drift values.
+      var driftDenom = Math.max((firstSD + secondSD) / 2, 0.005);
+      var motionDrift = Math.abs(firstSD - secondSD) / driftDenom;
       var driftScore = _ascore(motionDrift, 0.3);
 
       var humanLikeRatio = (accelHumanLike + gyroHumanLike) / 3;
@@ -1814,6 +2138,17 @@
         Behavioral.recordVisibilityChange(!document.hidden);
       }
     });
+    // Window focus is orthogonal to tab visibility: the user can keep the
+    // tab visible but alt-tab to another window. Sustained perfect focus
+    // with zero blur events is a bot tell; one real blur reads as human.
+    if (window.addEventListener) {
+      window.addEventListener('blur', function() {
+        if (_config.enableBehavioralAnalysis) Behavioral.recordWindowFocus(false);
+      });
+      window.addEventListener('focus', function() {
+        if (_config.enableBehavioralAnalysis) Behavioral.recordWindowFocus(true);
+      });
+    }
 
     // Firebase
     if (options && options.firebaseConfig) {
@@ -1885,6 +2220,9 @@
     // Scoring
     getFocusScore: _computeFocusScore,
     getHumanConfidence: function() { return Behavioral.computeHumanConfidence(); },
+    getDigraphStats: function() { return Behavioral.computeDigraphStats(); },
+    getReadingCoherence: function() { return Behavioral.computeReadingCoherence(); },
+    getFocusStats: function() { return Behavioral.getFocusStats(); },
 
     // Tier 1 features
     startAmbient: startAmbientMode,
@@ -1911,11 +2249,13 @@
     recordMobileInput: function(t) { Behavioral.recordMobileInput(t); },
     recordTouchDwell: function(startTime) { Behavioral.recordTouchDwell(startTime); },
     recordDeviceMotion: function(ax,ay,az,gx,gy,gz) { Behavioral.recordDeviceMotion(ax,ay,az,gx,gy,gz); },
-    recordSectionEntry: function(id) { Behavioral.recordSectionEntry(id); },
-    recordSectionExit: function(id, pct) { Behavioral.recordSectionExit(id, pct); },
+    recordSectionEntry: function(id, wordCount) { Behavioral.recordSectionEntry(id, wordCount); },
+    recordSectionExit: function(id, pct, wordCount) { Behavioral.recordSectionExit(id, pct, wordCount); },
+    recordWindowFocus: function(focused) { Behavioral.recordWindowFocus(focused); },
     recordHoverEnter: function(id) { Behavioral.recordHoverEnter(id); },
     recordHoverLeave: function() { Behavioral.recordHoverLeave(); },
     getTimeline: function() { return Behavioral.getTimeline(); },
+    getTimelineMeta: function() { return Behavioral.getTimelineMeta(); },
     takeTimelineSnapshot: function(phase) { Behavioral.recordTimelineSnapshot(phase); },
 
     // Session info

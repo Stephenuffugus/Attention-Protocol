@@ -167,13 +167,16 @@ describe('environmental-gate — receipt schema', () => {
 
 describe('environmental-gate — verifiable credential integration', () => {
   function makeReceipt(env) {
+    // Runtime timestamps so the signed JWT's default 24h exp stays fresh
+    // regardless of when the suite runs (earlier versions hardcoded 2026-04-21).
+    const now = new Date();
     return {
       receipt_id: 'rcpt_env_test',
       receipt_version: '1.0',
       protocol: 'SWS Proof of Attention Protocol',
       issuer: 'SWS Strategic Media LLC',
-      generated_at: '2026-04-21T12:00:00.000Z',
-      generated_timestamp: 1745236800000,
+      generated_at: now.toISOString(),
+      generated_timestamp: now.getTime(),
       subject_id: 'test_subject',
       application_id: 'env_test',
       content_id: 'c1',

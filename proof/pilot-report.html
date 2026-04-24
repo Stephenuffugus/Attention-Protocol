@@ -133,7 +133,7 @@
 
       <!-- Signal Breakdown -->
       <div class="section">
-        <h2>Behavioral Signal Averages (11 Signals)</h2>
+        <h2>Behavioral Signal Averages (20 Signals)</h2>
         <table class="signal-table" id="signal-table">
           <thead><tr><th>Signal</th><th>Average Score</th><th></th><th>Interpretation</th></tr></thead>
           <tbody id="signal-tbody"></tbody>
@@ -146,13 +146,13 @@
         <table class="comparison-table">
           <thead><tr><th>Capability</th><th>SWS Protocol</th><th>Google Analytics 4</th></tr></thead>
           <tbody>
-            <tr><td>Behavioral signals</td><td class="sws">11 signals, real-time</td><td class="ga4">None</td></tr>
+            <tr><td>Behavioral signals</td><td class="sws">20 signals, real-time</td><td class="ga4">None</td></tr>
             <tr><td>Human confidence score</td><td class="sws">0-1.000 composite</td><td class="ga4">Not available</td></tr>
             <tr><td>Attention quality tier</td><td class="sws">Deep / Active / Passive / Background</td><td class="ga4">Not available</td></tr>
             <tr><td>Per-moment attention timeline</td><td class="sws">5-second granularity</td><td class="ga4">Not available</td></tr>
             <tr><td>Keystroke analysis</td><td class="sws">Hold time, flight time, rhythm</td><td class="ga4">Not available</td></tr>
             <tr><td>Reading verification</td><td class="sws">Per-section speed + comprehension</td><td class="ga4">Scroll depth only</td></tr>
-            <tr><td>Bot detection</td><td class="sws">11-signal composite</td><td class="ga4">Not available</td></tr>
+            <tr><td>Bot detection</td><td class="sws">20-signal composite</td><td class="ga4">Not available</td></tr>
             <tr><td>Cryptographic receipt</td><td class="sws">SHA-256 tamper-evident</td><td class="ga4">Not available</td></tr>
             <tr><td>COPPA compliant by design</td><td class="sws">No PII in payload</td><td class="ga4">Requires configuration</td></tr>
             <tr><td>SCIF / classified compatible</td><td class="sws">Zero content data</td><td class="ga4">Requires internet</td></tr>
@@ -251,7 +251,7 @@
         'Across <strong>' + count + ' sessions</strong>, the SWS Attention Protocol measured an average human-confidence score of <strong>' + avgComp.toFixed(3) + '</strong>. ' +
         '<strong>' + (deepPct + activePct) + '%</strong> of sessions demonstrated Active engagement or better. ' +
         'Average session duration was <strong>' + Math.round(avgDur) + ' seconds</strong>. ' +
-        'Each session was verified by <strong>11 independent behavioral signals</strong> producing a cryptographic attention receipt. ' +
+        'Each session was verified by <strong>20 independent behavioral signals</strong> producing a cryptographic attention receipt. ' +
         'Google Analytics 4, running on the same sessions, would have captured only page views, time-on-page, and scroll depth — zero behavioral verification.';
 
       // Tier distribution
@@ -323,7 +323,7 @@
         listHTML += '<td>' + (s.duration_sec || 0) + 's</td>';
         listHTML += '<td style="color:' + compColor + ';font-weight:700;">' + comp.toFixed(3) + '</td>';
         listHTML += '<td>' + (s.quality_tier || '?') + '</td>';
-        listHTML += '<td>' + active + '/11</td>';
+        listHTML += '<td>' + active + '/20</td>';
         listHTML += '<td>' + (s.typed_words || 0) + '</td>';
         listHTML += '<td>' + device + '</td>';
         listHTML += '</tr>';

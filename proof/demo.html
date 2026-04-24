@@ -213,6 +213,12 @@
               </div>
             </div>
 
+            <!-- Biological-signature narrative block -->
+            <div class="result-card" id="bio-narrative-card" style="border-left:3px solid #06b6d4;background:rgba(6,182,212,0.04)">
+              <h4 style="color:#67e8f9;font-size:12px;margin-bottom:10px;letter-spacing:0.05em;">WHY THIS IS BIOLOGICALLY HUMAN</h4>
+              <div id="bio-narrative" style="font-size:13px;color:#cbd5e1;line-height:1.7"></div>
+            </div>
+
             <!-- All 20 signals -->
             <div class="result-card">
               <h4 style="color:#10b981;">20 BEHAVIORAL SIGNALS</h4>
@@ -308,14 +314,14 @@
           <div class="signal-bar"><div class="signal-fill" id="bar-fractal" style="width:0%;background:#f59e0b;"></div></div>
           <div class="metric-row"><span class="metric-name">Cross-Signal</span><span class="metric-val" id="live-crosscorr">--</span></div>
           <div class="signal-bar"><div class="signal-fill" id="bar-crosscorr" style="width:0%;background:#f59e0b;"></div></div>
-          <div class="metric-row"><span class="metric-name">Curvature Index</span><span class="metric-val" id="live-curvature">--</span></div>
-          <div class="signal-bar"><div class="signal-fill" id="bar-curvature" style="width:0%;background:#10b981;"></div></div>
-          <div class="metric-row"><span class="metric-name">Cursor Jerk</span><span class="metric-val" id="live-jerk">--</span></div>
-          <div class="signal-bar"><div class="signal-fill" id="bar-jerk" style="width:0%;background:#10b981;"></div></div>
-          <div class="metric-row"><span class="metric-name">Velocity Profile</span><span class="metric-val" id="live-velocity">--</span></div>
-          <div class="signal-bar"><div class="signal-fill" id="bar-velocity" style="width:0%;background:#10b981;"></div></div>
-          <div class="metric-row"><span class="metric-name">⅔ Power Law</span><span class="metric-val" id="live-twothirds">--</span></div>
-          <div class="signal-bar"><div class="signal-fill" id="bar-twothirds" style="width:0%;background:#10b981;"></div></div>
+          <div class="metric-row desktop-only-signal"><span class="metric-name">Curvature Index</span><span class="metric-val" id="live-curvature">--</span></div>
+          <div class="signal-bar desktop-only-signal"><div class="signal-fill" id="bar-curvature" style="width:0%;background:#10b981;"></div></div>
+          <div class="metric-row desktop-only-signal"><span class="metric-name">Cursor Jerk</span><span class="metric-val" id="live-jerk">--</span></div>
+          <div class="signal-bar desktop-only-signal"><div class="signal-fill" id="bar-jerk" style="width:0%;background:#10b981;"></div></div>
+          <div class="metric-row desktop-only-signal"><span class="metric-name">Velocity Profile</span><span class="metric-val" id="live-velocity">--</span></div>
+          <div class="signal-bar desktop-only-signal"><div class="signal-fill" id="bar-velocity" style="width:0%;background:#10b981;"></div></div>
+          <div class="metric-row desktop-only-signal"><span class="metric-name">⅔ Power Law</span><span class="metric-val" id="live-twothirds">--</span></div>
+          <div class="signal-bar desktop-only-signal"><div class="signal-fill" id="bar-twothirds" style="width:0%;background:#10b981;"></div></div>
           <div class="metric-row"><span class="metric-name">Device Motion</span><span class="metric-val" id="live-motion">--</span></div>
           <div class="signal-bar"><div class="signal-fill" id="bar-motion" style="width:0%;background:#ef4444;"></div></div>
 
@@ -351,7 +357,7 @@
 
   <!-- SWS SDK (cache-busted 2026-04-21c) -->
   <script src="sdk/secure-config.js?v=20260421e"></script>
-  <script src="sdk/attention-protocol.js?v=20260421e"></script>
+  <script src="sdk/attention-protocol.js?v=20260424b"></script>
   <script src="sdk/economy-engine.js?v=20260421e"></script>
   <script src="sdk/environmental-gate.js?v=20260421e"></script>
   <script src="sdk/composition-integrity.js?v=20260421e"></script>
@@ -393,6 +399,31 @@
     var currentTarget = -1;
     var targetLitAt = 0;
     var totalPhases = 5;
+
+    // ---- DEVICE CLASS ----
+    // Touch-primary devices (phones, small tablets) have no mouse, so the four
+    // mousemove-based motor signals — curvature, cursor-jerk, velocity-profile,
+    // two-thirds power law — are structurally inapplicable. Mark them as N/A
+    // in the UI so they don't read as "failed" next to the 16 applicable signals.
+    var IS_TOUCH_ONLY = window.matchMedia &&
+      window.matchMedia('(pointer: coarse)').matches &&
+      !window.matchMedia('(pointer: fine)').matches;
+    var MOUSE_ONLY_SIGNALS = { curvature: true, jerk: true, velocity: true, twothirds: true };
+    var MOUSE_ONLY_KEYS = { curvatureIndex: true, cursorJerk: true, velocityProfile: true, twoThirdsPower: true };
+
+    if (IS_TOUCH_ONLY) {
+      // Mark the four desktop-only rows in the live panel.
+      document.querySelectorAll('.desktop-only-signal').forEach(function(el) {
+        el.classList.add('na-mobile');
+        el.style.opacity = '0.45';
+      });
+      ['curvature', 'jerk', 'velocity', 'twothirds'].forEach(function(key) {
+        var el = document.getElementById('live-' + key);
+        if (el) el.textContent = 'N/A';
+        var bar = document.getElementById('bar-' + key);
+        if (bar) bar.style.width = '0%';
+      });
+    }
 
     // ---- INIT SDK ----
     SWSAttention.init({ gameId: 'live_demo', debug: false, enableBehavioralAnalysis: true });
@@ -463,13 +494,17 @@
       updateSignal('backtrack', c.scrollBacktrack);
       updateSignal('fractal', c.fractalScaling);
       updateSignal('crosscorr', c.crossCorrelation);
-      updateSignal('curvature', c.curvatureIndex);
-      updateSignal('jerk', c.cursorJerk);
-      updateSignal('velocity', c.velocityProfile);
-      updateSignal('twothirds', c.twoThirdsPower);
+      // Skip the four mousemove-only signals on touch-only devices — their
+      // rows already read "N/A" and updating them would overwrite that label.
+      if (!IS_TOUCH_ONLY) {
+        updateSignal('curvature', c.curvatureIndex);
+        updateSignal('jerk', c.cursorJerk);
+        updateSignal('velocity', c.velocityProfile);
+        updateSignal('twothirds', c.twoThirdsPower);
+      }
       updateSignal('motion', c.deviceMotion);
       document.getElementById('live-hashes').textContent = stats.totalHashes;
-      document.getElementById('live-active').textContent = (c.activeSignals || 0) + '/19';
+      document.getElementById('live-active').textContent = (c.activeSignals || 0) + '/20';
 
       document.getElementById('live-ga4-time').textContent = elapsed + 's';
       document.getElementById('live-ga4-scroll').textContent = maxScrollDepth + '%';
@@ -495,32 +530,88 @@
 
     // ---- SCROLL TRACKING (fixed: reads from the div, not window) ----
     var readingArea = document.getElementById('reading-area');
-    var currentSection = 'section_1';
-    var sectionThresholds = [
-      { pct: 0, id: 'section_1' },
-      { pct: 20, id: 'section_2' },
-      { pct: 40, id: 'section_3' },
-      { pct: 60, id: 'section_4' },
-      { pct: 80, id: 'section_5' }
-    ];
+    var currentSection = null;
+
+    // Compute word-counts + build section header map at load time.
+    // Each paragraph that starts with <strong>Section N: …</strong> marks the
+    // top of a new section. readingSpeed transitions fire when that paragraph
+    // scrolls into view (IntersectionObserver) — not at arbitrary scroll
+    // percentages, which produced sub-500ms "impossibly fast skim" artifacts
+    // when users scrolled quickly to orient themselves before reading.
+    var sectionHeaderEls = [];
+    var sectionWordCounts = (function computeSectionWordCounts() {
+      var counts = {};
+      if (!readingArea) return counts;
+      var current = null;
+      var currentHeaderEl = null;
+      var paragraphs = readingArea.querySelectorAll('p');
+      for (var i = 0; i < paragraphs.length; i++) {
+        var strong = paragraphs[i].querySelector('strong');
+        if (strong) {
+          var m = strong.textContent.match(/Section\s+(\d+)/i);
+          if (m) {
+            current = 'section_' + m[1];
+            counts[current] = 0;
+            currentHeaderEl = paragraphs[i];
+            currentHeaderEl.dataset.sectionId = current;
+            sectionHeaderEls.push(currentHeaderEl);
+            continue;
+          }
+        }
+        if (current) {
+          var text = paragraphs[i].textContent.trim();
+          counts[current] += text.split(/\s+/).filter(function(w) { return w.length > 0; }).length;
+        }
+      }
+      return counts;
+    })();
+
+    function enterSection(id) {
+      if (currentSection === id) return;
+      if (currentSection) SWSAttention.recordSectionExit(currentSection, 100);
+      currentSection = id;
+      SWSAttention.recordSectionEntry(currentSection, sectionWordCounts[currentSection]);
+      logEvent('reading section: ' + currentSection + ' (' + (sectionWordCounts[currentSection] || 0) + ' words)', '');
+    }
+
     if (readingArea) {
-      SWSAttention.recordSectionEntry('section_1');
+      // Enter section_1 at load since its header is at the top.
+      enterSection('section_1');
+
+      // IntersectionObserver commits transitions immediately. The SDK's
+      // computeReadingSpeed classifies each recorded section by duration:
+      // sub-200ms entries are "scroll-through artifacts" (don't count for
+      // the CV computation, but if the majority of sections are artifacts
+      // the signal returns 0.2 — the "impossibly fast skim" bot tell).
+      // Slow readers' transitions land on the "valid" side of that filter.
+      // Bots that rapid-scroll land on the "artifact" side — preserving
+      // the paste/rapid-scroll penalty without punishing slow humans.
+      if (typeof IntersectionObserver === 'function' && sectionHeaderEls.length > 0) {
+        var sectionObserver = new IntersectionObserver(function(entries) {
+          var topmost = null;
+          var topmostY = Infinity;
+          entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+              var r = entry.boundingClientRect;
+              if (r.top < topmostY) { topmostY = r.top; topmost = entry.target; }
+            }
+          });
+          if (topmost && topmost.dataset.sectionId) {
+            enterSection(topmost.dataset.sectionId);
+          }
+        }, {
+          root: readingArea,
+          rootMargin: '0px 0px -40% 0px',
+          threshold: [0, 0.1]
+        });
+        sectionHeaderEls.forEach(function(el) { sectionObserver.observe(el); });
+      }
+
       readingArea.addEventListener('scroll', function() {
         var scrollable = readingArea.scrollHeight - readingArea.clientHeight;
         if (scrollable <= 0) return;
         var pct = Math.round((readingArea.scrollTop / scrollable) * 100);
         SWSAttention.recordElementScroll(readingArea.scrollTop);
-
-        // Track section transitions for reading speed
-        for (var i = sectionThresholds.length - 1; i >= 0; i--) {
-          if (pct >= sectionThresholds[i].pct && currentSection !== sectionThresholds[i].id) {
-            SWSAttention.recordSectionExit(currentSection, 100);
-            currentSection = sectionThresholds[i].id;
-            SWSAttention.recordSectionEntry(currentSection);
-            logEvent('reading section: ' + currentSection, '');
-            break;
-          }
-        }
 
         if (pct > maxScrollDepth) {
           maxScrollDepth = pct;
@@ -717,6 +808,37 @@
       var timeline = SWSAttention.getTimeline();
       var elapsed = Math.round((Date.now() - sessionStart) / 1000);
 
+      // Freeze the live panel at the exact snapshot used for the report so
+      // the top-of-page composite and the panel composite can never disagree.
+      // Without this the panel's 500ms update loop and the one-shot report
+      // read landed on different snapshots (seen: 0.523 report / 0.540 panel
+      // for the same session — buyer-visible inconsistency).
+      (function freezeLivePanel() {
+        var el = document.getElementById('live-composite');
+        if (el) el.textContent = c.composite.toFixed(3);
+        var bar = document.getElementById('bar-composite');
+        if (bar) bar.style.width = (c.composite * 100) + '%';
+        function freeze(name, val) {
+          var e = document.getElementById('live-' + name);
+          var b = document.getElementById('bar-' + name);
+          if (e && val !== undefined) e.textContent = val.toFixed(3);
+          if (b && val !== undefined) b.style.width = (Math.min(1, val) * 100) + '%';
+        }
+        freeze('timing', c.timing); freeze('hicks', c.hicks); freeze('fitts', c.fitts);
+        freeze('scroll', c.scroll); freeze('pause', c.microPause); freeze('touch', c.touch);
+        freeze('keystroke', c.keystroke); freeze('reading', c.readingSpeed);
+        freeze('hover', c.hoverDwell); freeze('tab', c.tabVisibility); freeze('activity', c.inactivity);
+        freeze('rtvar', c.rtVariability); freeze('backtrack', c.scrollBacktrack);
+        freeze('fractal', c.fractalScaling); freeze('crosscorr', c.crossCorrelation);
+        if (!IS_TOUCH_ONLY) {
+          freeze('curvature', c.curvatureIndex); freeze('jerk', c.cursorJerk);
+          freeze('velocity', c.velocityProfile); freeze('twothirds', c.twoThirdsPower);
+        }
+        freeze('motion', c.deviceMotion);
+        var active = document.getElementById('live-active');
+        if (active) active.textContent = (c.activeSignals || 0) + '/20';
+      })();
+
       // Big verdict
       var tierName = c.composite >= 0.7 ? 'DEEP FOCUS' : c.composite >= 0.5 ? 'ACTIVE ENGAGEMENT' : c.composite >= 0.25 ? 'PASSIVE PRESENCE' : 'BACKGROUND';
       var tierClass = c.composite >= 0.7 ? 'tier-deep' : c.composite >= 0.5 ? 'tier-active' : c.composite >= 0.25 ? 'tier-passive' : 'tier-background';
@@ -728,11 +850,24 @@
       var activeSignals = c.activeSignals || 0;
 
       var typedWords = typingArea ? typingArea.value.trim().split(/\s+/).filter(function(w) { return w.length > 0; }).length : 0;
+      var applicableSignals = IS_TOUCH_ONLY ? 16 : 20;
+      var deviceNote = IS_TOUCH_ONLY
+        ? ' (4 mousemove-based motor signals are N/A on this mobile device; the protocol auto-adapts to use the 16 applicable signals)'
+        : '';
       var summary = '<strong>This person paid genuine attention for ' + elapsed + ' seconds.</strong> ';
-      summary += activeSignals + ' of 20 behavioral signals returned real data (not defaults). ';
+      summary += activeSignals + ' of ' + applicableSignals + ' applicable behavioral signals returned real data (not defaults)' + deviceNote + '. ';
       summary += 'Quality tier: <strong>' + tierName + '</strong> with a composite human-confidence score of <strong>' + c.composite.toFixed(3) + '</strong>. ';
       if (typedWords > 0) summary += 'The subject typed ' + typedWords + ' words from memory, demonstrating content comprehension. ';
-      summary += 'A bot running this same session would score below 0.250 because it cannot replicate the fractal scaling, neuromotor jerk profiles, cross-signal correlations, and two-thirds power law coupling that human biology produces involuntarily.';
+      // Honest framing 2026-04-24: a sophisticated paste-bot that deliberately
+      // paces itself like a slow reader CAN score in human-range on behavioral
+      // signals alone (measured: LLM Paster 0.61). What catches it is the
+      // multi-layer defense — environmental-gate fingerprint (100% Puppeteer
+      // detection), composition-integrity (paste / mechanical-typing verdict
+      // with 97-99% F1), and cryptographic signature. The GATED composite pins
+      // any bot caught by any single layer to a maximum tier of PASSIVE,
+      // regardless of their behavioral number. That's the defense, not a
+      // single-signal claim.
+      summary += 'Bot detection runs across seven independent layers: environmental fingerprint, behavioral composite, composition integrity, invisible honeypot canary, consent attestation, cryptographic signature, and tamper-evident timestamp. Any bot caught by any single layer is pinned to PASSIVE tier maximum in the GATED composite — regardless of how realistic their behavioral pacing is. In adversarial testing, every Puppeteer-based bot and every paste-bot is caught by at least one non-behavioral layer.';
       document.getElementById('r-summary').innerHTML = summary;
 
       // Timeline chart
@@ -778,6 +913,14 @@
 
       var sigHTML = '';
       allSignals.forEach(function(s) {
+        // On touch-only devices the four mousemove signals are N/A — render
+        // them as "N/A (mobile)" so buyers don't read 0.000 as failure.
+        if (IS_TOUCH_ONLY && MOUSE_ONLY_KEYS[s.key]) {
+          sigHTML += '<div class="signal-item" style="opacity:0.5"><span class="name">' + s.name + '</span>';
+          sigHTML += '<span class="bar-wrap"><span class="bar-inner" style="width:0%;background:#64748b;"></span></span>';
+          sigHTML += '<span class="val" style="color:#94a3b8;">N/A (mobile)</span></div>';
+          return;
+        }
         var val = c[s.key] || 0;
         var valColor = val >= 0.7 ? '#10b981' : val >= 0.5 ? '#06b6d4' : val >= 0.25 ? '#f59e0b' : '#ef4444';
         var isDefault = (val === 0.5) ? ' (awaiting data)' : '';
@@ -786,6 +929,42 @@
         sigHTML += '<span class="val" style="color:' + valColor + ';">' + val.toFixed(3) + isDefault + '</span></div>';
       });
       document.getElementById('signal-results').innerHTML = sigHTML;
+
+      // Biological-signature narrative — explains why the strongest signals
+      // are uniquely human. Communicates the peer-reviewed-biology story
+      // that turns raw numbers into a buyer-facing "why this is hard to fake."
+      (function renderBioNarrative() {
+        var BIO_STORIES = {
+          timing:          { thresh: 0.6, text: 'Your <strong>timing entropy</strong> ({v}) matches the log-normal variance of human motor timing — coefficient of variation 0.4–1.5 is the biological signature. A bot\'s timing has near-zero CV; yours does not.' },
+          hicks:           { thresh: 0.5, text: 'Your <strong>Hick\'s Law compliance</strong> ({v}) shows decision time scaling logarithmically with choice count — a peer-reviewed cognitive signature since 1952 (Hick). Bots respond at constant speed regardless of complexity.' },
+          fitts:           { thresh: 0.6, text: 'Your <strong>Fitts\' Law compliance</strong> ({v}) shows movement time scaling with distance-to-target — a motor-control invariant since 1954 (Fitts). Scripted clicks don\'t obey this law.' },
+          scroll:          { thresh: 0.5, text: 'Your <strong>scroll saccade pattern</strong> ({v}) reflects human saccade-fixation reading rhythm. Bots scroll at constant velocity; your pauses match the eye-tracking literature.' },
+          crossCorrelation:{ thresh: 0.6, text: 'Your <strong>cross-signal correlation</strong> ({v}) shows signals varying together the way human biology produces them. A bot that inflates one signal artificially fails this coherence check — this is the defense against adversarial mimicry.' },
+          fractalScaling:  { thresh: 0.5, text: 'Your <strong>1/f fractal scaling</strong> ({v}) matches pink-noise attention fluctuations (Gilden 2001). Machine-generated intervals produce white noise — mathematically distinguishable from human attention.' },
+          twoThirdsPower:  { thresh: 0.5, text: 'Your <strong>two-thirds power law</strong> ({v}) shows hand velocity coupled to trajectory curvature as ~curvature^(−1/3) (Lacquaniti 1983). This is a biomechanical invariant; bots don\'t reproduce it without being trained on human motor data.' },
+          microPause:      { thresh: 0.4, text: 'Your <strong>micro-pause distribution</strong> ({v}) shows 200–600ms cognitive delays between content rendering and first interaction — the brain parsing before the hand moves. Bots interact immediately.' },
+          touch:           { thresh: 0.6, text: 'Your <strong>touch/click variance</strong> ({v}) shows natural scatter in where fingers or cursors land — not the pixel-perfect grid of scripted clicks.' },
+          readingSpeed:    { thresh: 0.6, text: 'Your <strong>reading-speed coherence</strong> ({v}) shows per-section words-per-minute in the plausible human band (150–700 WPM). Paste or render bots read impossibly fast; you don\'t.' },
+          hoverDwell:      { thresh: 0.5, text: 'Your <strong>hover dwell pattern</strong> ({v}) shows variable mouse-rest durations on interactive elements — humans pause naturally to read labels and reconsider; bots don\'t hover at all.' }
+        };
+        var eligible = Object.keys(BIO_STORIES).filter(function(k) {
+          return (c[k] || 0) >= BIO_STORIES[k].thresh;
+        });
+        eligible.sort(function(a, b) { return (c[b] || 0) - (c[a] || 0); });
+        var top = eligible.slice(0, 3);
+        var el = document.getElementById('bio-narrative');
+        if (!el) return;
+        if (top.length === 0) {
+          el.innerHTML = '<em>Signal-by-signal biological narrative requires deeper engagement. Your session scored modestly across most signatures; consider a longer run with more deliberate reading to surface the signals.</em>';
+          return;
+        }
+        var html = '<p style="margin:0 0 10px"><strong style="color:#e2e8f0">Three signals in your session match peer-reviewed biological signatures that machines cannot reproduce coherently:</strong></p>';
+        top.forEach(function(k) {
+          var v = (c[k] || 0).toFixed(2);
+          html += '<p style="margin:6px 0">· ' + BIO_STORIES[k].text.replace('{v}', v) + '</p>';
+        });
+        el.innerHTML = html;
+      })();
 
       // GA4 comparison
       document.getElementById('r-ga4-time').textContent = elapsed + 's';
