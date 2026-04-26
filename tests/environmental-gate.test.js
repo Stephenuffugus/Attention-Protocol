@@ -86,6 +86,46 @@ describe('environmental-gate — _normalizeResult', () => {
     // Detector identifier bumped to v2 of stealth_tells
     expect(r.detector).toBe('botd@v2+stealth_tells_v2');
   });
+
+  // 2026-04-26 evening: cross-browser graceful-degradation fix. The
+  // chrome.runtime check and the AudioContext audioWorklet getter check are
+  // Chromium-shape-specific. Without UA gating, legitimate Firefox/Safari
+  // users would accumulate +0.10 (chrome.runtime missing) and potentially
+  // +0.20 (older audioWorklet history) baseline suspicion just for being
+  // on a non-Chrome browser. The fix gates these vectors via tells.browserFamily.
+  test('cross-browser: stealth_tells records browserFamily detection', () => {
+    const r = gate._normalizeResult({ bot: false }, 10);
+    expect(r.stealth_tells).toHaveProperty('browserFamily');
+    // jsdom UA contains "jsdom" — should classify as 'unknown'
+    expect(['chromium', 'firefox', 'safari', 'unknown']).toContain(r.stealth_tells.browserFamily);
+  });
+
+  test('cross-browser: chromeRuntime tell carries an applies flag', () => {
+    const r = gate._normalizeResult({ bot: false }, 10);
+    expect(r.stealth_tells.chromeRuntime).toBeDefined();
+    expect(r.stealth_tells.chromeRuntime).toHaveProperty('applies');
+    // jsdom UA is non-Chromium → applies should be false → no suspicion
+    // contribution from missing chrome.runtime even though has_runtime===false
+    if (r.stealth_tells.chromeRuntime.applies === false) {
+      // The aggregation must not have added +0.10 from chrome.runtime
+      // (we verify this indirectly: no other vector should fire in jsdom,
+      // so stealth_suspicion should be 0 if and only if chrome.runtime is gated)
+      expect(r.stealth_suspicion).toBe(0);
+    }
+  });
+
+  test('cross-browser: audio tell carries an applies flag', () => {
+    const r = gate._normalizeResult({ bot: false }, 10);
+    expect(r.stealth_tells.audio).toBeDefined();
+    if (r.stealth_tells.audio && !r.stealth_tells.audio.error) {
+      expect(r.stealth_tells.audio).toHaveProperty('applies');
+      // On non-Chromium UA, the audio tell should NOT contribute suspicion
+      // even if the prototype shape doesn't match what Chromium expects
+      if (r.stealth_tells.audio.applies === false) {
+        expect(r.stealth_tells.audio.suspicious).toBe(false);
+      }
+    }
+  });
 });
 
 // ============================================================

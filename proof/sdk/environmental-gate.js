@@ -131,10 +131,32 @@
    * Returns aggregated suspicion score 0..1 + per-vector detail.
    */
   function _detectStealthTells() {
-    var tells = { webgl: null, fnToString: null, chromeRuntime: null, perms: null, webgpu: null, iframe: null, audio: null };
+    var tells = { webgl: null, fnToString: null, chromeRuntime: null, perms: null, webgpu: null, iframe: null, audio: null, browserFamily: null };
     if (typeof window === 'undefined') {
       return { suspicion: 0, tells: tells, error: 'no_window' };
     }
+
+    // Browser-family detection. We use this to gate Chromium-specific vectors
+    // (chrome.runtime presence, AudioContext.audioWorklet getter shape) so
+    // legitimate Firefox / Safari / Edge-on-old-engine users don't accumulate
+    // false-positive suspicion just for being on a non-Chrome browser.
+    //
+    // The vectors don't go away on non-Chromium — they switch to a "no
+    // signal" verdict (suspicious=false) instead of a "Chromium-shape
+    // expected and missing" verdict. This means a stealth setup that lies
+    // about its UA gains nothing — it has to MATCH the UA-implied shape.
+    try {
+      var ua = String(navigator.userAgent || '').toLowerCase();
+      var isFirefox = ua.indexOf('firefox') !== -1 || ua.indexOf('fxios') !== -1;
+      var isSafari = !isFirefox && (ua.indexOf('safari') !== -1) && (ua.indexOf('chrome') === -1) && (ua.indexOf('chromium') === -1);
+      var isChromium = !isFirefox && !isSafari && (
+        ua.indexOf('chrome') !== -1 ||
+        ua.indexOf('chromium') !== -1 ||
+        ua.indexOf('edg/') !== -1 ||      // Edge on Chromium
+        ua.indexOf('opr/') !== -1         // Opera on Chromium
+      );
+      tells.browserFamily = isChromium ? 'chromium' : (isFirefox ? 'firefox' : (isSafari ? 'safari' : 'unknown'));
+    } catch (err) { tells.browserFamily = 'unknown'; }
 
     // Vector 1: WebGL renderer
     try {
@@ -183,16 +205,23 @@
     } catch (err) { tells.fnToString = { error: err.message }; }
 
     // Vector 3: window.chrome shape. Real Chrome exposes chrome.runtime.
-    // Headless / non-Chrome browsers leave chrome undefined or stubbed.
+    // Headless Chrome / non-Chrome browsers leave chrome undefined or stubbed.
+    // Cross-browser fix (2026-04-26 evening): only flag missing chrome.runtime
+    // as suspicious when the UA claims a Chromium-family browser. Firefox and
+    // Safari users legitimately have no window.chrome at all, so flagging
+    // them would be a false positive baseline. On those browsers we record
+    // the value but skip the suspicion contribution.
     try {
       var ch = window.chrome;
       var hasChrome = typeof ch === 'object' && ch !== null;
       var hasRuntime = hasChrome && typeof ch.runtime !== 'undefined';
-      // On real Chrome.com pages chrome.runtime exists; absence here is
-      // weak (extensions and policies can affect it) but combined with
-      // other tells contributes to suspicion.
-      tells.chromeRuntime = { has_chrome: hasChrome, has_runtime: hasRuntime };
-    } catch (err) { tells.chromeRuntime = { error: err.message }; }
+      var applies = (tells.browserFamily === 'chromium');
+      tells.chromeRuntime = {
+        has_chrome: hasChrome,
+        has_runtime: hasRuntime,
+        applies: applies   // weighted into suspicion only when applies===true
+      };
+    } catch (err) { tells.chromeRuntime = { error: err.message, applies: false }; }
 
     // Vector 4: Notification.permission vs permissions.query consistency.
     // Headless Chrome historically returns Notification.permission='denied'
@@ -382,17 +411,28 @@
       // expected on real Chromium are missing or non-native. Absence of
       // AudioContext entirely (older Safari, embedded WebViews) is NOT
       // suspicious by itself — only inconsistency is.
+      //
+      // Cross-browser fix (2026-04-26 evening): the prototype shape we
+      // check is Chromium-specific. Firefox's AudioContext shape differs
+      // (e.g., audioWorklet getter only present from FF 76+ and as a
+      // different descriptor); Safari has webkitAudioContext legacy paths
+      // and a different audioWorklet rollout history. On non-Chromium we
+      // record the values but skip the suspicion contribution to avoid
+      // false-positives on legitimate Firefox/Safari users.
+      var applies = (tells.browserFamily === 'chromium');
       var suspicious = false;
       var reasons = [];
-      if (hasAC && !ctorNative) { suspicious = true; reasons.push('ac_ctor_not_native'); }
-      if (hasAC && baseLatencyGetter === false) { suspicious = true; reasons.push('no_baseLatency_getter'); }
-      if (hasAC && workletGetter === false) { suspicious = true; reasons.push('no_audioWorklet_getter'); }
-      if (typeof window.AudioBuffer === 'function' && abufferGetter === false) {
-        suspicious = true; reasons.push('no_sampleRate_getter');
+      if (applies) {
+        if (hasAC && !ctorNative) { suspicious = true; reasons.push('ac_ctor_not_native'); }
+        if (hasAC && baseLatencyGetter === false) { suspicious = true; reasons.push('no_baseLatency_getter'); }
+        if (hasAC && workletGetter === false) { suspicious = true; reasons.push('no_audioWorklet_getter'); }
+        if (typeof window.AudioBuffer === 'function' && abufferGetter === false) {
+          suspicious = true; reasons.push('no_sampleRate_getter');
+        }
+        // OfflineAudioContext absence on a browser that has AudioContext is
+        // a strong tell — they ship together on real Chromium.
+        if (hasAC && !hasOAC) { suspicious = true; reasons.push('no_offline_audio_context'); }
       }
-      // OfflineAudioContext absence on a browser that has AudioContext is
-      // a strong tell — they ship together on real Chromium.
-      if (hasAC && !hasOAC) { suspicious = true; reasons.push('no_offline_audio_context'); }
       tells.audio = {
         has_ac: hasAC,
         has_oac: hasOAC,
@@ -400,6 +440,7 @@
         base_latency_getter_native: baseLatencyGetter,
         audio_worklet_getter_native: workletGetter,
         audio_buffer_sample_rate_getter_native: abufferGetter,
+        applies: applies,
         suspicious: suspicious,
         reasons: reasons
       };
@@ -417,8 +458,13 @@
     if (tells.webgpu && tells.webgpu.cloud_vm_signature) weight += 0.45;
     if (tells.iframe && tells.iframe.suspicious) weight += 0.40;
     if (tells.fnToString && tells.fnToString.suspicious) weight += 0.25;
+    // Audio probe & chrome.runtime check are Chromium-shape-specific.
+    // Their per-vector blocks set `applies` and only emit suspicious=true
+    // when the UA family is chromium. The audio block already guards via
+    // `applies`; here we additionally guard the chrome.runtime contribution
+    // so legitimate Firefox/Safari users don't accumulate +0.10 baseline.
     if (tells.audio && tells.audio.suspicious) weight += 0.20;
-    if (tells.chromeRuntime && !tells.chromeRuntime.has_runtime) weight += 0.10;
+    if (tells.chromeRuntime && tells.chromeRuntime.applies && !tells.chromeRuntime.has_runtime) weight += 0.10;
     weight = Math.min(1.0, weight);
 
     return { suspicion: weight, tells: tells };

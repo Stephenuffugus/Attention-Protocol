@@ -14,8 +14,8 @@ Before we get to any layer, the meta-frame: every buyer conversation hinges on w
 
 **The classifier-first claim has two readings, and the honest answer depends which one the buyer means.**
 
-- **Pure behavioral composite (20 signals, motor + keystroke + decision):** the gap between a well-engineered bot and a human is narrow. In our 2026-04-21 harness run the LLM-Paster profile scored 0.569 against a real human at 0.573 — a gap of 0.004. A buyer running their own LLM-in-the-loop test would find the same result. We do not claim the behavioral composite alone separates sophisticated bots from humans.
-- **Receipt-wide gated composite (behavioral × environmental × composition × honeypot):** the gap widens to 0.27+. The same 2026-04-21 LLM-Paster session caps at 0.30 once the environmental and composition-integrity layers apply their defense-in-depth gates. Against the weakest adversary (naive bot) the gap is still 0.27; against the strongest (LLM Paster) it's 0.27. **All four bot profiles gated to ≤0.30.**
+- **Pure behavioral composite (23 signals — 21 weighted + 2 diagnostic-only — covering motor + keystroke + decision + cognitive coherence):** the gap between a well-engineered bot and a human is narrow. In our 2026-04-21 harness run the LLM-Paster profile scored 0.569 against a real human at 0.573 — a gap of 0.004. The 2026-04-26 DMTG-class adversary (Tsinghua-grade Bezier + 1/f-per-channel + puppeteer-extra-stealth) lands at **0.55 ± 0.02 behavioral**, against an engaged-human baseline of 0.658 — gap of 0.131, narrower than the published-2026-04-21 0.273 figure when measured against the most sophisticated single adversary. A buyer running their own LLM-in-the-loop test would find the same result. **We do not claim the behavioral composite alone separates sophisticated bots from humans, and we say it that way out loud.**
+- **Receipt-wide gated composite (behavioral × environmental × composition × honeypot):** the gap widens to 0.27+. The same 2026-04-21 LLM-Paster session caps at 0.30 once the environmental and composition-integrity layers apply their defense-in-depth gates. Against the weakest adversary (naive bot) the gap is still 0.27; against the strongest of the standard-four (LLM Paster) it's 0.27. **All four bot profiles gated to ≤0.30.** The DMTG-class adversary evades env-gate on real-hardware infrastructure (Intel/AMD GPU defeats the WebGL cloud-VM signature) and currently lands at 0.55 — failing the 0.65 CME pass threshold by 0.10 but not gated to 0.30. On cloud-VM infrastructure (where WebGL/WebGPU vectors fire) it gates to 0.30 like the standard four.
 
 The second reading is the honest one, because every real receipt carries every layer. The single-number composite is an internal diagnostic; the *final* composite reflects the receipt's full evidence chain.
 
@@ -25,20 +25,33 @@ The second reading is the honest one, because every real receipt carries every l
 
 ---
 
-## 1. Layer 1 — Environmental gate (BotD)
+## 1. Layer 1 — Environmental gate (7-vector multi-detector)
 
 ### What it is
 
-`@fingerprintjs/botd` v2. A browser-side JS library that fingerprints the execution environment for telltale signs of automation: `navigator.webdriver` flags, missing-but-expected APIs, spoofed user agents, Chrome DevTools Protocol markers, headless browser heuristics. Runs once per session before any behavioral measurement. Lives at `proof/sdk/environmental-gate.js` + the vendored lib at `proof/vendor/botd.esm.js`.
+A browser-side multi-vector environment audit. The original implementation (pre-2026-04-26) was BotD-only. Today's version runs **seven independent detectors** in parallel and aggregates them into a single suspicion score (0..1). Suspicion ≥ 0.50 → `bot: true` → gated composite caps at PASSIVE 0.30. Lives at `proof/sdk/environmental-gate.js` + the vendored BotD lib at `proof/vendor/botd.esm.js`. Detector identifier in the receipt: `botd@v2+stealth_tells_v2`.
+
+The seven vectors:
+
+1. **`@fingerprintjs/botd` v2** (baseline) — `navigator.webdriver`, missing-but-expected APIs, spoofed UAs, CDP markers, headless heuristics. MIT, ~11 KB. Catches naive Puppeteer/Selenium.
+2. **WebGL renderer signature** (weight 0.45) — flags `swiftshader`, `llvmpipe`, `mesa-virtual`, `google inc` (without `angle`), or empty renderer strings. Cloud-VM headless Chrome and most stealth setups emit one of these.
+3. **WebGPU adapter info** (weight 0.45) — `navigator.gpu.requestAdapter().requestAdapterInfo()` checks vendor + architecture for software-renderer signatures (Chrome 113+, async; first call may not resolve in time but caches for next page load). Cited ACM WiSec 2025 *"Unveiling Privacy Risks in WebGPU"*.
+4. **Function.prototype.toString consistency** (weight 0.25) — samples `Notification.requestPermission`, `navigator.permissions.query`, the `webdriver` getter; checks all stringify with `[native code]`. Stealth plugins patch some methods but rarely all toString outputs perfectly.
+5. **Iframe-frontier comparison** (weight 0.40) — creates an iframe and compares top-frame `Function.toString` output against the iframe contentWindow's same methods. Mismatch = top-frame patched. Empirical limit: the most-recent stealth plugins inject patches into iframes too on creation; this vector still catches naive stealth.
+6. **`chrome.runtime` presence** (weight 0.10) — real Chrome exposes `chrome.runtime`; many headless setups don't. Weak signal alone (extensions/policies affect it) but combines with others.
+7. **AudioContext / OfflineAudioContext prototype-shape** (weight 0.20, added 2026-04-26 evening) — synchronous probe of `AudioContext.prototype.baseLatency`, `AudioContext.prototype.audioWorklet`, and `AudioBuffer.prototype.sampleRate` native getters. No instantiation required (avoids autoplay-policy gesture requirement). Stealth setups frequently lazily-stub the AudioContext constructor without preserving the prototype shape; headless deployments shipping `--mute-audio` without spoofing the API surface leak via this probe.
 
 ### What it proves
 
-A positive hit (`environmental.bot: true`, `botKind: "headless_chrome"` etc.) is a near-certain positive on browser-automation frameworks: Puppeteer, Playwright, Selenium, cdp-browser, headless Chromium. Our 2026-04-21 run-bot-vs-human.js testing: **4/4 of our adversarial profiles** (naive, jittered, sophisticated, llm_paster) were caught by BotD's environmental heuristics.
+A positive hit on the BotD vector (`environmental.bot: true`, `botKind: "headless_chrome"` etc.) is a near-certain positive on browser-automation frameworks: Puppeteer, Playwright, Selenium, cdp-browser, headless Chromium. The 2026-04-26 four-profile harness on cloud-VM infrastructure: **4/4 standard adversarial profiles** (naive, jittered, sophisticated, llm_paster) caught by BotD alone. The newer vectors catch puppeteer-extra-stealth-class adversaries that defeat BotD's standard heuristics by patching the obvious markers.
+
+**Empirical validation of vector 7** (run 2026-04-26 evening): the DMTG-class bot — puppeteer-extra-stealth + Bezier mousemove + 1/f-per-channel timing — passes the WebGL/WebGPU/iframe/Function.toString probes (stealth patches all those) but **the audio probe fires** with `reasons: ["no_audioWorklet_getter"]`. Stealth patches the `AudioContext` constructor and the `baseLatency` and `AudioBuffer.sampleRate` native getters, but does NOT spoof the `AudioContext.prototype.audioWorklet` getter, leaving it as a non-native function. Stealth-suspicion against this adversary: **0.10 → 0.30** (chrome.runtime missing 0.10 + audio 0.20). Still under the 0.50 threshold on real-hardware codespace (Intel Iris GPU defeats the WebGL cloud-VM signature), but on cloud-VM infrastructure where WebGL/WebGPU vectors also fire at +0.45 each, the audio probe pushes the bot decisively over threshold.
 
 ### What it does NOT prove
 
-- **Does not catch agentic LLMs driving a real browser through accessibility APIs.** If OpenAI's Operator, Anthropic's computer use, or a human using macro-recorded clicks drives a genuine Chrome window, BotD returns `bot: false`. That's where Layer 2 (behavioral composite) and Layer 3 (composition integrity + honeypot) carry the case.
-- **Does not catch "pet bots"** — legitimate user agents like screen readers, translation extensions, or a11y tools may occasionally trip a fingerprint signal. We treat BotD as one vote, not the verdict. The receipt reports BotD's output as a named field; downstream policy decides how to weight it.
+- **Does not catch agentic LLMs driving a real browser through accessibility APIs.** If OpenAI's Operator, Anthropic's computer use, or a human using macro-recorded clicks drives a genuine Chrome window on real hardware, all seven vectors return clean. That's where Layer 2 (behavioral composite) and Layer 3 (composition integrity + honeypot) carry the case.
+- **Does not catch "pet bots"** — legitimate user agents like screen readers, translation extensions, or a11y tools may occasionally trip a fingerprint signal. We treat each vector as one vote, not the verdict. The receipt reports the full 7-vector breakdown so downstream policy can weight them differently.
+- **Does not catch the most-sophisticated stealth on real hardware**: a puppeteer-extra-stealth bot on a real-GPU machine that fully patches the audioWorklet getter would currently slip past our 0.50 threshold. Our defense for that case is the layered stack — composition integrity, behavioral composite, content-bound receipt — not a single detector.
 
 ### Alternatives we considered
 
@@ -54,18 +67,18 @@ BotD is MIT-licensed, ships as 11 KB of JavaScript, no vendor call, no tracking,
 
 ### How to talk about it
 
-- "Our environmental gate is FingerprintJS BotD — MIT-licensed, runs in the browser, ships 11 KB, no tracking. The BotD verdict becomes a named field in the signed receipt so any verifier sees whether a headless browser was in play."
-- If asked about accuracy: "BotD catches ~95% of generic browser automation in published benchmarks. We tested 4 adversarial profiles in our own harness; BotD caught all four. It's one layer of seven, not the final word."
+- "Our environmental gate is a 7-vector multi-detector. The baseline is FingerprintJS BotD — MIT-licensed, runs in the browser, ships 11 KB, no tracking. On top of that we run six independent detectors that catch what BotD misses: WebGL renderer cloud-VM signatures, WebGPU adapter info (ACM WiSec 2025), Function.toString native-code consistency, iframe-frontier comparison, chrome.runtime presence, and AudioContext prototype-shape. Each vector publishes a per-verdict result in the receipt so any verifier sees the full breakdown."
+- If asked about accuracy: "BotD catches ~95% of generic browser automation in published benchmarks; we tested 4 adversarial profiles in our own 2026-04-21 harness and BotD caught all four. The 6 stealth-tells vectors target adversaries BotD misses — the most recent run (2026-04-26 evening) caught puppeteer-extra-stealth-class adversaries on the AudioContext probe specifically (`no_audioWorklet_getter` reason). It's one layer of seven, not the final word — and we say what it doesn't catch as honestly as what it does."
 
 ---
 
-## 2. Layer 2 — Behavioral composite (20 signals)
+## 2. Layer 2 — Behavioral composite (23 signals: 21 weighted + 2 diagnostic-only)
 
 ### What it is
 
-**20 signals** make up the "human confidence score" — a composite in [0.0, 1.0]. Each signal is grounded in published behavioral-science or motor-control literature. They run in the browser (`src/sdk/attention-protocol.js:1166`, comment: *"Composite Human Confidence Score (20 signals)"*) or on our scoring server (`server/index.js`).
+**23 signals** make up the "human confidence score" — a composite in [0.0, 1.0]. 21 carry weight in the composite; 2 are diagnostic-only (weight 0) — measured and surfaced in the receipt for transparency but not contributing to the score until calibration matures. Each signal is grounded in published behavioral-science or motor-control literature. They run in the browser (`src/sdk/attention-protocol.js:1970`, comment: *"Composite Human Confidence Score (23 signals: 21 weighted + 2 diagnostic-only)"*) or on our scoring server (`server/index.js`).
 
-**The 20 signals (grouped by data requirement):**
+**The 23 signals (grouped by data requirement):**
 
 **Tier 1 — decision + action signals (zero new data needed, signals 1–11):**
 1. **Timing entropy** — Coefficient of variation of inter-action intervals. Humans: CV ≈ 0.4–1.2. Naive bots: CV near 0. Shannon (1948).
@@ -83,7 +96,7 @@ BotD is MIT-licensed, ships as 11 KB of JavaScript, no vendor call, no tracking,
 **Tier 1 — higher-order statistics (signals 12–15):**
 12. **RT variability (Ex-Gaussian τ)** — Reaction-time variability; human τ ≈ 80–150 ms, bots near 0.
 13. **Scroll backtracking** — Human readers scroll back to re-read; bots don't. Comprehension proxy.
-14. **Fractal scaling (1/f noise via DFA)** — Long-range correlations in action sequences. Van Orden et al. (2003).
+14. **Prewhitened DFA-1 1/f scaling** — Long-range correlations in action sequences via prewhitened detrended fluctuation analysis (Torre & Delignières 2008). Pre-empts the Wagenmakers/Farrell/Ratcliff 2004 SRD-mimics-LRD critique by removing the short-range autocorrelation before estimating the spectral exponent. Replaces an earlier non-prewhitened DFA implementation.
 15. **Cross-signal correlation matrix** — The signals should co-vary in ways a script can't fake without coordinated modeling.
 
 **Tier 2 — motor signals (require mousemove sampling, signals 16–20):**
@@ -93,20 +106,30 @@ BotD is MIT-licensed, ships as 11 KB of JavaScript, no vendor call, no tracking,
 19. **Two-thirds power law** — Human cursor curvature ~ velocity^(2/3). Lacquaniti, Terzuolo, Viviani (1983).
 20. **Device motion (accelerometer + gyroscope)** — Phone tilt correlated with scrolling/tapping. Headless browsers expose zero.
 
+**Tier 3 — cognitive/motor coherence signals (added 2026-04-26, signals 16b/17b/17c):**
+
+- **Signal 16b: 1/f cross-channel coherence** (`oneOverFCoherence`, weight 0.00, diagnostic-only). Computes prewhitened DFA-1 spectral exponent α independently per channel (clicks, scrolls, keystrokes, taps; ≥30 events per channel required). Scores from across-channel α-variance — humans show low variance (single neural generator → all channels share the same long-range coupling); bots that synthesize each channel with independent randomness show high variance. Operationalizes the Sklar 1959 / Nandakumar 2008 TPAMI / Harris-Wolpert 1998 / Gilden 2001 mathematical defense in code. **Weight 0.00 because** short CME sessions rarely have ≥30 events on more than one channel — the signal correctly abstains in CME use cases. Will fire on long-running attention use cases (kiosk, gaming, multi-hour learning); calibration matures with production data. Mathematical grounding doc: `docs/yc-defense/09_cross_signal_coherence_math.md`.
+
+- **Signal 17b: Microsaccades** (`microsaccades`, weight 0.00, diagnostic-only). Counts micromovements (1–5 px, dt < 200 ms) within idle windows (gaps > 500 ms in click+scroll stream). Engbert & Kliegl 2003 + Hogan & Sternad 2007 grounding — real human cursor at rest emits small involuntary movements; truly-still bots are silent. **Weight 0.00 because** 60 Hz Bezier-with-jitter bots produce sample-pair displacements that look identical to real microsaccades (false-positive 0.937 measured against our DMTG-class harness). Catches simpler bots that don't simulate idle motion at all; defeated by the upper-sophistication adversary. Kept computed and exposed for diagnostic transparency.
+
+- **Signal 17c: Submovement count** (`submovementCount`, weight 0.05). Counts velocity peaks per ballistic mouse movement using a 7-point Gaussian-smoothed velocity profile + 15% prominence threshold + 4-sample minimum-separation peak detection. Crossman & Goodeve 1983 / Meyer et al. 1988 / Woodworth 1899 grounding — humans show 2–3 peaks (ballistic + corrective phases); simple Bezier bots show 1. **Weight 0.05** is a real defense against straight-line Bezier and low-frequency-sampling bots. Empirically defeated by 60 Hz Bezier-with-Gaussian-noise (artificial peaks from noise — DMTG bot drops to 0.20 because the v2 detector recognizes the noise pattern, but the bot isn't penalized further) but kept as a defense-in-depth contribution against simpler adversaries. v3 idea (post-YC): count discrete movement events, not per-sample peaks.
+
 **Plus two independent integrity signals that are NOT in the behavioral composite — they ride in the receipt as separate fields (see §3a and §3b):**
-- Signal 21: Composition Integrity (typing-vs-paste keystroke fingerprint)
-- Signal 22: Honeypot Canary (invisible prompt-injection trap for LLM cheaters)
+- Layer 3a: Composition Integrity (typing-vs-paste keystroke fingerprint)
+- Layer 3b: Honeypot Canary (invisible prompt-injection trap for LLM cheaters)
 
 **Research-stage (NOT yet in the composite):** attention-recovery-after-interruption, gaze-proxy-from-viewport. (Scroll-back-correlation, previously research-stage, shipped as Signal 13.)
 
 ### What it proves
 
-Under correct calibration it is a fairly good classifier of attention **quality** (deep focus vs background). A session that scores 0.75 composite with all 20 signals above their humanity floors looks different from a session that scores 0.55 with half the signals borderline.
+Under correct calibration it is a fairly good classifier of attention **quality** (deep focus vs background). A session that scores 0.75 composite with all 23 signals above their humanity floors looks different from a session that scores 0.55 with half the signals borderline.
 
 ### What it does NOT prove alone (you have to lead with this honest caveat)
 
 - **Pure behavioral gap vs sophisticated bots is narrow.** In our 2026-04-21 harness run the LLM-Paster profile scored 0.569 against a real human at 0.573 — gap 0.004. Against the weakest bot (naive) the gap is 0.098. A lay buyer cannot use the *behavioral composite alone* to reject a sophisticated bot.
-- **The receipt-wide gated composite resolves this** (see §2.5 below). By applying defense-in-depth caps from the independent integrity layers, every bot profile in the same harness gated to ≤0.30 — widening the gap to 0.27+ against the human baseline. Shipped 2026-04-21.
+- **The receipt-wide gated composite resolves this for the standard four-bot scenario** (see §2.5 below). By applying defense-in-depth caps from the independent integrity layers, every bot profile in the 2026-04-21 harness gated to ≤0.30 — widening the gap to 0.27+ against the human baseline. Shipped 2026-04-21.
+- **Structural single-signal motor limit (discovered 2026-04-26).** We tried twice today to tighten single-signal motor discrimination against curve-aware bots: (1) Two-Thirds Power Law band tightening to Cook 2026 SD-based scoring, (2) Cursor Jerk LDLJ replacement with Gaussian-decay scoring around CV = 0.8. Both reverted. Reason: **Bezier mouse trajectories with random control points + 16ms-tick sampling + ~3px Gaussian jitter produce statistics inside the human-typical band on every individual motor signal we measure.** β ≈ -0.30 to -0.34 (Cook 2026 *Sci Rep* human SD = 0.03), Cursor Jerk CV ≈ 0.8 (Hogan 1984 minimum-jerk band), Curvature Index 1.2–1.4 (MacKenzie 2001 human band). Per-signal threshold tightening cannot fix this. **The defense against curve-aware adversaries IS the layered stack** — env-gate cloud-VM detection + composition integrity + cross-signal coherence at the joint distribution level (Sklar/Nandakumar grounding) + content-bound receipt for audit. We say this out loud rather than pretending the structural limit doesn't exist; smart reviewers will probe for it and we'd rather hand them the disclosure than have them find the silence.
+- **DMTG-class adversary (2026-04-26)**: a Tsinghua-grade Bezier + 1/f-per-channel + puppeteer-extra-stealth adversary (approximating arXiv:2410.18233) lands at 0.55 ± 0.02 behavioral against our 2026-04-26 codepath. Engaged-human baseline 0.658. **Behavioral-only gap: 0.131** — narrower than the published 0.273 figure when measured against this specific adversary. The 0.65 CME pass threshold catches both, but with little behavioral-only margin. Env-gate firing closes the gap to gated-0.30 (which we have empirical evidence of for puppeteer-extra-stealth via the new audio probe).
 - **Further statistical calibration remains on the roadmap:** recalibrate against the Balabit mouse-trajectory dataset (public, ~10k real human trajectories) + BeCAPTCHA-Mouse synthetic adversarials. Logistic regression with isotonic calibration. Target for pure behavioral: widen the gap to 0.30+ *without* reliance on the integrity-layer gates. Effort estimate: 10–15 hours, likely next-sprint work.
 - **The honest ask of the behavioral composite is "quality of attention,"** not "is this a bot." The *gated composite* is the receipt-wide aggregate judgment. Saying both out loud in a pitch is safer than overselling either.
 
@@ -120,9 +143,9 @@ Under correct calibration it is a fairly good classifier of attention **quality*
 
 ### How to talk about it
 
-- "The 20-signal library is research-grade — every signal has a peer-reviewed paper behind it. The behavioral composite alone doesn't separate a sophisticated bot from a human — a deliberate LLM-Paster can land within 0.01 of a real session. That's **why the receipt is the product, not the composite**."
-- "What the receipt adds is a gated composite: behavioral score × environmental gate × composition integrity × honeypot canary → one final number that reflects the entire evidence chain. In our 2026-04-21 harness, every one of four bot profiles gated to ≤0.30 against a human baseline of 0.573. Gap 0.27+."
-- If pressed: "The gated composite shipped 2026-04-21 and lives in `src/sdk/receipt-composite.js`. Pure-behavioral recalibration against the Balabit dataset is a separate next-sprint project — widening the behavioral-only gap to 0.30+ without reliance on gates."
+- "The 23-signal library — 21 weighted plus 2 diagnostic-only at weight 0 — is research-grade. Every signal has a peer-reviewed paper behind it. The behavioral composite alone doesn't separate a sophisticated bot from a human — a deliberate LLM-Paster can land within 0.01 of a real session, and a curve-aware DMTG-class adversary lands at 0.55 against an engaged-human 0.658 (gap 0.131). That's **why the receipt is the product, not the composite**."
+- "What the receipt adds is a gated composite: behavioral score × environmental gate × composition integrity × honeypot canary → one final number that reflects the entire evidence chain. In our 2026-04-21 harness, every one of four bot profiles gated to ≤0.30 against a human baseline of 0.573. Gap 0.27+. The DMTG-class adversary on cloud-VM infrastructure also gates to 0.30; on real-hardware infrastructure it currently sits at the 0.65 threshold-fail level (NOT COMPLETED verdict) — an honest narrowing we disclose rather than hide."
+- If pressed: "The gated composite shipped 2026-04-21 and lives in `src/sdk/receipt-composite.js`. Pure-behavioral recalibration against the Balabit dataset is a separate next-sprint project — widening the behavioral-only gap to 0.30+ without reliance on gates. The 2 diagnostic-only signals (1/f cross-channel coherence, microsaccades) are kept at weight 0 because their false-positive rates against the most-sophisticated adversary haven't earned them weight yet — they fire on simpler bots, abstain on the tough one. Honest calibration discipline."
 
 ---
 
@@ -132,7 +155,7 @@ Under correct calibration it is a fairly good classifier of attention **quality*
 
 A small deterministic utility in `src/sdk/receipt-composite.js` that produces a *receipt-aggregate* composite score from four inputs:
 
-1. The behavioral composite (20 signals, Layer 2)
+1. The behavioral composite (23 signals, Layer 2)
 2. The environmental gate verdict (Layer 1)
 3. The composition integrity verdict (Layer 3a)
 4. The honeypot canary verdict (Layer 3b)
@@ -166,11 +189,28 @@ If no gate triggers, final == behavioral. The cap never *raises* the score.
 
 **Gap: 0.273** (was 0.004 against LLM Paster under behavioral-only). All four bots at or below the passive/background boundary.
 
+### 2026-04-26 expanded adversary table (post-7-vector env-gate, 23-signal SDK, DMTG-class added)
+
+| Adversary | Behavioral (23-signal) | Env gate | Composition | Final verdict |
+|---|---|---|---|---|
+| Naive Puppeteer | 0.492 | CAUGHT (headless_chrome) | mechanical | **gated 0.30 PASSIVE** |
+| Jittered Puppeteer | 0.578 | CAUGHT (headless_chrome) | mechanical | **gated 0.30 PASSIVE** |
+| Sophisticated Puppeteer | 0.561 | CAUGHT (headless_chrome) | mechanical | **gated 0.30 PASSIVE** |
+| LLM Paster | 0.614 | CAUGHT (headless_chrome) | pasted | **gated 0.30 PASSIVE** |
+| Stealth Puppeteer | 0.395 | EVADES (suspicion 0.10) | clean | NOT COMPLETED 0.395 |
+| **DMTG-class (Bezier + 1/f-per-channel + stealth)** | **0.55 ± 0.02** | **EVADES on real HW (0.30 with audio probe); CAUGHT on cloud-VM** | **clean** | **NOT COMPLETED 0.55 (real HW); gated 0.30 PASSIVE (cloud VM)** |
+| **Stephen engaged mobile** | **0.658** | clean | clean | **CREDIT AWARDED** |
+| Stephen distracted mobile | 0.582 | clean | clean | MARGINAL — calibration win, system caught reduced engagement |
+
+**Standard-four-profile gated gap: 0.273 (preserved from 2026-04-21).**
+
+**Sophisticated-bot honest gap: 0.131** (engaged-human 0.658 vs DMTG-class 0.55 on real-hardware, behavioral-only). Narrower than the standard-four 0.273 figure. The 0.65 CME pass threshold catches both, but with little behavioral-only margin. **On cloud-VM infrastructure** (where WebGL/WebGPU vectors fire at +0.45 each), the DMTG-class adversary gates to 0.30 like the standard four — gap restored to 0.358 against engaged human. The gap as a function of *infrastructure* is the honest framing.
+
 ### How to talk about it
 
 - "We don't judge a session on a single number. We judge the *receipt*. The receipt carries the behavioral composite AND a gated final composite that caps the judgment based on every independent integrity layer. It's defense-in-depth, with every cap enumerated in the receipt for audit."
 - "Before the gate, our LLM-Paster bot scored within 0.004 of a human — because the behavioral composite alone can't separate sophisticated adversaries. After the gate, it caps at 0.30 because the environmental layer flagged headless Chrome and the composition-integrity layer flagged paste-burst-no-backspaces typing. Same evidence that was always there, now surfaced as one auditable number."
-- **If a buyer asks why not just do it statistically:** "Statistical recalibration against Balabit is ~10–15 hours of next-sprint work. The gate-based aggregate is today's shipping fix. Both claim the same 0.30+ gap target. The gate gives us that gap from the evidence we already collect; Balabit would give it to us purely through tuning the 20 behavioral weights, which is a nice-to-have."
+- **If a buyer asks why not just do it statistically:** "Statistical recalibration against Balabit is ~10–15 hours of next-sprint work. The gate-based aggregate is today's shipping fix. Both claim the same 0.30+ gap target. The gate gives us that gap from the evidence we already collect; Balabit would give it to us purely through tuning the 23 behavioral weights, which is a nice-to-have."
 
 ---
 
@@ -423,15 +463,27 @@ A production receipt has the following fields. The closest shipping sample is `p
 ```
 {
   "receipt_id": "urn:sws:receipt:...",
-  "generated_at": "2026-04-21T...",
+  "generated_at": "2026-04-26T...",
   "engagement": { "duration_ms": 180000, "focus_score": 72, "quality_tier": "active", ... },
   "human_verification": {
-    "composite_score": 0.573,                          // pure behavioral (20 signals, Layer 2)
-    "composite_score_final": 0.573,                    // gated (Layer 2 × gates from Layers 1/3a/3b)
+    "composite_score": 0.658,                          // pure behavioral (23 signals, Layer 2)
+    "composite_score_final": 0.658,                    // gated (Layer 2 × gates from Layers 1/3a/3b)
     "quality_tier_final": "active",
     "gates_applied": [],                               // or array of {layer, reason, cap}
     "verdict": "verified_human_active_engagement", ... },
-  "environmental": { "loaded": true, "bot": false, "detector": "botd@v2", ... },        // Layer 1
+  "conformal_analysis": {                                                                // 2026-04-26 addition
+    "p_human": 0.78, "p_bot": 0.22,
+    "confidence_interval_95": [0.62, 0.91],
+    "calibration": { "size_human": 5, "size_bot": 10, "version": "v1-2026-04-26" },
+    "method": "class_conditional_gaussian_likelihood_ratio_with_bootstrap_ci",
+    "notes": "Vovk-Gammerman-Shafer 2005 + Angelopoulos-Bates 2023 framing; Efron-Tibshirani 1993 bootstrap"
+  },
+  "environmental": {
+    "loaded": true, "bot": false,
+    "detector": "botd@v2+stealth_tells_v2",                                              // 7-vector
+    "stealth_suspicion": 0.0,
+    "stealth_tells": { "webgl": {...}, "webgpu": {...}, "fnToString": {...},
+                       "iframe": {...}, "chromeRuntime": {...}, "audio": {...} }, ... },  // Layer 1
   "composition_integrity": { "verdict": "authored", "paste_burst_count": 0, ... },      // Layer 3a
   "honeypot": { "tripped": false, "verdict": "clean", "strategies_used": [...], ... },  // Layer 3b
   "consent": { "granted": true, "categories": [...], "timestamp": "...", ... },          // Layer 4
@@ -441,7 +493,7 @@ A production receipt has the following fields. The closest shipping sample is `p
 }
 ```
 
-Plus the Ed25519 signature wrapping the whole thing (Layer 5). Plus the behavioral 20-signal detail (Layer 2) under `human_verification.signals`.
+Plus the Ed25519 signature wrapping the whole thing (Layer 5). Plus the behavioral 23-signal detail (Layer 2) under `human_verification.signals` (21 weighted + 2 diagnostic-only at weight 0; the receipt surfaces all 23 score values plus a `signalActive` map showing which signals fired vs abstained).
 
 ### Current fixture coverage (2026-04-21 afternoon)
 
@@ -474,11 +526,12 @@ Honest footnote: the 7-layer fixture's OTS `proof_b64` and TSA `token_b64` field
 
 This is the list of things I will not say we do, because we don't. Use these as honesty markers in pitches.
 
-- **Identity verification.** We do not know who the user is. We prove a human was there; we don't prove which human. Roundtable (YC S24) does identity; we are orthogonal.
+- **Identity verification.** We do not know who the user is. We prove a human was there; we don't prove which human. Roundtable (YC W26) does identity-adjacent risk scoring; Didit (YC W26) does ID verification; we are orthogonal to both.
 - **Webcam / biometric.** No camera, no mic, no face, no voice. Our whole pitch falls apart if we add these.
-- **Retraining ML models on user data.** We don't train on anything. The 15 behavioral signals are deterministic formulas from published papers. No inference model to update.
+- **Retraining ML models on user data.** We don't train on anything. The 23 behavioral signals are deterministic formulas from published papers. No inference model to update. (The conformal-Bayesian P(human) calibration is a separate layer that uses a small published-distribution lookup, not a trained model.)
 - **Predicting future behavior.** The receipt is about this session. We don't claim to predict whether someone will cheat tomorrow.
 - **Legal compliance certification.** We produce the audit artifact; a law firm / QA team / regulator certifies compliance. We do not issue compliance attestations.
+- **Single-signal motor discrimination of curve-aware bots.** We discovered 2026-04-26 that Bezier mouse trajectories with random control points + 60 Hz sampling + ~3 px Gaussian jitter produce statistics inside the human-typical band on every individual motor signal we measure (Two-Thirds Power Law β, Cursor Jerk CV, Curvature Index, velocity bell-shape ratio, microsaccade frequency). Per-signal threshold tightening cannot fix this. The defense IS the layered stack — env-gate cloud-VM detection + composition integrity + cross-signal joint-distribution coherence + content-bound receipt. We will not claim a per-signal motor discriminator catches DMTG-class adversaries. We will claim the layered stack does, and we publish gap numbers honestly per infrastructure (real-hardware vs cloud-VM) so a buyer can match their threat model.
 
 ---
 
@@ -486,14 +539,15 @@ This is the list of things I will not say we do, because we don't. Use these as 
 
 If you have two minutes with a buyer and need to hit every load-bearing beat:
 
-1. **"Receipts, not classifiers."** We give you a cryptographically-signed record of what happened in a session, not a confidence score to trust.
-2. **"Layered evidence inside every receipt."** Seven independent signals: environmental bot gate, 20-signal behavioral composite, LLM-paste keystroke analysis, invisible prompt-injection honeypot, consent attestation, Ed25519 signature, Bitcoin-plus-RFC-3161 timestamp anchor.
-3. **"Receipt-wide gated composite."** Layers don't just coexist — they compose. The behavioral composite × environmental gate × composition integrity × honeypot → one final number that reflects the whole evidence chain. In our 2026-04-21 harness, all four bot profiles gated to ≤0.30 against a human baseline of 0.573. Gap 0.27+.
-4. **"Verifiable offline."** Anyone can check any SWS receipt in any browser using only our public key. No SWS server. No uptime dependency. Your auditor can do it.
-5. **"Tamper-evident via two timestamp proofs."** RFC 3161 for regulator-familiarity, OpenTimestamps/Bitcoin for maximum-irrefutability. Buyer picks which to trust; both ride the same receipt.
-6. **"Privacy-first."** No PII, no content, no camera, no mic. We measure *shape* of attention, not *what you said*. GDPR Art. 7 consent in every receipt.
-7. **"Standards-native."** Receipts serialize as W3C Verifiable Credentials, xAPI 1.0.3 statements, or OpenBadges 3.0 credentials. Any LMS, any credentialing body, any VC wallet ingests them.
-8. **"Patent-protected, filed March 17 2026."** 247 innovations, 24 categories, 12-month utility-conversion window. Moat is not the code; it is the spec.
+1. **"Receipts, not classifiers."** We give you a cryptographically-signed, content-bound record of what happened in a session — not a confidence score to trust. Tamper-evidence is empirically tested (100/100 random DOM-modification attacks detected, 27/27 pathological canonical inputs handled deterministically).
+2. **"Layered evidence inside every receipt."** Seven independent layers: 7-vector environmental gate (BotD + WebGL + WebGPU + Function.toString + iframe-frontier + chrome.runtime + AudioContext), 23-signal behavioral composite, LLM-paste keystroke analysis, invisible prompt-injection honeypot, consent attestation, Ed25519 signature, Bitcoin-plus-RFC-3161 timestamp anchor.
+3. **"Receipt-wide gated composite."** Layers don't just coexist — they compose. The behavioral composite × environmental gate × composition integrity × honeypot → one final number that reflects the whole evidence chain. In our 2026-04-21 harness, all four standard bot profiles gated to ≤0.30 against a human baseline of 0.573 (gap 0.273). The 2026-04-26 DMTG-class adversary on cloud-VM gates the same way; on real hardware it sits at 0.55 behavioral with the audio probe contributing +0.20 of stealth-suspicion — the layered defense story we publish, infrastructure-aware.
+4. **"Calibrated Bayesian P(human) on every receipt."** Vovk-Gammerman-Shafer 2005 conformal framing + class-conditional Gaussian likelihood-ratio + Efron-Tibshirani 1993 bootstrap 95% CI. Calibrated against documented humans + bots. No score-without-uncertainty. Almost no behavioral-biometrics vendor publishes this; we do, on every receipt.
+5. **"Verifiable offline."** Anyone can check any SWS receipt in any browser using only WebCrypto. No SWS server. No uptime dependency. Your auditor can do it. Three independent verification surfaces: receipt-explorer, verify.html (content-bound + JWT modes), the receipt page's Verify-This-Receipt one-click round-trip via URL fragment.
+6. **"Tamper-evident via two timestamp proofs."** RFC 3161 for regulator-familiarity, OpenTimestamps/Bitcoin for maximum-irrefutability. Buyer picks which to trust; both ride the same receipt.
+7. **"Privacy-first."** No PII, no content, no camera, no mic. We measure *shape* of attention, not *what you said*. GDPR Art. 7 consent in every receipt.
+8. **"Standards-native."** Receipts serialize as W3C Verifiable Credentials, xAPI 1.0.3 statements, or OpenBadges 3.0 credentials. Any LMS, any credentialing body, any VC wallet ingests them.
+9. **"Patent-protected, filed March 17 2026."** 247 innovations, 24 categories, 12-month utility-conversion window. Moat is not the code; it is the spec.
 
 That's the one-pager. Memorize the **order**, not the exact words. If you can hit 1–3 in your own voice, the rest flows.
 
@@ -501,19 +555,20 @@ That's the one-pager. Memorize the **order**, not the exact words. If you can hi
 
 ## 12. The honest one-paragraph version of "why buy us"
 
-The best e-signature products (DocuSign, Adobe Sign) can technically be backdated by insiders at the issuing company. The best proctoring products (Proctorio, Honorlock) require a webcam and a privacy invasion users are increasingly refusing. The best fraud-detection products (BioCatch, DataDome) give you a confidence score but no audit artifact. **SWS is the only product that combines a Bitcoin-and-RFC-3161-anchored cryptographic receipt, a layered seven-signal evidence bundle, and a zero-PII privacy model — serialized as a W3C Verifiable Credential that any auditor in any browser can verify offline with only our public key.** That is a thing no competitor ships. That is what you buy from SWS.
+The best e-signature products (DocuSign, Adobe Sign) can technically be backdated by insiders at the issuing company. The best proctoring products (Proctorio, Honorlock) require a webcam and a privacy invasion users are increasingly refusing. The best fraud-detection products (BioCatch, DataDome) give you a confidence score but no audit artifact. **SWS is the only product that combines a content-bound, Bitcoin-and-RFC-3161-anchored cryptographic receipt, a layered seven-layer evidence bundle (7-vector env-gate + 23-signal behavioral composite + composition integrity + honeypot canary + consent attestation + Ed25519 signature + dual timestamp), a calibrated Bayesian P(human) with bootstrap 95% confidence interval, and a zero-PII privacy model — serialized as a W3C Verifiable Credential that any auditor in any browser can verify offline with only WebCrypto.** That is a thing no competitor ships. **The receipt is the product, not the bot detector** — even when a sophisticated curve-aware adversary evades the env-gate, the receipt itself is content-bound, tamper-tested 100/100, and audit-grade. That is what you buy from SWS.
 
 ---
 
-**Last updated:** 2026-04-21 afternoon. Changes vs morning version:
-- Gated composite (§2.5) shipped: `src/sdk/receipt-composite.js` + 27 unit tests + VC builder integration + bot-harness reporter + verify.html display
-- §0 frame rewritten to distinguish behavioral composite gap (0.004 worst case vs LLM Paster) from gated composite gap (0.273 against all bots in 2026-04-21 harness)
-- §1 bot-harness profile count corrected 3→4 (actual harness)
-- §2 signal count corrected 15→20 (actual code in `src/sdk/attention-protocol.js:1166`)
-- §3 citation verified against arxiv 2511.12468 by Mehta et al.; added honest caveat that F1 97–99% is keyboard-specific and drops to 75.7–76.4% under paraphrase attacks
-- §4 citation corrected: the full Liu et al. 2024 paper title is *"Formalizing and Benchmarking Prompt Injection Attacks and Defenses"* (USENIX Security 2024, arxiv 2310.12815). The previously-cited 90–95% canary detection figure was unsupported by that source and has been removed pending our own benchmark
-- §9 fixture-coverage table added so the pitch doesn't mis-point
-- §11 argument chain expanded 7→8 points to include the gated composite
-- Playbook Step 1.2 now points to `verify-sample-6layer.json` (the multi-card-rendering fixture), not `stephen-0573-anchored.json` (which only renders 2 cards)
+**Last updated:** 2026-04-26 evening. Changes vs 2026-04-21 version (folded in from `SEVEN_LAYER_DEEP_DIVE_APR26_ADDENDUM.md`, now archived):
 
-**Verify every claim against:** `git log`, `npm test`, `proof/results/verify-sample-6layer.json`, `src/sdk/receipt-composite.js`, and the live site at https://sws-attention-proofs.web.app.
+- **§0 frame**: behavioral signal count 20 → 23; added the DMTG-class 0.131 gap disclosure and the infrastructure-aware framing (cloud-VM vs real-hardware)
+- **§1 Layer 1**: BotD-only → **7-vector multi-detector** (BotD + WebGL + WebGPU + Function.toString + iframe-frontier + chrome.runtime + AudioContext). Detector identifier `botd@v2+stealth_tells_v2`. Empirical validation: AudioContext probe caught puppeteer-extra-stealth's `no_audioWorklet_getter` residue, lifting suspicion 0.10 → 0.30 against this adversary
+- **§2 Layer 2**: 20 signals → 23 signals (21 weighted + 2 diagnostic-only). New signals: 16b oneOverFCoherence (Sklar/Nandakumar/Harris-Wolpert/Gilden grounding), 17b microsaccades (Engbert-Kliegl 2003), 17c submovementCount (Crossman-Goodeve 1983 / Meyer 1988). Signal 14 fractalScaling now uses Torre-Delignières 2008 prewhitened DFA-1 (pre-empts Wagenmakers 2004 SRD critique)
+- **§2 caveats**: added the structural single-signal motor limit disclosure — Bezier + 60Hz + Gaussian noise produces in-band statistics on every per-signal motor measure; per-signal threshold tightening cannot fix it; the layered stack is the answer
+- **§2.5 gated composite**: 2026-04-21 four-bot table preserved; **2026-04-26 expanded adversary table** added with DMTG-class row + Stephen engaged-mobile baseline + infrastructure-aware gap disclosure
+- **§9 receipt schema**: added `conformal_analysis` field (Vovk-Gammerman-Shafer 2005 framing + bootstrap 95% CI); env-gate field expanded to show full 7-vector breakdown with detector identifier `botd@v2+stealth_tells_v2`
+- **§10 anti-overclaim list**: added the structural single-signal motor limit as an explicit do-not-claim; updated Roundtable/Didit YC batch references to W26
+- **§11 argument chain**: expanded 8 → 9 points to include calibrated Bayesian P(human) and the empirically-verified content-binding (100/100 tampers caught, 27/27 edge inputs)
+- **§12 bottom-line**: added "receipt is the product, not the bot detector" framing; expanded competitor-comparison sentence to enumerate the full layered stack
+
+**Verify every claim against:** `git log`, `npm test`, `node scripts/test-tampering-attack.js`, `node scripts/test-canonical-edge-inputs.js`, `node scripts/run-dmtg-bot.js`, `proof/results/verify-sample-6layer.json`, `src/sdk/receipt-composite.js`, and the live site at https://sws-attention-proofs.web.app.
