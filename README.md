@@ -20,7 +20,7 @@ Every regulated high-stakes interaction with a screen — a CME credit, a licens
 
 The protocol's confidence does not rest on a single classifier. It is gated across seven independent layers; any single layer caught means the receipt is downgraded to PASSIVE tier maximum.
 
-1. **Environmental gate** — `@fingerprintjs/botd v2`. Catches headless Chrome, Puppeteer, Playwright, Selenium, CDP markers.
+1. **Environmental gate** — 7-vector multi-detector: `@fingerprintjs/botd v2` baseline + WebGL renderer (cloud-VM SwiftShader/llvmpipe signatures) + WebGPU adapter info (ACM WiSec 2025) + Function.toString native-code consistency + iframe-frontier comparison + chrome.runtime presence + AudioContext / OfflineAudioContext prototype-shape probe. Catches headless Chrome, Puppeteer, Playwright, Selenium, and the puppeteer-extra-stealth class adversaries that defeat BotD's standard heuristics.
 2. **Behavioral composite** — 20 signals across motor, keystroke, decision, attention timing, and reading domains. See [`BEHAVIORAL_SCIENCE_PATTERNS.md`](BEHAVIORAL_SCIENCE_PATTERNS.md).
 3. **Composition integrity** — paste-burst detection, digraph-CV authenticity, sub-human typing intervals.
 4. **Invisible honeypot canary** — bait words an LLM hallucinates but a human does not.

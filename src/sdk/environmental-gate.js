@@ -131,7 +131,7 @@
    * Returns aggregated suspicion score 0..1 + per-vector detail.
    */
   function _detectStealthTells() {
-    var tells = { webgl: null, fnToString: null, chromeRuntime: null, perms: null, webgpu: null, iframe: null };
+    var tells = { webgl: null, fnToString: null, chromeRuntime: null, perms: null, webgpu: null, iframe: null, audio: null };
     if (typeof window === 'undefined') {
       return { suspicion: 0, tells: tells, error: 'no_window' };
     }
@@ -323,17 +323,101 @@
       }
     } catch (err) { tells.iframe = { available: false, error: err.message }; }
 
+    // Vector 7: AudioContext / OfflineAudioContext prototype shape.
+    // Real Chromium exposes:
+    //   - window.AudioContext (or webkitAudioContext) as a constructor
+    //   - window.OfflineAudioContext as a constructor (instantiable without
+    //     user-gesture — important: bypasses autoplay policy)
+    //   - AudioContext.prototype.baseLatency as a native getter
+    //   - AudioContext.prototype.audioWorklet as a native getter
+    //   - AudioBuffer.prototype.sampleRate as a native getter
+    // Stealth setups frequently leave these lazily-stubbed: the constructors
+    // exist but the prototype getters are absent, return non-native code, or
+    // throw on use. Many headless deployments also disable audio entirely
+    // (--mute-audio, --use-fake-device-for-media-stream) leaving inconsistent
+    // residue even when stealth tries to spoof the constructor surface.
+    //
+    // We check the prototype synchronously without instantiating — this
+    // avoids the user-gesture requirement modern browsers apply to live
+    // AudioContext, while still reading the same shape stealth has to spoof.
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      var OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      var hasAC = typeof AC === 'function';
+      var hasOAC = typeof OAC === 'function';
+      var ctorNative = false, baseLatencyGetter = null, workletGetter = null, abufferGetter = null;
+      if (hasAC) {
+        try {
+          var ctorSrc = Function.prototype.toString.call(AC);
+          ctorNative = /\[native code\]/.test(ctorSrc);
+        } catch (e) { ctorNative = false; }
+        try {
+          var bld = Object.getOwnPropertyDescriptor(AC.prototype, 'baseLatency');
+          if (bld && typeof bld.get === 'function') {
+            baseLatencyGetter = /\[native code\]/.test(Function.prototype.toString.call(bld.get));
+          } else {
+            baseLatencyGetter = false;
+          }
+        } catch (e) { baseLatencyGetter = false; }
+        try {
+          var awd = Object.getOwnPropertyDescriptor(AC.prototype, 'audioWorklet');
+          if (awd && typeof awd.get === 'function') {
+            workletGetter = /\[native code\]/.test(Function.prototype.toString.call(awd.get));
+          } else {
+            workletGetter = false;
+          }
+        } catch (e) { workletGetter = false; }
+      }
+      if (typeof window.AudioBuffer === 'function') {
+        try {
+          var srd = Object.getOwnPropertyDescriptor(window.AudioBuffer.prototype, 'sampleRate');
+          if (srd && typeof srd.get === 'function') {
+            abufferGetter = /\[native code\]/.test(Function.prototype.toString.call(srd.get));
+          } else {
+            abufferGetter = false;
+          }
+        } catch (e) { abufferGetter = false; }
+      }
+      // Suspicious if AudioContext is present but the prototype getters
+      // expected on real Chromium are missing or non-native. Absence of
+      // AudioContext entirely (older Safari, embedded WebViews) is NOT
+      // suspicious by itself — only inconsistency is.
+      var suspicious = false;
+      var reasons = [];
+      if (hasAC && !ctorNative) { suspicious = true; reasons.push('ac_ctor_not_native'); }
+      if (hasAC && baseLatencyGetter === false) { suspicious = true; reasons.push('no_baseLatency_getter'); }
+      if (hasAC && workletGetter === false) { suspicious = true; reasons.push('no_audioWorklet_getter'); }
+      if (typeof window.AudioBuffer === 'function' && abufferGetter === false) {
+        suspicious = true; reasons.push('no_sampleRate_getter');
+      }
+      // OfflineAudioContext absence on a browser that has AudioContext is
+      // a strong tell — they ship together on real Chromium.
+      if (hasAC && !hasOAC) { suspicious = true; reasons.push('no_offline_audio_context'); }
+      tells.audio = {
+        has_ac: hasAC,
+        has_oac: hasOAC,
+        ctor_native: ctorNative,
+        base_latency_getter_native: baseLatencyGetter,
+        audio_worklet_getter_native: workletGetter,
+        audio_buffer_sample_rate_getter_native: abufferGetter,
+        suspicious: suspicious,
+        reasons: reasons
+      };
+    } catch (err) { tells.audio = { error: err.message, suspicious: false }; }
+
     // Aggregate suspicion 0..1.
     // WebGL cloud-VM signature: 0.45 (strong but can be spoofed by stealth)
     // WebGPU cloud-VM signature: 0.45 (strong AND harder to spoof — newer surface)
     // Iframe Function.toString mismatch: 0.40 (very strong — stealth can't patch iframe)
     // Function.toString suspicious: 0.25 (medium — stealth patches but inconsistently)
+    // AudioContext prototype shape: 0.20 (medium — stealth lazily-stubs audio)
     // chrome.runtime missing: 0.10 (weak — extensions can affect this)
     var weight = 0;
     if (tells.webgl && tells.webgl.cloud_vm_signature) weight += 0.45;
     if (tells.webgpu && tells.webgpu.cloud_vm_signature) weight += 0.45;
     if (tells.iframe && tells.iframe.suspicious) weight += 0.40;
     if (tells.fnToString && tells.fnToString.suspicious) weight += 0.25;
+    if (tells.audio && tells.audio.suspicious) weight += 0.20;
     if (tells.chromeRuntime && !tells.chromeRuntime.has_runtime) weight += 0.10;
     weight = Math.min(1.0, weight);
 
@@ -394,7 +478,10 @@
     } else if (stealthSaysBot) {
       var k = [];
       if (stealthTells.tells.webgl && stealthTells.tells.webgl.cloud_vm_signature) k.push('cloud_vm_gpu');
+      if (stealthTells.tells.webgpu && stealthTells.tells.webgpu.cloud_vm_signature) k.push('cloud_vm_webgpu');
+      if (stealthTells.tells.iframe && stealthTells.tells.iframe.suspicious) k.push('iframe_mismatch');
       if (stealthTells.tells.fnToString && stealthTells.tells.fnToString.suspicious) k.push('patched_natives');
+      if (stealthTells.tells.audio && stealthTells.tells.audio.suspicious) k.push('audio_shape_mismatch');
       if (stealthTells.tells.chromeRuntime && !stealthTells.tells.chromeRuntime.has_runtime) k.push('no_chrome_runtime');
       bot_kind = 'stealth:' + k.join('+');
     }
@@ -408,7 +495,7 @@
       stealth_tells: stealthTells.tells,
       checked_at: new Date().toISOString(),
       latency_ms: Math.round(latencyMs),
-      detector: 'botd@v2+stealth_tells_v1'
+      detector: 'botd@v2+stealth_tells_v2'
     };
   }
 

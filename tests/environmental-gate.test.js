@@ -72,6 +72,20 @@ describe('environmental-gate — _normalizeResult', () => {
     const r = gate._normalizeResult({ bot: false }, 42.7);
     expect(r.latency_ms).toBe(43);
   });
+
+  // 2026-04-26 evening: 7-vector env-gate added AudioContext prototype-shape
+  // probe. In jsdom, AudioContext is undefined, so the audio tell is inert
+  // (suspicious=false). On real Chromium, the probe reads native getters
+  // for baseLatency, audioWorklet, AudioBuffer.sampleRate. Stealth setups
+  // that lazily-stub the constructor without the prototype shape are flagged.
+  test('stealth_tells exposes audio vector on _normalizeResult output', () => {
+    const r = gate._normalizeResult({ bot: false }, 10);
+    // Audio tell exists in the stealth_tells map (may be inert in jsdom)
+    expect(r.stealth_tells).toBeDefined();
+    expect(r.stealth_tells).toHaveProperty('audio');
+    // Detector identifier bumped to v2 of stealth_tells
+    expect(r.detector).toBe('botd@v2+stealth_tells_v2');
+  });
 });
 
 // ============================================================
