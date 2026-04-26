@@ -134,10 +134,11 @@ const SIGNAL_LABELS = {
   keystroke:"Keystroke Rhythm", readingSpeed:"Reading Speed", hoverDwell:"Hover Dwell",
   tabVisibility:"Tab Visibility", inactivity:"Activity Pattern",
   rtVariability:"RT Variability", scrollBacktrack:"Scroll Backtrack",
-  fractalScaling:"Fractal Scaling (1/f)", crossCorrelation:"Cross-Signal Correlation",
+  fractalScaling:"Prewhitened DFA-1 (1/f)", crossCorrelation:"Cross-Signal Correlation",
   oneOverFCoherence:"1/f Cross-Channel", curvatureIndex:"Curvature Index",
   cursorJerk:"Cursor Jerk (LDLJ)", velocityProfile:"Velocity Profile",
-  twoThirdsPower:"Two-Thirds Power Law", deviceMotion:"Device Motion"
+  twoThirdsPower:"Two-Thirds Power Law", deviceMotion:"Device Motion",
+  microsaccades:"Microsaccades (idle drift)", submovementCount:"Submovement Count"
 };
 
 function canonicalJSON(obj) {
@@ -237,7 +238,7 @@ async function render(payload, claimedHash) {
 
   // Card 4: signals
   const card4 = el('div','card');
-  card4.appendChild(el('h2','','20 behavioral signals'));
+  card4.appendChild(el('h2','','23 behavioral signals'));
   const grid = el('div','signal-grid');
   Object.keys(SIGNAL_LABELS).forEach(k => {
     const v = sigs[k];

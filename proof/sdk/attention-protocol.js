@@ -1967,7 +1967,7 @@
       return humanLikeRatio * 0.3 + _ascore(tapCorrelation, 0.6) * 0.4 + driftScore * 0.3;
     },
 
-    // Composite Human Confidence Score (20 signals)
+    // Composite Human Confidence Score (23 signals: 21 weighted + 2 diagnostic-only)
     computeHumanConfidence: function() {
       var timingCV = this.computeTimingCV();
       var timingScore = _ascore(Math.max(0, timingCV - 0.15), 1.2);

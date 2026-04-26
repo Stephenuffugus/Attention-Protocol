@@ -7,7 +7,8 @@
  *
  * Design:
  *   - The *behavioral* composite (src/sdk/attention-protocol.js) remains
- *     a pure 20-signal motor + keystroke + decision score. Unchanged.
+ *     a pure 23-signal motor + keystroke + decision + cognitive-coherence
+ *     score (21 weighted + 2 diagnostic-only). Unchanged in shape.
  *   - The *receipt-wide* final composite applies defense-in-depth caps:
  *     if any independent integrity layer flags the session, the final
  *     composite cannot exceed a ceiling appropriate to that flag.
