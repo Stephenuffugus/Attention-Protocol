@@ -1017,19 +1017,24 @@ describe('Confidence Cap Logic', () => {
     expect(c.composite).toBeLessThanOrEqual(0.30);
   });
 
-  test('totalSignals is always 20', () => {
+  // Signal count expanded from 20 → 23 on 2026-04-26 with the addition of:
+  //   - oneOverFCoherence (16b — 1/f cross-channel coherence, diagnostic-only weight 0)
+  //   - microsaccades (17b — idle-window micromovements, diagnostic-only weight 0)
+  //   - submovementCount (17c — Crossman & Goodeve / Meyer 1988, weight 0.05)
+  test('totalSignals is 23 (post-2026-04-26 expansion)', () => {
     const c = SWSAttention.getHumanConfidence();
-    expect(c.totalSignals).toBe(20);
+    expect(c.totalSignals).toBe(23);
   });
 
-  test('all 20 signal keys present in output with numeric values', () => {
+  test('all 23 signal keys present in output with numeric values', () => {
     const c = SWSAttention.getHumanConfidence();
     const keys = [
       'timing', 'fitts', 'hicks', 'scroll', 'microPause', 'touch',
       'keystroke', 'readingSpeed', 'hoverDwell', 'tabVisibility',
       'inactivity', 'rtVariability', 'scrollBacktrack', 'fractalScaling',
       'crossCorrelation', 'curvatureIndex', 'cursorJerk', 'velocityProfile',
-      'twoThirdsPower', 'deviceMotion'
+      'twoThirdsPower', 'deviceMotion',
+      'oneOverFCoherence', 'microsaccades', 'submovementCount'
     ];
     for (const key of keys) {
       expect(c).toHaveProperty(key);
@@ -1044,7 +1049,8 @@ describe('Confidence Cap Logic', () => {
       'keystroke', 'readingSpeed', 'hoverDwell', 'tabVisibility',
       'inactivity', 'rtVariability', 'scrollBacktrack', 'fractalScaling',
       'crossCorrelation', 'curvatureIndex', 'cursorJerk', 'velocityProfile',
-      'twoThirdsPower', 'deviceMotion'
+      'twoThirdsPower', 'deviceMotion',
+      'oneOverFCoherence', 'microsaccades', 'submovementCount'
     ];
     for (const key of keys) {
       expect(c[key]).toBeGreaterThanOrEqual(0);

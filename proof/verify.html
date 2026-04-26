@@ -54,7 +54,34 @@
     the W3C WebCrypto API.
   </p>
 
-  <h2>1. Receipt (signed JWT)</h2>
+  <h2>Two ways a receipt can be verified</h2>
+  <p class="sub">
+    SWS receipts carry two independent integrity claims. (A) <strong>Content-binding</strong>:
+    every displayed value is included in a deeply key-sorted canonical JSON whose SHA-256 is
+    the receipt hash. Any modification to a displayed value changes the hash and breaks
+    verification. (B) <strong>Issuer attestation</strong>: when the SWS signing service has
+    stamped the receipt, it carries an Ed25519 (EdDSA) signature over the JWT. Either layer
+    is independently auditable below.
+  </p>
+
+  <h2>A. Content-bound receipt (SHA-256 over canonical session payload)</h2>
+  <p class="sub">
+    Paste the canonical JSON and the claimed hash from a CME or demo session
+    (Firestore <code>demos.&lt;sessionId&gt;.receipt_canonical</code> + <code>receipt_hash</code>).
+    Your browser re-canonicalises and re-hashes locally; if the recomputed hash matches the
+    claimed hash the displayed values are intact.
+  </p>
+  <textarea id="content-input" spellcheck="false" rows="8"
+    placeholder='Paste canonical JSON OR the receipt_payload object. Example: {"protocol":"SWS-AP-v2","session_id":"...","signals":{...},...}'></textarea>
+  <textarea id="content-hash-input" spellcheck="false" style="min-height:54px;margin-top:8px;font-size:12px"
+    placeholder="Paste claimed hash (64 hex chars). Example: a99294674691ca53c59e0e93fd57651c07bf5c06c88f06e0a983d2af7d89a310"></textarea>
+  <div class="row">
+    <button id="content-verify-btn">Verify content binding</button>
+    <button id="content-clear-btn" class="ghost">Clear</button>
+  </div>
+  <div id="content-verdict-slot"></div>
+
+  <h2>B. Issuer-attested receipt (Ed25519 JWT)</h2>
   <textarea id="jwt-input" spellcheck="false"
     placeholder="eyJhbGci…"></textarea>
   <div class="row">
@@ -355,7 +382,117 @@ document.getElementById('clear-btn').addEventListener('click', () => {
   document.getElementById('raw-slot').textContent = '';
 });
 
-// On load: pre-fetch the JWKS to show the kid, and prefill the sample
+// ---------- Content-bound receipt verifier (SHA-256 over canonical JSON) ----------
+// Mirrors the SDK's _canonicalJSON exactly: deeply key-sorted, recursive.
+// Any divergence here would silently break verification, so this is intentionally
+// a verbatim copy of the sender-side implementation.
+function canonicalJSON(obj) {
+  if (obj === null || obj === undefined) return 'null';
+  if (typeof obj === 'number') return Number.isFinite(obj) ? String(obj) : 'null';
+  if (typeof obj === 'boolean') return obj ? 'true' : 'false';
+  if (typeof obj === 'string') return JSON.stringify(obj);
+  if (Array.isArray(obj)) return '[' + obj.map(canonicalJSON).join(',') + ']';
+  if (typeof obj === 'object') {
+    const keys = Object.keys(obj).sort();
+    return '{' + keys.map(k => JSON.stringify(k) + ':' + canonicalJSON(obj[k])).join(',') + '}';
+  }
+  return 'null';
+}
+
+async function sha256Hex(str) {
+  const data = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function doContentVerify() {
+  const cSlot = document.getElementById('content-verdict-slot');
+  cSlot.innerHTML = '';
+  const raw = document.getElementById('content-input').value.trim();
+  const claimedHash = document.getElementById('content-hash-input').value.trim().toLowerCase();
+  if (!raw) {
+    cSlot.appendChild(verdictBlock(false, 'Paste a canonical JSON or payload object first.', ''));
+    return;
+  }
+  if (!/^[0-9a-f]{64}$/.test(claimedHash)) {
+    cSlot.appendChild(verdictBlock(false, 'Claimed hash must be 64 lowercase hex characters.',
+      'Got: ' + (claimedHash || '(empty)') + '  (length ' + claimedHash.length + ')'));
+    return;
+  }
+  // Two acceptable inputs: (1) the canonical string itself, (2) a payload
+  // object that we'll re-canonicalize. Try (2) first since it's the common
+  // case; fall back to treating the input as already-canonical.
+  let canonical;
+  try {
+    const obj = JSON.parse(raw);
+    canonical = canonicalJSON(obj);
+  } catch (e) {
+    cSlot.appendChild(verdictBlock(false, 'Input is not valid JSON.', String(e.message || e)));
+    return;
+  }
+  let recomputed;
+  try {
+    recomputed = await sha256Hex(canonical);
+  } catch (e) {
+    cSlot.appendChild(verdictBlock(false, 'SHA-256 failed', String(e.message || e)));
+    return;
+  }
+  const ok = recomputed === claimedHash;
+  if (ok) {
+    cSlot.appendChild(verdictBlock(true,
+      '✓ Content binding verifies',
+      'The pasted payload re-canonicalizes and re-hashes to the claimed hash. ' +
+      'No displayed value has been modified since the receipt was issued.'));
+  } else {
+    cSlot.appendChild(verdictBlock(false,
+      '✗ Hash MISMATCH — receipt has been tampered with or input is wrong',
+      'Claimed:    ' + claimedHash + '\nRecomputed: ' + recomputed));
+  }
+  // Show the canonical for transparency
+  const det = document.createElement('details');
+  det.style.marginTop = '12px';
+  const sum = document.createElement('summary');
+  sum.textContent = 'Show recomputed canonical JSON (the bytes that were hashed)';
+  sum.style.color = 'var(--dim)';
+  sum.style.cursor = 'pointer';
+  det.appendChild(sum);
+  const pre = document.createElement('pre');
+  pre.textContent = canonical;
+  det.appendChild(pre);
+  cSlot.appendChild(det);
+}
+
+document.getElementById('content-verify-btn').addEventListener('click', doContentVerify);
+document.getElementById('content-clear-btn').addEventListener('click', () => {
+  document.getElementById('content-input').value = '';
+  document.getElementById('content-hash-input').value = '';
+  document.getElementById('content-verdict-slot').innerHTML = '';
+});
+
+// Auto-prefill from URL fragment when arriving from a CME/demo receipt
+// page's "Verify This Receipt" button. Fragment format:
+//   verify.html#auto=1&hash=<64-hex>&canonical=<base64-encoded>
+// Fragment data is never sent to the server — receipt details stay local
+// to the browser. This makes "click → see verification" a one-step demo
+// suitable for showing buyers / partners / auditors.
+function autoPrefillFromFragment() {
+  if (!location.hash) return false;
+  const params = new URLSearchParams(location.hash.slice(1));
+  if (params.get('auto') !== '1') return false;
+  const hash = (params.get('hash') || '').toLowerCase();
+  const canonicalB64 = params.get('canonical') || '';
+  if (!hash || !canonicalB64) return false;
+  try {
+    const canonical = decodeURIComponent(escape(atob(canonicalB64)));
+    document.getElementById('content-input').value = canonical;
+    document.getElementById('content-hash-input').value = hash;
+    return true;
+  } catch (e) { return false; }
+}
+
+// On load: pre-fetch the JWKS to show the kid, prefill the JWT sample,
+// AND auto-run the content-binding verifier if URL fragment carries one.
 (async () => {
   try {
     const jwks = await fetchJwk();
@@ -365,6 +502,12 @@ document.getElementById('clear-btn').addEventListener('click', () => {
   }
   document.getElementById('jwt-input').value = SAMPLE_JWT;
   doVerify();
+  // If arriving from a receipt page with auto-verify fragment, prefill +
+  // run content-binding check. Scrolls to Section A so the result is visible.
+  if (autoPrefillFromFragment()) {
+    await doContentVerify();
+    document.querySelector('h2').scrollIntoView({ behavior: 'smooth' });
+  }
 })();
 </script>
 </body>

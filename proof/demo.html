@@ -357,7 +357,7 @@
 
   <!-- SWS SDK (cache-busted 2026-04-21c) -->
   <script src="sdk/secure-config.js?v=20260421e"></script>
-  <script src="sdk/attention-protocol.js?v=20260424b"></script>
+  <script src="sdk/attention-protocol.js?v=20260426f"></script>
   <script src="sdk/economy-engine.js?v=20260421e"></script>
   <script src="sdk/environmental-gate.js?v=20260421e"></script>
   <script src="sdk/composition-integrity.js?v=20260421e"></script>
@@ -911,22 +911,31 @@
         { name: 'Device Motion (Gyro/Accel)', key: 'deviceMotion', color: '#ef4444' }
       ];
 
+      // Two reasons a signal might not score: (1) mobile-only — the four
+      // mousemove signals can't run on touch; (2) insufficient data this
+      // session — the SDK returns its -1 sentinel. Both render as N/A so a
+      // user reading their receipt isn't misled by a 0.000 they didn't earn.
+      var sigActive = c.signalActive || {};
       var sigHTML = '';
       allSignals.forEach(function(s) {
-        // On touch-only devices the four mousemove signals are N/A — render
-        // them as "N/A (mobile)" so buyers don't read 0.000 as failure.
         if (IS_TOUCH_ONLY && MOUSE_ONLY_KEYS[s.key]) {
           sigHTML += '<div class="signal-item" style="opacity:0.5"><span class="name">' + s.name + '</span>';
           sigHTML += '<span class="bar-wrap"><span class="bar-inner" style="width:0%;background:#64748b;"></span></span>';
           sigHTML += '<span class="val" style="color:#94a3b8;">N/A (mobile)</span></div>';
           return;
         }
+        var active = sigActive.hasOwnProperty(s.key) ? sigActive[s.key] : true;
+        if (!active) {
+          sigHTML += '<div class="signal-item" style="opacity:0.5"><span class="name">' + s.name + '</span>';
+          sigHTML += '<span class="bar-wrap"><span class="bar-inner" style="width:0%;background:#64748b;"></span></span>';
+          sigHTML += '<span class="val" style="color:#94a3b8;">N/A</span></div>';
+          return;
+        }
         var val = c[s.key] || 0;
         var valColor = val >= 0.7 ? '#10b981' : val >= 0.5 ? '#06b6d4' : val >= 0.25 ? '#f59e0b' : '#ef4444';
-        var isDefault = (val === 0.5) ? ' (awaiting data)' : '';
         sigHTML += '<div class="signal-item"><span class="name">' + s.name + '</span>';
         sigHTML += '<span class="bar-wrap"><span class="bar-inner" style="width:' + (val * 100) + '%;background:' + valColor + ';"></span></span>';
-        sigHTML += '<span class="val" style="color:' + valColor + ';">' + val.toFixed(3) + isDefault + '</span></div>';
+        sigHTML += '<span class="val" style="color:' + valColor + ';">' + val.toFixed(3) + '</span></div>';
       });
       document.getElementById('signal-results').innerHTML = sigHTML;
 
@@ -970,17 +979,34 @@
       document.getElementById('r-ga4-time').textContent = elapsed + 's';
       document.getElementById('r-ga4-scroll').textContent = maxScrollDepth + '%';
 
-      // Receipt
+      // Receipt — content-bound, tamper-evident.
+      // Hash includes composite, tier, all 20 signals, words typed, duration,
+      // device type, and a per-session nonce. Any DOM tampering with the
+      // displayed values invalidates verification.
       document.getElementById('r-session-id').textContent = sessionId;
-      document.getElementById('r-hash').textContent = stats.lastHash
-        ? 'SHA-256: ' + stats.lastHash
-        : 'Session ID: ' + sessionId + ' (no hashes generated — engagement below threshold)';
+      document.getElementById('r-hash').textContent = 'Computing tamper-evident receipt…';
 
-      // Save to Firestore
-      saveSession(c, stats, elapsed, timeline);
+      var receiptExtras = {
+        source: 'live_demo',
+        composite: c.composite,
+        tier: tierName,
+        active_signals: c.activeSignals,
+        total_signals: c.totalSignals,
+        device_type: IS_TOUCH_ONLY ? 'mobile' : 'desktop',
+        words_typed: typedWords,
+        duration_sec: elapsed,
+        max_scroll_depth_pct: maxScrollDepth,
+        ga4_events: ga4Events
+      };
+
+      SWSAttention.generateContentReceipt(receiptExtras, function(receipt) {
+        document.getElementById('r-hash').textContent = 'SHA-256: ' + receipt.hash;
+        // Persist to Firestore with the canonical receipt attached
+        saveSession(c, stats, elapsed, timeline, receipt);
+      });
     }
 
-    function saveSession(confidence, stats, elapsed, timeline) {
+    function saveSession(confidence, stats, elapsed, timeline, receipt) {
       if (!db) return;
 
       var sessionData = {
@@ -1033,7 +1059,13 @@
           return SWSHoneypot.buildReceiptBlock(
             window.__swsHoneypotInjection, det, window.__swsHoneypotCanary
           );
-        })()
+        })(),
+        // Tamper-evident content receipt: hash + canonical payload bound to
+        // every displayed value on the report page. Verifiable offline against
+        // /.well-known/attention-pubkey.json
+        receipt_hash: receipt ? receipt.hash : null,
+        receipt_payload: receipt ? receipt.payload : null,
+        receipt_canonical: receipt ? receipt.canonical : null
       };
 
       // Send GA4 completion event with composite score for comparison
@@ -1051,9 +1083,10 @@
 
       db.collection('demos').doc(sessionId).set(sessionData)
         .then(function() {
-          document.getElementById('r-hash').textContent = stats.lastHash
-            ? 'SHA-256: ' + stats.lastHash + ' — Saved to proof catalog (session: ' + sessionId + ')'
-            : 'Session ID: ' + sessionId + ' (no hashes generated — engagement below threshold)';
+          var hashEl = document.getElementById('r-hash');
+          if (hashEl && receipt) {
+            hashEl.textContent = 'SHA-256: ' + receipt.hash + ' — Saved to proof catalog (session: ' + sessionId + ')';
+          }
           logEvent('SESSION SAVED to Firestore', '');
         })
         .catch(function(err) {

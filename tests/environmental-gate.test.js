@@ -42,7 +42,10 @@ describe('environmental-gate — _normalizeResult', () => {
     expect(r.bot).toBe(true);
     expect(r.bot_kind).toBe('headless_chrome');
     expect(r.latency_ms).toBe(42);
-    expect(r.detector).toBe('botd@v2');
+    // Detector identifier upgraded 2026-04-26 from BotD-only to 6-vector
+    // multi-detector (BotD + WebGL + WebGPU + Function.toString +
+    // iframe-frontier + chrome.runtime). Prefix-match documents the upgrade.
+    expect(r.detector).toMatch(/^botd@v2/);
     expect(typeof r.checked_at).toBe('string');
   });
 
@@ -124,7 +127,7 @@ describe('environmental-gate — receipt schema', () => {
     expect(receipt.environmental).toBeDefined();
     expect(receipt.environmental.bot).toBe(true);
     expect(receipt.environmental.bot_kind).toBe('headless_chrome');
-    expect(receipt.environmental.detector).toBe('botd@v2');
+    expect(receipt.environmental.detector).toMatch(/^botd@v2/);
   });
 
   test('generateReceipt omits environmental (null) when not provided', () => {
@@ -196,7 +199,7 @@ describe('environmental-gate — verifiable credential integration', () => {
     expect(cred.credentialSubject.environmental.loaded).toBe(true);
     expect(cred.credentialSubject.environmental.bot).toBe(true);
     expect(cred.credentialSubject.environmental.botKind).toBe('puppeteer');
-    expect(cred.credentialSubject.environmental.detector).toBe('botd@v2');
+    expect(cred.credentialSubject.environmental.detector).toMatch(/^botd@v2/);
     expect(typeof cred.credentialSubject.environmental.note).toBe('string');
   });
 

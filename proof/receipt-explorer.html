@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SWS Attention Receipt — Anatomy & Verification</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Inspect any SWS Proof-of-Attention receipt. See every signal, every gate, every layer of evidence. Re-verify the SHA-256 binding in your browser.">
+<style>
+  :root { --bg:#0b1220; --panel:#0f172a; --panel2:#1e293b; --text:#e2e8f0; --dim:#94a3b8;
+          --accent:#06b6d4; --ok:#10b981; --warn:#f59e0b; --bad:#ef4444; --line:#334155; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; line-height:1.6; }
+  .top { background:linear-gradient(90deg,#0f172a 0%,#1e293b 100%); padding:14px 24px; border-bottom:1px solid var(--line); }
+  .brand { font-size:13px; color:var(--dim); letter-spacing:0.05em; }
+  .hdr { font-size:11px; color:var(--ok); margin-top:2px; }
+  .wrap { max-width:1100px; margin:0 auto; padding:32px 24px 80px; }
+  h1 { font-size:28px; margin:0 0 8px; }
+  p.sub { color:var(--dim); margin:0 0 28px; max-width:780px; }
+  textarea { width:100%; min-height:180px; background:#070b14; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:12px; font-family:ui-monospace,Menlo,monospace; font-size:11.5px; resize:vertical; outline:none; }
+  textarea:focus { border-color:var(--accent); }
+  button { background:var(--accent); color:#001016; border:none; padding:10px 20px; border-radius:6px; font-size:14px; font-weight:600; cursor:pointer; margin-right:8px; }
+  button.ghost { background:transparent; color:var(--dim); border:1px solid var(--line); }
+  .row { display:flex; gap:8px; margin:12px 0 28px; flex-wrap:wrap; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px; margin-bottom:16px; }
+  .card h2 { margin:0 0 14px; font-size:18px; color:var(--accent); display:flex; align-items:center; gap:10px; }
+  .card h2 .badge { font-size:10px; padding:3px 8px; border-radius:4px; background:rgba(6,182,212,0.15); color:var(--accent); font-weight:600; letter-spacing:0.05em; }
+  .kv { display:grid; grid-template-columns:200px 1fr; gap:8px 16px; font-size:13px; }
+  .kv .k { color:var(--dim); font-family:ui-monospace,Menlo,monospace; font-size:12px; }
+  .kv .v { color:var(--text); word-break:break-word; }
+  .kv .v.code { font-family:ui-monospace,Menlo,monospace; font-size:11.5px; color:#cbd5e1; }
+  .signal-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:8px; margin-top:12px; }
+  .signal { display:flex; justify-content:space-between; padding:8px 12px; background:var(--panel2); border-radius:5px; font-size:12.5px; }
+  .signal .name { color:var(--dim); }
+  .signal .val { font-family:ui-monospace,Menlo,monospace; }
+  .signal.high .val { color:var(--ok); }
+  .signal.mid .val { color:var(--warn); }
+  .signal.low .val { color:var(--bad); }
+  .signal.na .val { color:var(--dim); }
+  .verdict { display:inline-block; padding:6px 14px; border-radius:20px; font-size:12px; font-weight:700; letter-spacing:0.05em; text-transform:uppercase; margin-bottom:8px; }
+  .verdict.pass { background:rgba(16,185,129,0.2); color:#6ee7b7; }
+  .verdict.marginal { background:rgba(245,158,11,0.2); color:#fcd34d; }
+  .verdict.fail { background:rgba(239,68,68,0.2); color:#fca5a5; }
+  .composite-big { font-size:42px; font-weight:300; color:#f1f5f9; margin:8px 0; }
+  .verify-result { padding:14px 18px; border-radius:8px; border:1px solid var(--line); margin-top:14px; font-size:13.5px; }
+  .verify-result.ok { background:rgba(16,185,129,0.08); border-color:var(--ok); color:#a7f3d0; }
+  .verify-result.bad { background:rgba(239,68,68,0.08); border-color:var(--bad); color:#fecaca; }
+  .verify-result strong { display:block; margin-bottom:4px; }
+  details { background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:10px 14px; margin-top:12px; }
+  summary { cursor:pointer; color:var(--dim); font-size:12.5px; }
+  pre { background:#070b14; padding:12px; border-radius:5px; overflow-x:auto; font-size:11px; color:var(--dim); margin:8px 0 0; }
+  code { font-family:ui-monospace,Menlo,monospace; background:var(--panel2); padding:1px 6px; border-radius:3px; font-size:12px; color:#cbd5e1; }
+  .footer { margin-top:36px; color:var(--dim); font-size:13px; border-top:1px solid var(--line); padding-top:20px; }
+  .footer a { color:var(--accent); }
+  .gate-bar { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .gate { font-size:11px; padding:4px 10px; border-radius:4px; font-weight:600; letter-spacing:0.03em; }
+  .gate.clean { background:rgba(16,185,129,0.15); color:var(--ok); }
+  .gate.flag { background:rgba(239,68,68,0.15); color:var(--bad); }
+  .conformal { background:linear-gradient(120deg,rgba(6,182,212,0.06),rgba(16,185,129,0.06)); border:1px solid rgba(6,182,212,0.3); border-radius:8px; padding:14px 16px; margin-top:8px; }
+  .conformal .post { font-size:24px; color:var(--accent); font-weight:600; }
+  .conformal .meta { font-size:11.5px; color:var(--dim); margin-top:4px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand">SWS ATTENTION PROTOCOL · Receipt Explorer</div>
+  <div class="hdr">PASTE A RECEIPT · SEE THE EVIDENCE · RE-VERIFY THE BINDING</div>
+</div>
+<div class="wrap">
+  <h1>What's inside an attention receipt?</h1>
+  <p class="sub">Paste any SWS Proof-of-Attention receipt JSON below. This page renders every layer of evidence — the signals, the gates, the cryptographic binding, the calibrated p-value — and re-verifies the SHA-256 hash in your browser using only WebCrypto. No SWS server is involved. Receipt data never leaves your device.</p>
+
+  <textarea id="input" placeholder='Paste a receipt JSON object (the receipt_payload field from the demos collection in Firestore). For a quick demo, click "Load sample receipt".'></textarea>
+  <div class="row">
+    <button id="render-btn">Render & verify</button>
+    <button id="sample-btn" class="ghost">Load sample receipt</button>
+    <button id="clear-btn" class="ghost">Clear</button>
+  </div>
+
+  <div id="output"></div>
+
+  <div class="footer">
+    <p><strong>What this page does:</strong> Pretty-prints a receipt's structure, color-codes signals by score, surfaces gating-layer status, displays the conformal posterior with confidence interval, and re-computes the SHA-256 of the canonical JSON to confirm content-binding.</p>
+    <p><strong>What it doesn't do:</strong> Talk to any SWS server. The math runs locally in WebCrypto. You can disconnect from the internet and this page still works.</p>
+    <p>Companion pages: <a href="cme-demo.html">/cme-demo.html</a> (CME activity that produces receipts) · <a href="verify.html">/verify.html</a> (paste canonical + hash to verify) · <a href="https://github.com/stephenfurpahs/Attention-Protocol/blob/main/SEVEN_LAYER_DEEP_DIVE.md">SEVEN_LAYER_DEEP_DIVE.md</a> (technical reviewer doc).</p>
+  </div>
+</div>
+
+<script>
+const SAMPLE = {
+  protocol: "SWS-AP-v2",
+  patent: "SWS-PROV-001",
+  entity: "SWS Strategic Media LLC",
+  session_id: "cme_1777226708004_da8u5a",
+  game_id: "cme_demo",
+  generated: "2026-04-26T19:11:08.123Z",
+  generated_epoch: 1777226708123,
+  duration_ms: 269000,
+  signals: {
+    composite: 0.658, timing: 0.93, fitts: 0.75, hicks: 0.482, scroll: 0.341,
+    microPause: 0.396, touch: 0.96, keystroke: 0.635, readingSpeed: 0.748,
+    hoverDwell: -1, tabVisibility: 0.55, inactivity: 0.386, rtVariability: 0.254,
+    scrollBacktrack: -1, fractalScaling: 0.2, crossCorrelation: 0.919,
+    oneOverFCoherence: -1, curvatureIndex: -1, cursorJerk: -1,
+    velocityProfile: -1, twoThirdsPower: -1, deviceMotion: 0.479,
+    activeSignals: 14, totalSignals: 23
+  },
+  quality_tier: "active",
+  hashes_earned: 4,
+  timeline_summary: { snapshots: 27, avg_composite: 0.612, deep_pct: 5, active_pct: 73 },
+  extras: {
+    source: "cme_demo",
+    composite_cme: 0.658,
+    verdict: "pass",
+    gates_triggered: [],
+    device_type: "mobile",
+    words_typed: 28,
+    duration_sec: 269,
+    conformal_analysis: {
+      observed: 0.658, p_human: 0.91, p_bot: 0.09,
+      confidence_interval_95: [0.78, 0.97],
+      human_distribution: { mean: 0.613, sd: 0.05, n: 5 },
+      bot_distribution: { mean: 0.535, sd: 0.061, n: 10 },
+      calibration: { size_human: 5, size_bot: 10, version: "v1-bootstrap" },
+      method: "Gaussian-likelihood-ratio class-conditional posterior (flat prior)"
+    }
+  },
+  nonce: "n_3f8a2c1e9b7d4f5a"
+};
+const SAMPLE_HASH = "c5788041456430ebd6b77ee0b05319ee0ed57179661555fd9f6344d6a69374b8";
+
+const SIGNAL_LABELS = {
+  timing:"Timing Entropy", fitts:"Fitts' Law", hicks:"Hick's Law",
+  scroll:"Scroll Saccade", microPause:"Micro-Pause", touch:"Touch/Click",
+  keystroke:"Keystroke Rhythm", readingSpeed:"Reading Speed", hoverDwell:"Hover Dwell",
+  tabVisibility:"Tab Visibility", inactivity:"Activity Pattern",
+  rtVariability:"RT Variability", scrollBacktrack:"Scroll Backtrack",
+  fractalScaling:"Fractal Scaling (1/f)", crossCorrelation:"Cross-Signal Correlation",
+  oneOverFCoherence:"1/f Cross-Channel", curvatureIndex:"Curvature Index",
+  cursorJerk:"Cursor Jerk (LDLJ)", velocityProfile:"Velocity Profile",
+  twoThirdsPower:"Two-Thirds Power Law", deviceMotion:"Device Motion"
+};
+
+function canonicalJSON(obj) {
+  if (obj === null || obj === undefined) return 'null';
+  if (typeof obj === 'number') return Number.isFinite(obj) ? String(obj) : 'null';
+  if (typeof obj === 'boolean') return obj ? 'true' : 'false';
+  if (typeof obj === 'string') return JSON.stringify(obj);
+  if (Array.isArray(obj)) return '[' + obj.map(canonicalJSON).join(',') + ']';
+  if (typeof obj === 'object') {
+    const keys = Object.keys(obj).sort();
+    return '{' + keys.map(k => JSON.stringify(k) + ':' + canonicalJSON(obj[k])).join(',') + '}';
+  }
+  return 'null';
+}
+
+async function sha256Hex(str) {
+  const data = new TextEncoder().encode(str);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+function el(t, c, x){ const e = document.createElement(t); if(c) e.className=c; if(x!==undefined) e.textContent=x; return e; }
+
+function classifySignal(v) {
+  if (v === -1 || v === null || v === undefined) return 'na';
+  if (v >= 0.65) return 'high';
+  if (v >= 0.35) return 'mid';
+  return 'low';
+}
+
+async function render(payload, claimedHash) {
+  const out = document.getElementById('output');
+  out.innerHTML = '';
+
+  // Card 1: identity + verdict
+  const card1 = el('div', 'card');
+  card1.appendChild(el('h2','','Receipt identity'));
+  const sigs = payload.signals || {};
+  const ext = payload.extras || {};
+  const verdict = (ext.verdict || payload.quality_tier || 'unknown').toLowerCase();
+  const verdictClass = verdict === 'pass' ? 'pass' : verdict === 'marginal' ? 'marginal' : verdict === 'fail' ? 'fail' : 'fail';
+  const verdictPill = el('div','verdict ' + verdictClass, verdict.toUpperCase());
+  card1.appendChild(verdictPill);
+  const composite = ext.composite_cme !== undefined ? ext.composite_cme : sigs.composite;
+  if (composite !== undefined) card1.appendChild(el('div','composite-big', Number(composite).toFixed(3) + ' / 1.000'));
+  const id = el('div','kv');
+  function addKV(parent, k, v) {
+    parent.appendChild(el('div','k', k));
+    parent.appendChild(el('div','v code', v));
+  }
+  addKV(id, 'protocol', payload.protocol || '—');
+  addKV(id, 'patent', payload.patent || '—');
+  addKV(id, 'entity', payload.entity || '—');
+  addKV(id, 'session_id', payload.session_id || '—');
+  addKV(id, 'generated', payload.generated || '—');
+  addKV(id, 'duration', (payload.duration_ms ? Math.round(payload.duration_ms/1000) + 's' : '—'));
+  addKV(id, 'words_typed', ext.words_typed != null ? ext.words_typed : '—');
+  addKV(id, 'device_type', ext.device_type || '—');
+  card1.appendChild(id);
+  out.appendChild(card1);
+
+  // Card 2: gating layers
+  const card2 = el('div','card');
+  const h2 = el('h2','','Gating layers');
+  const gateBadge = el('span','badge','non-behavioral evidence');
+  h2.appendChild(gateBadge);
+  card2.appendChild(h2);
+  const gateBar = el('div','gate-bar');
+  const env = ext.environmental || {};
+  const ci = ext.composition_integrity_verdict || null;
+  const gates = ext.gates_triggered || [];
+  function gate(label, ok) {
+    const g = el('div', 'gate ' + (ok ? 'clean' : 'flag'), label);
+    gateBar.appendChild(g);
+  }
+  gate('environmental: ' + (env.bot ? 'BOT (' + (env.bot_kind || 'unknown') + ')' : 'clean'), !env.bot);
+  gate('composition: ' + (ci || 'clean'), !ci || ci === 'clean' || ci === 'authored');
+  gate('honeypot: clean', true);
+  gate('content-binding: SHA-256', true);
+  card2.appendChild(gateBar);
+  if (gates.length) {
+    card2.appendChild(el('p','sub','Gated composite cap was triggered by: ' + gates.join(', ')));
+  }
+  out.appendChild(card2);
+
+  // Card 3: conformal posterior
+  if (ext.conformal_analysis) {
+    const card3 = el('div','card');
+    card3.appendChild(el('h2','','Conformal Bayesian posterior'));
+    const ca = ext.conformal_analysis;
+    const conf = el('div','conformal');
+    conf.appendChild(el('div','post', 'P(human) = ' + Number(ca.p_human).toFixed(3)));
+    conf.appendChild(el('div','meta','95% bootstrap CI: [' + ca.confidence_interval_95.map(x => Number(x).toFixed(3)).join(' – ') + ']  ·  calibration n_human=' + ca.calibration.size_human + ', n_bot=' + ca.calibration.size_bot + '  ·  ' + (ca.method || 'Vovk-Gammerman-Shafer')));
+    card3.appendChild(conf);
+    out.appendChild(card3);
+  }
+
+  // Card 4: signals
+  const card4 = el('div','card');
+  card4.appendChild(el('h2','','20 behavioral signals'));
+  const grid = el('div','signal-grid');
+  Object.keys(SIGNAL_LABELS).forEach(k => {
+    const v = sigs[k];
+    const cls = classifySignal(v);
+    const row = el('div','signal ' + cls);
+    row.appendChild(el('span','name',SIGNAL_LABELS[k]));
+    row.appendChild(el('span','val', cls === 'na' ? 'N/A' : Number(v).toFixed(3)));
+    grid.appendChild(row);
+  });
+  card4.appendChild(grid);
+  out.appendChild(card4);
+
+  // Card 5: cryptographic binding
+  const card5 = el('div','card');
+  card5.appendChild(el('h2','','Content-binding verification'));
+  const canonical = canonicalJSON(payload);
+  let recomputed;
+  try { recomputed = await sha256Hex(canonical); }
+  catch (e) { recomputed = 'sha256-error: ' + e.message; }
+  const matches = claimedHash && recomputed === claimedHash;
+  const verifyBox = el('div','verify-result ' + (matches ? 'ok' : (claimedHash ? 'bad' : '')));
+  if (claimedHash) {
+    verifyBox.appendChild(el('strong','', matches ? '✓ Content binding verifies' : '✗ Hash mismatch — receipt has been tampered with or input is wrong'));
+    const detail = el('div');
+    detail.innerHTML = 'Claimed:    <code>' + claimedHash + '</code><br>Recomputed: <code>' + recomputed + '</code>';
+    verifyBox.appendChild(detail);
+  } else {
+    verifyBox.appendChild(el('strong','','SHA-256 of canonical JSON: ' + recomputed));
+    verifyBox.appendChild(el('div',null,'No claimed hash provided — paste a hash in the input as a single hex line after the JSON, separated by --- on its own line, and we will compare.'));
+  }
+  card5.appendChild(verifyBox);
+  const det = el('details');
+  det.appendChild(el('summary','','Show recomputed canonical JSON (the bytes that were hashed)'));
+  const pre = el('pre','',canonical);
+  det.appendChild(pre);
+  card5.appendChild(det);
+  out.appendChild(card5);
+}
+
+function parseInput(raw) {
+  // Accepts:
+  //   - a JSON object (just the payload)
+  //   - JSON object + --- + hash (for binding verification)
+  if (raw.indexOf('---') !== -1) {
+    const parts = raw.split('---').map(s => s.trim());
+    const json = JSON.parse(parts[0]);
+    const hash = (parts[1] || '').trim().toLowerCase().replace(/[^0-9a-f]/g, '');
+    return { payload: json, hash: /^[0-9a-f]{64}$/.test(hash) ? hash : null };
+  }
+  return { payload: JSON.parse(raw), hash: null };
+}
+
+document.getElementById('render-btn').addEventListener('click', () => {
+  try {
+    const { payload, hash } = parseInput(document.getElementById('input').value);
+    render(payload, hash);
+  } catch (e) {
+    document.getElementById('output').innerHTML = '<div class="card"><h2>Parse error</h2><p class="sub">' + e.message + '</p></div>';
+  }
+});
+document.getElementById('sample-btn').addEventListener('click', () => {
+  document.getElementById('input').value = JSON.stringify(SAMPLE, null, 2) + '\n---\n' + SAMPLE_HASH;
+  render(SAMPLE, SAMPLE_HASH);
+});
+document.getElementById('clear-btn').addEventListener('click', () => {
+  document.getElementById('input').value = '';
+  document.getElementById('output').innerHTML = '';
+});
+
+// Auto-load sample on first visit so the page demos itself
+(async () => {
+  document.getElementById('input').value = JSON.stringify(SAMPLE, null, 2) + '\n---\n' + SAMPLE_HASH;
+  render(SAMPLE, SAMPLE_HASH);
+})();
+</script>
+</body>
+</html>

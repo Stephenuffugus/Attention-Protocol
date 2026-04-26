@@ -411,6 +411,7 @@ provisional period. Further inquiries: stephenfurpahs@gmail.com.
 
 function buildSignalsCite() {
   return `# Behavioral Signals — Peer-Reviewed Citations
+## SDK 23-signal composite (20 weighted + 3 diagnostic-only)
 
 Every signal in the SWS composite is grounded in published
 behavioral-science research. Not novel research — validated foundations.
@@ -419,21 +420,35 @@ behavioral-science research. Not novel research — validated foundations.
 |---|---|---|
 | Fitts' Law | Fitts, P. M. (1954) | "The information capacity of the human motor system in controlling the amplitude of movement." *J. Experimental Psychology* 47(6): 381-391. |
 | Hick's Law | Hick, W. E. (1952) | "On the rate of gain of information." *Quarterly J. Experimental Psychology* 4: 11-26. |
-| Fractal 1/f Scaling | Gilden, D. L. (2001) | "Cognitive emissions of 1/f noise." *Psychological Review* 108(1): 33-56. |
-| Two-Thirds Power Law | Lacquaniti, Terzuolo & Viviani (1983) | "The law relating the kinematic and figural aspects of drawing movements." *Acta Psychologica* 54: 115-130. |
-| Cursor Jerk (LDLJ) | Flash, T. & Hogan, N. (1985) | "The coordination of arm movements: an experimentally confirmed mathematical model." *J. Neuroscience* 5(7): 1688-1703. |
+| Fractal 1/f Scaling | Gilden, D. L. (2001); Wagenmakers, Farrell & Ratcliff (2004) | "Cognitive emissions of 1/f noise." *Psych Review* 108(1): 33-56 + the Wagenmakers SRD critique paper we pre-empt with our prewhitened DFA-1 implementation. |
+| Two-Thirds Power Law | Lacquaniti, Terzuolo & Viviani (1983) | "The law relating the kinematic and figural aspects of drawing movements." *Acta Psychologica* 54: 115-130. Cook et al. (2026 *Sci Rep*) confirms human β = -0.333 ± 0.03 SD. |
+| Cursor Jerk (LDLJ) | Flash, T. & Hogan, N. (1985); Hogan & Sternad (2007) | "The coordination of arm movements: an experimentally confirmed mathematical model." *J. Neuroscience* 5(7): 1688-1703. |
 | Velocity Profile (bell-shape) | Morasso, P. (1981) | "Spatial control of arm movements." *Experimental Brain Research* 42: 223-227. |
+| Curvature Index | MacKenzie et al. (2001) | "Path optimization in mouse pointing tasks." Empirical human band CI = 1.1–1.8. |
 | Scroll Saccade | Rayner, K. (1998) | "Eye movements in reading and information processing." *Psychological Bulletin* 124(3): 372-422. |
+| Reading Speed Coherence | Lagun & Lalmas (WSDM 2016); Cole et al. (2011) | Viewport-time engagement at scale + scroll-and-dwell as gaze proxy. |
+| Hover Dwell | Eelderink-Chen et al. mouse-hover literature | Pause distribution as attention proxy. |
 | RT Variability | Esterman et al. (2013) | "In the zone or zoning out? Tracking behavioral and neural fluctuations during sustained attention." *Cerebral Cortex* 23(11): 2712-2723. |
 | Scroll Backtracking | Khaokaew et al. (2024) | "The scroll is a search: reading comprehension from mobile interaction signals." *Google Research*. |
-| Cross-Signal Correlation | Acien et al. (2021) | "BeCAPTCHA-Mouse: Synthetic mouse trajectories and improved bot detection." *Pattern Recognition* 127. |
+| Cross-Signal Correlation | Acien et al. (2022); Stragapede et al. (2024) | "BeCAPTCHA-Mouse: Synthetic mouse trajectories and improved bot detection." *Pattern Recognition* 127:108643; multimodal mobile fusion follow-ups. |
+| **1/f Cross-Channel Coherence** (NEW 2026-04-26, diagnostic-only) | **Sklar (1959); Nandakumar et al. (2008 TPAMI); Harris & Wolpert (1998 Nature)** | The formal copula-based defense: signals must co-vary the way human biology produces them. Diagnostic-only weight 0 in v1 — proper firing requires ≥30 events on multiple structurally-independent channels. |
+| **Microsaccades** (NEW 2026-04-26, diagnostic-only) | **Engbert & Kliegl (2003 *Vision Research* 43:1035); Hogan & Sternad (2007 *J Neurophys* 98:2238)** | 1–3 Hz involuntary cursor drift during idle windows — humans yes, simple bots no. Weight 0 because 60Hz Bezier sampling produces sample-pair displacements that look identical to real microsaccades; signal kept computed for diagnostic exposure. |
+| **Submovement Count v2** (NEW 2026-04-26, weighted) | **Woodworth (1899); Crossman & Goodeve (1983); Meyer, Abrams, Kornblum, Wright, Smith (1988 *Psych Review* 95:340)** | Real ballistic mouse movements decompose into ballistic + 1–2 corrective submovements. Bezier bots produce single smooth velocity bell. v2 stricter peak detection (7-pt Gaussian smooth + 15% prominence + 80ms min-separation) catches Bezier-with-noise adversaries: DMTG-class bot 0.85 → 0.20 score. |
 | Composition Integrity | Anonymous (2025) | "Detecting LLM-Assisted Academic Dishonesty using Keystroke Dynamics." arxiv:2511.12468. Reports 97-99% F1. |
-| Device Motion Tremor | Randall et al. (2011) | "Biomechanical characteristics of hand tremor." *Clinical Neurophysiology* 122(3): 426-432. |
-| Timing Entropy | Shannon, C. E. (1948) | "A mathematical theory of communication." *Bell System Technical Journal* 27. (Base information-theoretic substrate.) |
+| Device Motion Tremor | Randall et al. (2011); Acien (2020) BeCAPTCHA | "Biomechanical characteristics of hand tremor." *Clinical Neurophysiology* 122(3): 426-432. |
+| Timing Entropy | Shannon, C. E. (1948); Wagenmakers & Brown (2007) | Shannon information substrate + Wagenmakers-Brown linear mean-SD law of human RT distributions. |
+| Conformal Bayesian Posterior | Vovk, Gammerman, Shafer (2005); Angelopoulos & Bates (2023 arXiv:2107.07511) | Distribution-free finite-sample coverage. Class-conditional Gaussian likelihood-ratio with bootstrap 95% CI per Efron & Tibshirani 1993. Calibration grows with real-tester data. |
 
 Research we explicitly DID NOT invent. SWS's contribution is the
 specific combination, the tiered scoring, and the cryptographic
 attestation envelope around the combined score.
+
+For the formal defense of cross-signal coherence as a bot-detection
+primitive (the white-space claim), see docs/yc-defense/09_cross_signal_coherence_math.md.
+
+For the empirically-discovered structural limit (curve-aware Bezier
+bots match human-typical statistics on individual motor signals; the
+defense is layered, not single-signal), see SEVEN_LAYER_DEEP_DIVE_APR26_ADDENDUM.md.
 `;
 }
 

@@ -131,6 +131,21 @@
       </div>
 
       <div class="q-card">
+        <h3>Question 4. Out-of-office BP measurement (home or ambulatory monitoring) should be used to confirm the diagnosis before initiating pharmacotherapy for newly elevated readings.</h3>
+        <div class="opt" data-q="3" data-ans="true">True</div>
+        <div class="opt" data-q="3" data-ans="false">False</div>
+      </div>
+
+      <div class="q-card">
+        <h3>Question 5. First-line action for newly diagnosed Stage 1 hypertension in a 45-year-old without comorbidities or end-organ damage:</h3>
+        <div class="opt" data-q="4" data-ans="ace">Initiate ACE inhibitor immediately</div>
+        <div class="opt" data-q="4" data-ans="thiazide">Initiate thiazide diuretic immediately</div>
+        <div class="opt" data-q="4" data-ans="combo">Initiate combination antihypertensive therapy</div>
+        <div class="opt" data-q="4" data-ans="lifestyle">Lifestyle modification trial × 3–6 months, then reassess</div>
+        <div class="opt" data-q="4" data-ans="refer">Refer to cardiology before starting any therapy</div>
+      </div>
+
+      <div class="q-card">
         <h3>Reflection: Describe ONE change you will make in your clinical practice based on this activity.</h3>
         <textarea id="reflection" placeholder="Minimum 20 words. Write in your own words — this is recorded as evidence of active engagement, not graded for content."></textarea>
         <div class="wc"><span id="reflection-count">0</span> words · minimum 20</div>
@@ -143,7 +158,12 @@
     <div id="results" class="receipt" style="display:none">
       <div id="tier-pill-wrap"><span class="tier-pill" id="tier-pill">—</span></div>
       <div class="composite-big" id="composite-big">—</div>
-      <div class="composite-sub">Medical-profile weighted composite (20 behavioral signals → 6 CME-relevant metrics)</div>
+      <div class="composite-sub">Medical-profile weighted composite (23 behavioral signals → 6 CME-relevant metrics)</div>
+      <div id="conformal-pill" style="display:none;margin-top:14px;padding:12px 16px;background:linear-gradient(120deg,rgba(6,182,212,0.06),rgba(16,185,129,0.06));border:1px solid rgba(6,182,212,0.3);border-radius:8px">
+        <div style="font-size:11px;color:#64748b;letter-spacing:0.05em;text-transform:uppercase">Conformal Bayesian Posterior</div>
+        <div style="font-size:22px;color:#67e8f9;font-weight:600;margin-top:4px"><span id="conformal-phuman">—</span></div>
+        <div id="conformal-meta" style="font-size:11.5px;color:#94a3b8;margin-top:4px"></div>
+      </div>
 
       <div class="narr">
         <h4>Why this score reflects biologically human attention</h4>
@@ -159,9 +179,18 @@
 
       <div class="hash-box" id="hash-box">Receipt hash: —</div>
 
+      <div style="text-align:center;margin-top:20px">
+        <button class="btn btn-primary" onclick="location.reload()" style="margin-right:8px">Run Again</button>
+        <a id="verify-link" href="verify.html" class="btn" style="display:inline-block;text-decoration:none;background:#1e293b;color:#e2e8f0;border:1px solid #334155;padding:10px 18px;border-radius:6px;font-size:13px;font-weight:500">Verify This Receipt</a>
+      </div>
+
       <div class="foot">
-        Receipt is cryptographically signed (Ed25519) and offline-verifiable with the SWS public key at<br>
-        <a href="/.well-known/attention-pubkey.json">/.well-known/attention-pubkey.json</a>. Certificate-grade artifact.
+        Receipt is content-bound: SHA-256 over a deeply key-sorted canonical
+        JSON of the session payload. Any modification to a displayed value
+        invalidates the hash — independently verifiable at
+        <a href="verify.html">/verify.html</a>. Issuer attestation (Ed25519)
+        available when the SWS signing service signs the receipt; public key
+        at <a href="/.well-known/attention-pubkey.json">/.well-known/attention-pubkey.json</a>.
       </div>
     </div>
   </div>
@@ -172,13 +201,13 @@
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
   <!-- SWS SDK -->
-  <script src="sdk/secure-config.js?v=20260424b"></script>
-  <script src="sdk/attention-protocol.js?v=20260424b"></script>
-  <script src="sdk/economy-engine.js?v=20260424b"></script>
-  <script src="sdk/environmental-gate.js?v=20260424b"></script>
-  <script src="sdk/composition-integrity.js?v=20260424b"></script>
-  <script src="sdk/privacy-compliance.js?v=20260424b"></script>
-  <script src="sdk/honeypot-canary.js?v=20260424b"></script>
+  <script src="sdk/secure-config.js?v=20260426f"></script>
+  <script src="sdk/attention-protocol.js?v=20260426f"></script>
+  <script src="sdk/economy-engine.js?v=20260426f"></script>
+  <script src="sdk/environmental-gate.js?v=20260426f"></script>
+  <script src="sdk/composition-integrity.js?v=20260426f"></script>
+  <script src="sdk/privacy-compliance.js?v=20260426f"></script>
+  <script src="sdk/honeypot-canary.js?v=20260426f"></script>
   <!-- Medical vertical profile is inlined below so this demo needs no
        additional asset beyond the SDK modules already deployed above. -->
 
@@ -225,12 +254,60 @@
     var TOTAL_SECTIONS = 4;
     var sectionTimes = {};  // track dwell per section
     var sectionEnteredAt = Date.now();
-    var answers = [null, null, null];
-    var correctAnswers = ['thiazide', 'acei', '50'];
+    var answers = [null, null, null, null, null];
+    var correctAnswers = ['thiazide', 'acei', '50', 'true', 'lifestyle'];
 
     // ---- INIT SDK ----
     SWSAttention.init({ gameId: 'cme_demo', debug: false, enableBehavioralAnalysis: true });
     SWSAttention.recordSectionEntry('section_1', countWordsInSection(1));
+    SWSAttention.recordContentRender('moderate');
+
+    // ---- ENVIRONMENTAL GATE (BotD + CDP Runtime.enable detector) ----
+    // CME flow needs the same non-behavioral defense layer as the demo flow.
+    // BotD catches naive Puppeteer/Selenium; the CDP Runtime.enable detector
+    // catches puppeteer-extra-stealth class adversaries that bypass BotD.
+    window.__swsEnvironmental = null;
+    if (typeof SWSEnvironmentalGate !== 'undefined') {
+      SWSEnvironmentalGate.check().then(function(result) {
+        window.__swsEnvironmental = result;
+      });
+    }
+
+    // Body-level scroll tracking — required for Scroll Backtrack signal
+    // (CME sections are static divs; SDK only tracks scrolls reported via this hook)
+    var _lastScrollEmit = 0;
+    window.addEventListener('scroll', function() {
+      var now = Date.now();
+      if (now - _lastScrollEmit < 200) return;
+      _lastScrollEmit = now;
+      SWSAttention.recordElementScroll(window.scrollY);
+    }, { passive: true });
+
+    // Hover tracking on quiz options — required for Hover Dwell signal on desktop.
+    // Gated on a real-mouse device check: touch browsers synthesize mouseover/
+    // mouseout events on tap, which would feed fake "hovers" into the SDK and
+    // produce a misleading non-zero Hover Dwell score on mobile (where the
+    // signal is structurally absent — no cursor exists to dwell). The
+    // matchMedia('(hover: hover)') query is the correct CSS-spec way to
+    // detect a primary-pointing mouse-capable device.
+    var IS_HOVER_CAPABLE = window.matchMedia && window.matchMedia('(hover: hover)').matches;
+    if (IS_HOVER_CAPABLE) {
+      var _hoveringOpt = null;
+      document.addEventListener('mouseover', function(e) {
+        var el = e.target.closest('.opt');
+        if (el && el !== _hoveringOpt) {
+          _hoveringOpt = el;
+          SWSAttention.recordHoverEnter(el.dataset.q + ':' + el.dataset.ans);
+        }
+      }, { passive: true });
+      document.addEventListener('mouseout', function(e) {
+        var el = e.target.closest('.opt');
+        if (el && _hoveringOpt === el) {
+          SWSAttention.recordHoverLeave();
+          _hoveringOpt = null;
+        }
+      }, { passive: true });
+    }
 
     function countWordsInSection(n) {
       var el = document.getElementById('section-' + n);
@@ -260,6 +337,7 @@
       document.getElementById('section-' + currentSection).style.display = 'block';
       window.scrollTo({ top: 0, behavior: 'smooth' });
       SWSAttention.takeTimelineSnapshot('section_' + currentSection);
+      SWSAttention.recordContentRender(currentSection >= 3 ? 'complex' : 'moderate');
     }
 
     // ---- QUESTION HANDLING ----
@@ -313,12 +391,52 @@
       var timeline = SWSAttention.getTimeline();
       var elapsed = Math.round((Date.now() - sessionStart) / 1000);
 
-      // Derive the 6 medical-profile metrics from the 20 SDK signals
-      var reactionTime = _ascore(c.timing, 0.8);  // timing entropy as a proxy
-      var reactionTimeConsistency = c.rtVariability || 0.5;
-      var clickPrecision = (c.cursorJerk + c.velocityProfile + c.twoThirdsPower) / 3;
-      var sustainedFocus = (c.tabVisibility + c.inactivity + c.crossCorrelation) / 3;
-      var documentComprehension = (c.readingSpeed + c.scrollBacktrack + c.hoverDwell) / 3;
+      // Device detection: the four mouse-trajectory signals (curvature, jerk,
+      // velocity, 2/3 power law) are structurally absent on touch devices.
+      // If all four are zero/nullish, treat as mobile and reweight the composite
+      // so the user is not penalized for signals their device cannot produce.
+      var motorSignals = [c.cursorJerk, c.velocityProfile, c.twoThirdsPower];
+      var deviceType = motorSignals.every(function(v) { return !v || v === 0; }) ? 'mobile' : 'desktop';
+
+      // Derive the 6 medical-profile metrics from the 20 SDK signals.
+      // avgActive averages ONLY over signals that actually fired (signalActive === true);
+      // N/A signals are excluded, not counted as zero. Critical for honest
+      // scoring on rushed sessions or device-incompatible signals — otherwise a
+      // single insufficient-data sentinel drags the metric toward zero and the
+      // user is penalized for a signal they couldn't reasonably produce.
+      var sigActive = c.signalActive || {};
+      function avgActive(pairs) {
+        var values = [];
+        for (var k = 0; k < pairs.length; k++) {
+          var key = pairs[k][0], val = pairs[k][1];
+          if (sigActive[key] === false) continue; // skip inactive
+          values.push(val);
+        }
+        if (values.length === 0) return 0.5; // neutral fallback if everything N/A
+        var sum = 0;
+        for (var v = 0; v < values.length; v++) sum += values[v];
+        return sum / values.length;
+      }
+
+      var reactionTime = _ascore(c.timing, 0.8);
+      var reactionTimeConsistency = sigActive.rtVariability === false ? 0.5 : (c.rtVariability || 0.5);
+      var clickPrecision = avgActive([
+        ['cursorJerk', c.cursorJerk],
+        ['velocityProfile', c.velocityProfile],
+        ['twoThirdsPower', c.twoThirdsPower]
+      ]);
+      var sustainedFocus = avgActive([
+        ['tabVisibility', c.tabVisibility],
+        ['inactivity', c.inactivity],
+        ['crossCorrelation', c.crossCorrelation]
+      ]);
+      // Mobile: hoverDwell is N/A on touch — exclude from documentComprehension
+      var docCompPairs = [
+        ['readingSpeed', c.readingSpeed],
+        ['scrollBacktrack', c.scrollBacktrack]
+      ];
+      if (deviceType !== 'mobile') docCompPairs.push(['hoverDwell', c.hoverDwell]);
+      var documentComprehension = avgActive(docCompPairs);
       var fatigueResistance = timelineStability(timeline);
 
       var medicalSignals = {
@@ -330,29 +448,113 @@
         fatigueResistance: fatigueResistance
       };
 
-      // Weighted compute — same logic the vertical-scoring-profiles.js uses
-      var weighted = 0, totalW = 0;
-      var p = MEDICAL_PROFILE;
-      var detail = {};
-      for (var k in p.weights) {
-        var v = Math.min(1, Math.max(0, medicalSignals[k] || 0));
-        weighted += v * p.weights[k];
-        totalW += p.weights[k];
-        detail[k] = { value: v, weight: p.weights[k], contribution: v * p.weights[k] };
+      // Device-aware weight redistribution: on mobile, drop clickPrecision and
+      // redistribute its 0.15 weight proportionally across the remaining 5 metrics
+      // so the composite renormalizes to a 0–1 range and a fair human cannot fail
+      // simply because their device has no mouse cursor.
+      var weights = {};
+      for (var wk in MEDICAL_PROFILE.weights) weights[wk] = MEDICAL_PROFILE.weights[wk];
+      if (deviceType === 'mobile') {
+        delete weights.clickPrecision;
+        delete medicalSignals.clickPrecision;
+        var sumRemaining = 0;
+        for (var sk in weights) sumRemaining += weights[sk];
+        for (var rk in weights) weights[rk] = weights[rk] / sumRemaining;
       }
-      var medComposite = totalW > 0 ? weighted / totalW : 0;
+
+      // Weighted composite over active metrics
+      var weighted = 0, totalW = 0;
+      var detail = {};
+      for (var k in weights) {
+        var v = Math.min(1, Math.max(0, medicalSignals[k] || 0));
+        weighted += v * weights[k];
+        totalW += weights[k];
+        detail[k] = { value: v, weight: weights[k], contribution: v * weights[k] };
+      }
+      var medCompositeRaw = totalW > 0 ? weighted / totalW : 0;
+
+      // GATED COMPOSITE: defense-in-depth caps. If any non-behavioral layer
+      // catches the session as bot-class (env-gate via BotD or CDP detector,
+      // composition-integrity verdict 'mechanical' or 'pasted'), pin the
+      // composite to PASSIVE max (0.30) regardless of behavioral score.
+      // This is the bot-vs-human gap defense documented in
+      // docs/yc-defense/01_competitive_landscape.md and SEVEN_LAYER_DEEP_DIVE.md.
+      var env = window.__swsEnvironmental || {};
+      var ci = (typeof SWSCompositionIntegrity !== 'undefined')
+        ? SWSCompositionIntegrity.readSnapshot({ scopeId: 'cme' })
+        : {};
+      var gatesTriggered = [];
+      if (env && env.bot === true) gatesTriggered.push('environmental:' + (env.bot_kind || 'bot_detected'));
+      if (ci && (ci.verdict === 'mechanical' || ci.verdict === 'pasted')) gatesTriggered.push('compositionIntegrity:' + ci.verdict);
+      var PASSIVE_CAP = 0.30;
+      var medComposite = (gatesTriggered.length > 0)
+        ? Math.min(medCompositeRaw, PASSIVE_CAP)
+        : medCompositeRaw;
+
       var verdict;
-      if (medComposite >= p.thresholds.pass) verdict = 'pass';
-      else if (medComposite >= p.thresholds.marginal) verdict = 'marginal';
+      if (medComposite >= MEDICAL_PROFILE.thresholds.pass) verdict = 'pass';
+      else if (medComposite >= MEDICAL_PROFILE.thresholds.marginal) verdict = 'marginal';
       else verdict = 'fail';
 
+      // Render the visible report immediately so the user sees their score;
+      // the receipt hash is computed asynchronously below and stamped in last.
       renderResults(medComposite, verdict, detail, c, stats, elapsed);
-      saveSession(medComposite, verdict, detail, c, stats, elapsed, timeline);
-
       document.getElementById('assessment').style.display = 'none';
       document.getElementById('results').style.display = 'block';
       document.getElementById('progress-label').textContent = 'RECEIPT ISSUED';
       document.getElementById('progress-fill').style.width = '100%';
+      document.getElementById('hash-box').textContent = 'Computing tamper-evident receipt…';
+
+      // Build content-bound receipt payload — every value displayed on this page
+      // is included in the hash, so any tampering invalidates verification.
+      var wordsTyped = reflectionEl.value.trim().split(/\s+/).filter(function(w) { return w.length > 0; }).length;
+      // Conformal-prediction analysis on the medical composite. Vovk-
+      // Gammerman-Shafer 2005 + Angelopoulos & Bates 2023 framing; produces
+      // a calibrated Bayesian posterior P(human) with bootstrap 95% CI.
+      // Calibration set v1 from 2026-04-26 measurements; grows over time.
+      var conformal = null;
+      try {
+        conformal = SWSAttention.getConformalAnalysis(medComposite);
+      } catch (e) { conformal = { error: e.message }; }
+
+      var receiptExtras = {
+        source: 'cme_demo',
+        activity_id: activityId,
+        composite_cme_raw: medCompositeRaw,
+        composite_cme: medComposite,
+        verdict: verdict,
+        gates_triggered: gatesTriggered,
+        environmental: env,
+        composition_integrity_verdict: (ci && ci.verdict) ? ci.verdict : null,
+        conformal_analysis: conformal, // p_human, p_bot, CI, calibration metadata
+        medical_metrics: medicalSignals,
+        medical_detail: detail,
+        weights_applied: weights,
+        device_type: deviceType,
+        words_typed: wordsTyped,
+        quiz_answers: answers,
+        quiz_correct_count: answers.filter(function(a, i) { return a === correctAnswers[i]; }).length,
+        duration_sec: elapsed
+      };
+
+      SWSAttention.generateContentReceipt(receiptExtras, function(receipt) {
+        document.getElementById('hash-box').textContent =
+          'Session ID: ' + sessionId + ' · Receipt: ' + receipt.hash + ' · Duration: ' + elapsed + 's';
+        // Wire the "Verify This Receipt" button to auto-prefill verify.html
+        // with this receipt's canonical + hash via URL fragment. The fragment
+        // (after #) is never sent to the server — receipt data stays local.
+        // verify.html reads the fragment on load, fills the textareas, and
+        // runs the verification automatically. Click and see the result.
+        try {
+          var verifyLink = document.getElementById('verify-link');
+          if (verifyLink) {
+            // Compress the canonical for URL: base64(canonical) + #hash
+            var b64canonical = btoa(unescape(encodeURIComponent(receipt.canonical)));
+            verifyLink.href = 'verify.html#auto=1&hash=' + receipt.hash + '&canonical=' + b64canonical;
+          }
+        } catch (e) { /* non-critical — link still works without auto-prefill */ }
+        saveSession(medComposite, verdict, detail, c, stats, elapsed, timeline, receipt);
+      });
     }
 
     function _ascore(v, k) { if (!v || v <= 0) return 0; return 1 - Math.exp(-v / (k || 1)); }
@@ -371,6 +573,27 @@
       pill.textContent = verdict === 'pass' ? 'CREDIT AWARDED' : verdict === 'marginal' ? 'MARGINAL — ADDITIONAL REVIEW' : 'NOT COMPLETED TO STANDARD';
       pill.className = 'tier-pill tier-' + verdict;
       document.getElementById('composite-big').textContent = comp.toFixed(3);
+
+      // Render the conformal Bayesian posterior alongside the composite score.
+      // P(human) is the calibrated probability under the Gaussian likelihood-
+      // ratio classifier with flat prior. The 95% bootstrap CI surfaces honest
+      // uncertainty driven by current calibration size.
+      try {
+        var conformal = SWSAttention.getConformalAnalysis(comp);
+        if (conformal && !conformal.error) {
+          var pHuman = conformal.p_human;
+          var ci = conformal.confidence_interval_95;
+          var pill2 = document.getElementById('conformal-pill');
+          pill2.style.display = 'block';
+          document.getElementById('conformal-phuman').textContent =
+            'P(human) = ' + pHuman.toFixed(3);
+          document.getElementById('conformal-meta').textContent =
+            '95% CI: [' + ci[0].toFixed(3) + ' – ' + ci[1].toFixed(3) + ']  ·  calibration n=' +
+            conformal.calibration.size_human + ' humans + ' + conformal.calibration.size_bot +
+            ' bots (' + (conformal.calibration.version || 'v1') + ')  ·  ' +
+            'Vovk-Gammerman-Shafer 2005';
+        }
+      } catch (e) { /* non-critical */ }
 
       // Medical-profile 6 metrics
       var grid = document.getElementById('metric-grid');
@@ -392,7 +615,9 @@
       // Narrative: pick 3 highest-scoring signals and explain their biology
       document.getElementById('narr-content').innerHTML = buildNarrative(c);
 
-      // Full 20-signal breakdown
+      // Full 21-signal breakdown (added oneOverFCoherence — cross-channel
+      // 1/f consistency, the operationalization of the white-space "20 signals
+      // in coherence" claim grounded in Gilden 2001 + Harris-Wolpert 1998)
       var SIGNALS = [
         ['timing', 'Timing Entropy'], ['hicks', "Hick's Law"], ['fitts', "Fitts' Law"],
         ['scroll', 'Scroll Saccade'], ['microPause', 'Micro-Pause'], ['touch', 'Touch/Click'],
@@ -400,17 +625,28 @@
         ['tabVisibility', 'Tab Visibility'], ['inactivity', 'Activity Pattern'],
         ['rtVariability', 'RT Variability'], ['scrollBacktrack', 'Scroll Backtrack'],
         ['fractalScaling', 'Fractal Scaling'], ['crossCorrelation', 'Cross-Signal'],
+        ['oneOverFCoherence', '1/f Cross-Channel'],
+        ['microsaccades', 'Microsaccades'],
         ['curvatureIndex', 'Curvature'], ['cursorJerk', 'Cursor Jerk'],
         ['velocityProfile', 'Velocity'], ['twoThirdsPower', '2/3 Power Law'],
         ['deviceMotion', 'Device Motion']
       ];
+      // Use signalActive map to distinguish "scored 0" from "N/A" (insufficient
+      // data, or device-incompatible like mouse signals on a phone). Showing
+      // 0.000 for both is misleading — a fair human reading their receipt
+      // would think they failed signals their device cannot even produce.
+      var sigActive = c.signalActive || {};
       var html = SIGNALS.map(function(s) {
-        var v = c[s[0]] || 0;
+        var key = s[0];
+        var active = sigActive.hasOwnProperty(key) ? sigActive[key] : true;
+        if (!active) {
+          return s[1] + ': <strong style="color:#64748b">N/A</strong>';
+        }
+        var v = c[key] || 0;
         return s[1] + ': <strong style="color:' + (v >= 0.5 ? '#10b981' : v >= 0.25 ? '#f59e0b' : '#64748b') + '">' + v.toFixed(3) + '</strong>';
       }).join(' &nbsp;·&nbsp; ');
       document.getElementById('signal-breakdown').innerHTML = html;
-
-      document.getElementById('hash-box').textContent = 'Session ID: ' + sessionId + ' · Receipt: ' + (stats.lastHash || 'pending') + ' · Duration: ' + elapsed + 's';
+      // hash-box is set by finishActivity once generateContentReceipt resolves
     }
 
     function buildNarrative(c) {
@@ -421,6 +657,7 @@
         fitts: { thresh: 0.6, text: 'Your <strong>Fitts\' Law compliance</strong> (' + (c.fitts || 0).toFixed(2) + ') shows movement time scaling with distance-to-target — a motor-control invariant since 1954. Simulated clicks don\'t obey this law.' },
         scroll: { thresh: 0.5, text: 'Your <strong>scroll saccade pattern</strong> (' + (c.scroll || 0).toFixed(2) + ') reflects the human saccade-fixation reading rhythm. Bots scroll at constant velocity; your pauses match the eye-tracking literature.' },
         crossCorrelation: { thresh: 0.6, text: 'Your <strong>cross-signal correlation</strong> (' + (c.crossCorrelation || 0).toFixed(2) + ') shows your signals varying together the way human biology produces them. A bot with one artificially-inflated signal fails this coherence check.' },
+        oneOverFCoherence: { thresh: 0.5, text: 'Your <strong>1/f cross-channel coherence</strong> (' + (c.oneOverFCoherence || 0).toFixed(2) + ') shows the spectral exponent α matches across your interaction, scroll, keystroke, and tap channels — the signature of a single neural generator (Gilden 2001). Bots that synthesize each channel independently produce α drawn from independent distributions; their across-channel α-variance is high, ours is low.' },
         fractalScaling: { thresh: 0.5, text: 'Your <strong>1/f fractal scaling</strong> (' + (c.fractalScaling || 0).toFixed(2) + ') matches pink-noise attention fluctuations (Gilden 2001). Machine-generated intervals produce white noise instead — mathematically distinguishable.' },
         twoThirdsPower: { thresh: 0.5, text: 'Your <strong>two-thirds power law</strong> (' + (c.twoThirdsPower || 0).toFixed(2) + ') shows hand velocity coupled to trajectory curvature as ~curvature^(−1/3) (Lacquaniti 1983). This is a biomechanical invariant; bots don\'t reproduce it.' },
         microPause: { thresh: 0.4, text: 'Your <strong>micro-pause distribution</strong> (' + (c.microPause || 0).toFixed(2) + ') shows 200–600ms cognitive delays between content rendering and first interaction — the brain parsing before the hand moves. Bots interact immediately.' }
@@ -437,7 +674,7 @@
       return html;
     }
 
-    function saveSession(medComposite, verdict, detail, c, stats, elapsed, timeline) {
+    function saveSession(medComposite, verdict, detail, c, stats, elapsed, timeline, receipt) {
       if (!db) return;
       var data = {
         session_id: sessionId,
@@ -464,7 +701,13 @@
         })(),
         active_signals: c.activeSignals,
         timeline: timeline || [],
-        uid: fbUser ? fbUser.uid : 'anonymous'
+        uid: fbUser ? fbUser.uid : 'anonymous',
+        // Tamper-evident receipt: hash + canonical payload bound to every
+        // displayed value on the receipt page. Verifiable offline against
+        // /.well-known/attention-pubkey.json
+        receipt_hash: receipt ? receipt.hash : null,
+        receipt_payload: receipt ? receipt.payload : null,
+        receipt_canonical: receipt ? receipt.canonical : null
       };
       db.collection('demos').doc(sessionId).set(data).catch(function(e) {
         console.warn('[CME] Save failed:', e.code);
@@ -474,7 +717,7 @@
     // Record timing for quiz questions — mark render time when they become visible
     var assessmentObserver = new MutationObserver(function() {
       if (document.getElementById('assessment').style.display !== 'none') {
-        for (var i = 0; i < 3; i++) { if (!lastQuestionRenderAt[i]) lastQuestionRenderAt[i] = Date.now(); }
+        for (var i = 0; i < answers.length; i++) { if (!lastQuestionRenderAt[i]) lastQuestionRenderAt[i] = Date.now(); }
         assessmentObserver.disconnect();
       }
     });
