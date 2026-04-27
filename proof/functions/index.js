@@ -253,16 +253,8 @@ exports.onSessionWritten = onDocumentCreated(
     if (session.signed_jwt) return; // already signed
 
     // Round-4 R4-NEW-1: per-session minimum-duration + plausibility
-    // bounds. The full server-side-recompute defense (R2-NEW-2) is a
-    // multi-week project, but the bot-builder agent identified this
-    // 1-2h check as the cheapest meaningful raise: any composite > 0.85
-    // requires environmental.loaded + composition_integrity 'authored'
-    // + duration_sec > 60s + at least some interaction. This catches
-    // the lazy "post composite=0.95 to Firestore" bypass even before
-    // raw-event recompute lands. Mark sessions that fail bounds with
-    // tier:client_attested rather than refusing to sign — a forensic
-    // audit trail is more useful than a black hole, and a downstream
-    // verifier can reject `tier:client_attested` for decision-grade.
+    // bounds. Cheap 1-2h defense; catches lazy "post composite=0.95
+    // with duration=2s" bypasses.
     const composite = session.signals.composite;
     const durationSec = session.duration_sec || 0;
     const envLoaded = session.environmental && session.environmental.loaded === true;
@@ -279,7 +271,63 @@ exports.onSessionWritten = onDocumentCreated(
     } else if (composite > 0.50) {
       if (durationSec < 30) boundsViolations.push('mid_composite_short_session_' + durationSec + 's');
     }
-    const trustTier = boundsViolations.length === 0 ? 'client_attested_bounds_clean' : 'client_attested_bounds_violated';
+
+    // R2-NEW-2 / "THE WALL" — server-side recompute from raw event log.
+    // The canonical defense the bot-builder agent has named through
+    // 4 hostile rounds. Without it, an attacker forges signals.composite
+    // directly to Firestore and the trigger signs it. With it, the
+    // server recomputes a subset of high-weight signals from the raw
+    // events and rejects receipts where client-claimed composite
+    // diverges from server-recomputed by more than DIVERGENCE_THRESHOLD
+    // (currently 0.20). Forces the attacker to ALSO ship a coherent
+    // event log — round-4 estimate said this raises bypass cost from
+    // $50/mo + 56h to $5-20k/mo + 200-400h.
+    let serverRecomputeResult = { ok: false, reason: 'event_log_absent' };
+    try {
+      const scorer = require('./server-scorer');
+      if (session.event_log) {
+        serverRecomputeResult = scorer.serverRecompute(
+          session.event_log,
+          composite,
+          durationSec,
+          ciVerdict
+        );
+        if (!serverRecomputeResult.ok) {
+          boundsViolations.push('server_recompute_failed:' + serverRecomputeResult.reason);
+        } else if (serverRecomputeResult.divergent) {
+          boundsViolations.push('server_recompute_divergent:client=' +
+            serverRecomputeResult.client_composite + ',server=' +
+            serverRecomputeResult.server_composite);
+        }
+      } else {
+        boundsViolations.push('event_log_absent');
+      }
+    } catch (e) {
+      // Fail-safe: if the scorer module errors, don't block signing —
+      // log + tag. We'd rather sign with a warning than refuse to sign
+      // a legitimate session because of an unrelated server bug.
+      console.error('Server-recompute error:', e && e.message ? e.message : 'unknown');
+      boundsViolations.push('server_recompute_error');
+    }
+
+    // Trust-tier upgrade: server_attested is the highest tier and
+    // requires (a) bounds clean, (b) server recompute ok, (c) no
+    // divergence. client_attested_bounds_clean is the round-4 mid-tier
+    // (no log, plausibility OK). client_attested_bounds_violated is the
+    // forensic-only floor.
+    let trustTier;
+    if (serverRecomputeResult.ok && !serverRecomputeResult.divergent && boundsViolations.length === 0) {
+      trustTier = 'server_attested';
+    } else if (boundsViolations.length === 0) {
+      trustTier = 'client_attested_bounds_clean';
+    } else if (boundsViolations.length === 1 && boundsViolations[0] === 'event_log_absent') {
+      // Legacy path (SDK didn't ship a log) — keep mid-tier so existing
+      // sessions don't all flip to violated. Once SDK uniformly ships
+      // logs, tighten this to a violation.
+      trustTier = 'client_attested_no_event_log';
+    } else {
+      trustTier = 'client_attested_bounds_violated';
+    }
 
     try {
       // Same defense-in-depth we apply on the HTTP endpoint — a malicious
@@ -308,7 +356,18 @@ exports.onSessionWritten = onDocumentCreated(
         signed_at: admin.firestore.FieldValue.serverTimestamp(),
         signing_kid: SIGNING_KID.value() || 'sws-attention-2026-04',
         trust_tier: trustTier,
-        bounds_violations: boundsViolations
+        bounds_violations: boundsViolations,
+        // Persist the server recompute result so a downstream verifier
+        // (verify.html, prove-humanness.html, scripts/verify-offline.js)
+        // can render it. Strip the per-event signal_details to keep doc
+        // size bounded — the user-visible UI only needs the verdict.
+        server_recompute: serverRecomputeResult.ok ? {
+          server_composite: serverRecomputeResult.server_composite,
+          divergence: serverRecomputeResult.divergence,
+          divergent: serverRecomputeResult.divergent,
+          threshold: serverRecomputeResult.threshold,
+          version: serverRecomputeResult.version
+        } : { ok: false, reason: serverRecomputeResult.reason }
       });
     } catch (e) {
       // Log the error without key material

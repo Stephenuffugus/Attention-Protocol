@@ -52,6 +52,12 @@
   var _firebaseAvailable = false;
   var _currentUid = 'anonymous';
 
+  // R2-NEW-2 / "THE WALL": raw event log for server-side recompute.
+  // Created in init(); recorders fire from the event handlers below.
+  // Privacy-safe: keystroke class buckets only (never the actual key);
+  // no DOM identifiers, no URL capture, no reflection content.
+  var _eventLog = null;
+
   // Offline sync queue with retry
   var _syncQueue = [];
   var _syncRetryTimer = null;
@@ -2607,6 +2613,7 @@
 
     window.addEventListener('scroll', function() {
       Behavioral.recordScroll();
+      if (_eventLog) _eventLog.scroll(window.scrollY || window.pageYOffset || 0, Date.now());
     }, { passive: true });
   }
 
@@ -2656,10 +2663,24 @@
     _sessionId = _generateSessionId();
     _sessionStartTime = Date.now();
 
+    // R2-NEW-2 / "THE WALL": create the event-log recorder. Picks up
+    // SWSEventLog from the global scope (exposed by event-log.js, loaded
+    // before this SDK in cme-demo.html). If unavailable, fall back to a
+    // no-op so legacy pages don't break.
+    if (typeof window !== 'undefined' && window.SWSEventLog && window.SWSEventLog.createEventLog) {
+      _eventLog = window.SWSEventLog.createEventLog({
+        maxEvents: 5000,
+        mousemoveSampleRatio: 0.5
+      });
+    }
+
     // Event listeners for interaction tracking
     document.addEventListener('touchstart', _trackInteraction, { passive: true });
     document.addEventListener('mousedown', _trackInteraction, { passive: true });
-    document.addEventListener('click', _trackInteraction, { passive: true });
+    document.addEventListener('click', function(e) {
+      _trackInteraction();
+      if (_eventLog && e.clientX !== undefined) _eventLog.click(e.clientX, e.clientY, Date.now());
+    }, { passive: true });
     document.addEventListener('keydown', function(e) {
       _lastInteractionTime = Date.now();
       _idleInteractionCount++;
@@ -2668,6 +2689,9 @@
         Behavioral.recordKeyDown(e);
         Behavioral.recordActivity();
       }
+      // R2-NEW-2 / "THE WALL": record privacy-safe event log (key class
+      // bucket only, never the actual key) for server-side recompute.
+      if (_eventLog) _eventLog.keydown(e, Date.now());
     }, { passive: true });
     document.addEventListener('keyup', function(e) {
       if (_config.enableBehavioralAnalysis) Behavioral.recordKeyUp(e);
@@ -2704,6 +2728,8 @@
           Behavioral.recordMouseMove(e.clientX, e.clientY, Date.now());
         }
       }
+      // R2-NEW-2 / "THE WALL" event log (sampled internally to bound size).
+      if (_eventLog && e.clientX !== undefined) _eventLog.mousemove(e.clientX, e.clientY, Date.now());
     }, { passive: true });
     document.addEventListener('visibilitychange', function() {
       if (_config.enableBehavioralAnalysis) {
@@ -2897,6 +2923,13 @@
           active_pct: timeline.length > 0 ? Math.round(timeline.filter(function(t) { return t.tier === 'active'; }).length / timeline.length * 100) : 0
         },
         extras: extras || {},
+        // R2-NEW-2 / "THE WALL": snapshot the bounded event log into the
+        // canonical payload so the server-side scorer in onSessionWritten
+        // can recompute key signals from raw events. Without this, a
+        // forged composite has no event log to be cross-checked against.
+        // Inclusion in canonical means the hash binds the log to the
+        // claimed signals — tampering with either invalidates verification.
+        event_log: _eventLog ? _eventLog.snapshot() : null,
         nonce: _generateNonce()
       };
       var canonical = _canonicalJSON(payload);

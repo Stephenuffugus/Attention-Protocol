@@ -245,6 +245,9 @@
 
   <!-- SWS SDK -->
   <script src="sdk/secure-config.js?v=20260426f"></script>
+  <!-- R2-NEW-2 / "THE WALL": event-log recorder must load BEFORE the
+       SDK so SWSEventLog is defined when SWSAttention.init() runs. -->
+  <script src="sdk/event-log.js?v=20260428"></script>
   <script src="sdk/attention-protocol.js?v=20260426f"></script>
   <script src="sdk/economy-engine.js?v=20260426f"></script>
   <script src="sdk/environmental-gate.js?v=20260426f"></script>
