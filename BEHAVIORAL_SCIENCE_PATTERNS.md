@@ -5,6 +5,30 @@
 
 ---
 
+> ⚠️ **READ THIS FIRST — 2026-04-27 currency note.** This document is the
+> patent-preparatory pattern catalog from **March 15, 2026** describing
+> the 6-signal SDK state at patent-filing time. The SDK has since expanded
+> to **23 signals (21 weighted + 2 diagnostic-only at weight 0)** with
+> the addition of motor-control signals (cursor jerk LDLJ, two-thirds
+> power law, velocity bell-shape, curvature index, device motion),
+> keystroke digraph timing, prewhitened DFA-1 1/f scaling
+> (Torre-Delignières 2008 — pre-empts the Wagenmakers 2004 SRD critique),
+> 1/f cross-channel coherence (Sklar/Nandakumar/Harris-Wolpert/Gilden
+> grounding), Crossman-Goodeve / Meyer 1988 submovement count,
+> Engbert-Kliegl 2003 microsaccade detection, and several others.
+>
+> For the **current 23-signal description** with empirical results,
+> structural-limit disclosures, and the full layered-defense story, see
+> **`SEVEN_LAYER_DEEP_DIVE.md`** (the technical-reviewer document).
+>
+> This file is preserved as the patent-prep historical record because the
+> patent claims (filed 2026-03-17) reference the 6-pattern formulation
+> here. The methodology (behavioral-science-grounded composite score
+> feeding into cryptographic attention receipts) is unchanged; the signal
+> library has grown.
+
+---
+
 ## PURPOSE
 
 This document describes the behavioral science patterns that the SWS Attention Protocol uses (and should implement) to distinguish genuine human attention from automated activity. Each pattern is described with: the scientific basis, what we measure, how it maps to code, the anti-bot discrimination power, and patent claim language.
