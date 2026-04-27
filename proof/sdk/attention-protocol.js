@@ -58,6 +58,19 @@
   // no DOM identifiers, no URL capture, no reflection content.
   var _eventLog = null;
 
+  // Round-7 R3-NEW-8 / R5-NEW-5: gate ALL behavioral data accumulation
+  // on consent, not just the event log. Pre-fix: SDK init wired up
+  // event listeners that called Behavioral.recordMouseMove etc.,
+  // accumulating signal data internally BEFORE the user clicked Accept
+  // on the consent banner. The bipa-posture.md says "no telemetry
+  // until granted"; this enforces that. Default to true for legacy
+  // callers that don't load SWSPrivacy; SDK init flips it to gated
+  // when SWSPrivacy is loaded + consent hasn't been granted.
+  var _consentForBehavioral = true;
+  function _canRecordBehavioral() {
+    return _config.enableBehavioralAnalysis && _consentForBehavioral;
+  }
+
   // Offline sync queue with retry
   var _syncQueue = [];
   var _syncRetryTimer = null;
@@ -2684,34 +2697,44 @@
     // returns true OR navigator.webdriver is true (automation), flip
     // it to ready immediately. Otherwise wire onConsentGranted to
     // setConsentReady(true) so the recorder starts AFTER user accepts.
-    if (typeof window !== 'undefined' && window.SWSEventLog && window.SWSEventLog.createEventLog) {
-      var consentAlreadyGranted = false;
+    // Round-7 R3-NEW-8 / R5-NEW-5: gate ALL behavioral telemetry on
+    // consent — not just the event-log recording. SWSPrivacy is
+    // optional; when not loaded, _consentForBehavioral defaults to
+    // true (legacy callers). When loaded, the flag is gated on
+    // SWSPrivacy.hasConsent('attention_tracking') OR navigator.
+    // webdriver (automation skips consent). The poll below flips
+    // both _consentForBehavioral AND _eventLog's internal flag on
+    // consent grant.
+    var consentAlreadyGranted = true; // default: no SWSPrivacy → no gate
+    if (typeof window !== 'undefined' && window.SWSPrivacy && window.SWSPrivacy.hasConsent) {
       try {
-        consentAlreadyGranted = (window.SWSPrivacy
-          && window.SWSPrivacy.hasConsent
-          && window.SWSPrivacy.hasConsent('attention_tracking'))
+        consentAlreadyGranted = window.SWSPrivacy.hasConsent('attention_tracking')
           || navigator.webdriver === true;
-      } catch (_consentCheckErr) { /* SWSPrivacy may not be loaded yet */ }
+      } catch (_consentCheckErr) {
+        consentAlreadyGranted = true; // fail-open for legacy
+      }
+    }
+    _consentForBehavioral = consentAlreadyGranted;
+
+    if (typeof window !== 'undefined' && window.SWSEventLog && window.SWSEventLog.createEventLog) {
       _eventLog = window.SWSEventLog.createEventLog({
         maxEvents: 5000,
         mousemoveSampleRatio: 0.5,
         consentReady: consentAlreadyGranted
       });
-      // Wire a one-shot consent listener so consentReady flips when
-      // the user clicks Accept. SWSPrivacy doesn't expose an event
-      // emitter, so poll briefly in the consent-banner's typical
-      // resolve window (a click triggers DOM removal, which we can
-      // observe). Cheap + non-blocking.
+      // Wire a one-shot consent listener so the flags flip when the
+      // user clicks Accept. Polls SWSPrivacy.hasConsent every 200ms;
+      // auto-stops after 15min so it doesn't leak forever.
       if (!consentAlreadyGranted && window.SWSPrivacy && window.SWSPrivacy.hasConsent) {
         var consentPoll = setInterval(function() {
           try {
             if (window.SWSPrivacy.hasConsent('attention_tracking')) {
+              _consentForBehavioral = true;
               if (_eventLog && _eventLog.setConsentReady) _eventLog.setConsentReady(true);
               clearInterval(consentPoll);
             }
           } catch (_e) { /* ignore */ }
         }, 200);
-        // Auto-stop poll after 15min so it doesn't leak forever.
         setTimeout(function() { clearInterval(consentPoll); }, 15 * 60 * 1000);
       }
     }
@@ -2726,23 +2749,24 @@
     document.addEventListener('keydown', function(e) {
       _lastInteractionTime = Date.now();
       _idleInteractionCount++;
-      if (_config.enableBehavioralAnalysis) {
+      if (_canRecordBehavioral()) {
         Behavioral.recordInteraction();
         Behavioral.recordKeyDown(e);
         Behavioral.recordActivity();
       }
       // R2-NEW-2 / "THE WALL": record privacy-safe event log (key class
       // bucket only, never the actual key) for server-side recompute.
+      // _eventLog also internally consent-gates via setConsentReady.
       if (_eventLog) _eventLog.keydown(e, Date.now());
     }, { passive: true });
     document.addEventListener('keyup', function(e) {
-      if (_config.enableBehavioralAnalysis) Behavioral.recordKeyUp(e);
+      if (_canRecordBehavioral()) Behavioral.recordKeyUp(e);
     }, { passive: true });
     // Device motion (accelerometer + gyroscope) for mobile
     function _startDeviceMotion() {
       if (_motionPermissionGranted) return;
       window.addEventListener('devicemotion', function(e) {
-        if (e.accelerationIncludingGravity && _config.enableBehavioralAnalysis) {
+        if (e.accelerationIncludingGravity && _canRecordBehavioral()) {
           var a = e.accelerationIncludingGravity;
           var r = e.rotationRate || { alpha: 0, beta: 0, gamma: 0 };
           Behavioral.recordDeviceMotion(a.x || 0, a.y || 0, a.z || 0, r.alpha || 0, r.beta || 0, r.gamma || 0);
@@ -2764,17 +2788,18 @@
 
     document.addEventListener('mousemove', function(e) {
       _lastInteractionTime = Date.now();
-      if (_config.enableBehavioralAnalysis) {
+      if (_canRecordBehavioral()) {
         Behavioral.recordActivity();
         if (e.clientX !== undefined) {
           Behavioral.recordMouseMove(e.clientX, e.clientY, Date.now());
         }
       }
       // R2-NEW-2 / "THE WALL" event log (sampled internally to bound size).
+      // _eventLog gates internally via setConsentReady from init's consent poll.
       if (_eventLog && e.clientX !== undefined) _eventLog.mousemove(e.clientX, e.clientY, Date.now());
     }, { passive: true });
     document.addEventListener('visibilitychange', function() {
-      if (_config.enableBehavioralAnalysis) {
+      if (_canRecordBehavioral()) {
         Behavioral.recordVisibilityChange(!document.hidden);
       }
     });
@@ -2783,10 +2808,10 @@
     // with zero blur events is a bot tell; one real blur reads as human.
     if (window.addEventListener) {
       window.addEventListener('blur', function() {
-        if (_config.enableBehavioralAnalysis) Behavioral.recordWindowFocus(false);
+        if (_canRecordBehavioral()) Behavioral.recordWindowFocus(false);
       });
       window.addEventListener('focus', function() {
-        if (_config.enableBehavioralAnalysis) Behavioral.recordWindowFocus(true);
+        if (_canRecordBehavioral()) Behavioral.recordWindowFocus(true);
       });
     }
 

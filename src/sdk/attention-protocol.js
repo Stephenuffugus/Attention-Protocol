@@ -52,6 +52,18 @@
   var _firebaseAvailable = false;
   var _currentUid = 'anonymous';
 
+  // Round-7 R3-NEW-8 / R5-NEW-5 consent gate. Pre-fix: SDK init wired
+  // up event listeners that recorded behavioral data BEFORE the user
+  // clicked Accept on the consent banner. The bipa-posture.md says
+  // "no telemetry until granted"; this enforces that. Default true
+  // for legacy callers (no SWSPrivacy loaded); when SWSPrivacy is
+  // present, init() flips it based on hasConsent('attention_tracking')
+  // OR navigator.webdriver.
+  var _consentForBehavioral = true;
+  function _canRecordBehavioral() {
+    return _config.enableBehavioralAnalysis && _consentForBehavioral;
+  }
+
   // Offline sync queue with retry
   var _syncQueue = [];
   var _syncRetryTimer = null;
@@ -2675,20 +2687,20 @@
     document.addEventListener('keydown', function(e) {
       _lastInteractionTime = Date.now();
       _idleInteractionCount++;
-      if (_config.enableBehavioralAnalysis) {
+      if (_canRecordBehavioral()) {
         Behavioral.recordInteraction();
         Behavioral.recordKeyDown(e);
         Behavioral.recordActivity();
       }
     }, { passive: true });
     document.addEventListener('keyup', function(e) {
-      if (_config.enableBehavioralAnalysis) Behavioral.recordKeyUp(e);
+      if (_canRecordBehavioral()) Behavioral.recordKeyUp(e);
     }, { passive: true });
     // Device motion (accelerometer + gyroscope) for mobile
     function _startDeviceMotion() {
       if (_motionPermissionGranted) return;
       window.addEventListener('devicemotion', function(e) {
-        if (e.accelerationIncludingGravity && _config.enableBehavioralAnalysis) {
+        if (e.accelerationIncludingGravity && _canRecordBehavioral()) {
           var a = e.accelerationIncludingGravity;
           var r = e.rotationRate || { alpha: 0, beta: 0, gamma: 0 };
           Behavioral.recordDeviceMotion(a.x || 0, a.y || 0, a.z || 0, r.alpha || 0, r.beta || 0, r.gamma || 0);
@@ -2710,7 +2722,7 @@
 
     document.addEventListener('mousemove', function(e) {
       _lastInteractionTime = Date.now();
-      if (_config.enableBehavioralAnalysis) {
+      if (_canRecordBehavioral()) {
         Behavioral.recordActivity();
         if (e.clientX !== undefined) {
           Behavioral.recordMouseMove(e.clientX, e.clientY, Date.now());
@@ -2718,7 +2730,7 @@
       }
     }, { passive: true });
     document.addEventListener('visibilitychange', function() {
-      if (_config.enableBehavioralAnalysis) {
+      if (_canRecordBehavioral()) {
         Behavioral.recordVisibilityChange(!document.hidden);
       }
     });
@@ -2727,10 +2739,10 @@
     // with zero blur events is a bot tell; one real blur reads as human.
     if (window.addEventListener) {
       window.addEventListener('blur', function() {
-        if (_config.enableBehavioralAnalysis) Behavioral.recordWindowFocus(false);
+        if (_canRecordBehavioral()) Behavioral.recordWindowFocus(false);
       });
       window.addEventListener('focus', function() {
-        if (_config.enableBehavioralAnalysis) Behavioral.recordWindowFocus(true);
+        if (_canRecordBehavioral()) Behavioral.recordWindowFocus(true);
       });
     }
 

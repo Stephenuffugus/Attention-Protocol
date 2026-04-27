@@ -466,6 +466,31 @@ Bypass cost shifted from $50/mo + 56 engineer-hours (round 1-4 baseline) to **$5
 
 ---
 
+## Post-round-7 hardening (Stephen: "keep building until best we can do")
+
+Round-7 declared the engineering loop "95% closed" but Stephen pushed back — the remaining items I had categorized as "non-engineering hygiene" included real security-claim load-bearing items. Re-prioritized + closed in 3 batches.
+
+### Commit `a773c36` — Tier-1 crypto rigor (K)
+- [x] **R2-NEW-14** Merkle leaves missing RFC 6962 0x00/0x01 domain-separation. Pre-fix: an attacker who controlled any internal node hash could present it as a leaf (CVE-2012-2459 in Bitcoin). Now: SHA-256(0x00||hash) leaves; SHA-256(0x01||left||right) internal nodes. DETECTOR='sws-merkle-v2-rfc6962'. Tests assert root([H]) ≠ H + internal-node-as-leaf produces different root.
+- [x] **R2-NEW-13** `_generateSubjectDid` 32-bit Java-style hash → HMAC-SHA-256(SWS_DID_SALT, userId) truncated to 128 bits. Pre-fix: exhaustively enumerable in seconds for any small org. Now: not reversible without the salt. Deterministic; collision-resistant; tests assert all three.
+- [x] **R2-NEW-10** Canonical JSON not RFC 8785 — no NFC normalization. Pre-fix: "naïve" typed via NFC vs NFD hashed differently. Now: every string + key NFC-normalized before serialization. Critical detail: NFC for sort/display, ORIGINAL key for value lookup. Three surfaces (src/sdk, proof/sdk, verify.html). New `tests/canonical-nfc.test.js` with 6 regression tests.
+- [x] **R2-NEW-7** RFC 3161 TSA cert-chain not validated in browser. Pre-fix: `verify.html` showed "signed by FreeTSA" purely from receipt's self-reported status. Now: honest framing — layer status flips to warn-tier ("TSA token present (chain not verified in-browser)"); fields labeled "(claimed)"; pointer to verify-offline.js for full chain. Full @peculiar/x509 validation deferred to post-pilot.
+
+### Commit `9c7e294` — Tier-2 hygiene (L)
+- [x] **R3-NEW-9** SDK drift between src/sdk and proof/sdk. Caught us 4 rounds in a row. Now: `scripts/check-sdk-sync.js` runs as a 2-min CI job; asserts every paired file is byte-identical or in KNOWN_DIVERGENCE with a documented reason. Future drift fails the build.
+- [x] **R4-NEW-2** gatesOverridden was structurally always false in production. Verifier banners pretending it was a defense were misleading. Now: `verifiable-credentials.js#fromReceipt` reads `receipt.human_verification.gates_override` (a verifier-explicit opt-in field) and passes it to computeFinalComposite. Reachable from production receipts that opt to override.
+- [x] **R3-NEW-10** firestore.rules `data.size() < 65536` was a no-op (size() returns top-level field count, not byte length). Removed the false-claim check; comment clarifies the 50-field cap is the actual bound + sanitizer's 384KB JSON cap on HTTP path is the byte bound.
+
+### Commit `6f9af0f` — Consent a11y polish (M)
+- [x] **R3-NEW-11** Consent banner missing role=dialog / aria-modal / aria-labelledby; no focus shift; "Learn more" was a dead # anchor; buttons under WCAG 2.5.5 target-size. All fixed: dialog landmarks; focus shifts to Accept on append; Learn-more → /privacy.html; buttons min-height 44px.
+
+### Net effect of K+L+M
+8 additional findings closed (~93 total across 7 hostile rounds + post-round-7 hardening). Bot-builder bypass cost unchanged (all are non-bot-facing — but the Merkle + DID fixes close real cryptographic gaps that a careful auditor would catch). The wall + 7 rounds + Tier-1 + Tier-2 + consent a11y is the **best we can do at this stage**.
+
+**Remaining items** are NOT engineering blockers — they're operational (Firestore TTL deploy, App Check, synthetic monitor), legal (FTO, BAA, BIPA counsel), business (LOI), Stephen-typed (YC), or require pilot data (DIVERGENCE_THRESHOLD calibration, suspicious-cap tuning).
+
+---
+
 ## Round 7 closed (2026-04-28, 3 commits — `7aaba2d` SRE batch, `bdfe797` round-7 closure)
 
 ### Commit `7aaba2d` — SRE infrastructure batch (anticipated round-7 finding R7-NEW-2 + queued R2-NEW-18/19/20/24)
