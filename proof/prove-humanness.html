@@ -344,6 +344,33 @@ function renderHumannessVerdict(result) {
     return;
   }
 
+  // R2-NEW-2 / "THE WALL" surfacing: server-side recompute outcome.
+  // If the issuer's server flagged the receipt (divergent recompute or
+  // bounds violations), replace the verdict with a hard warn — the
+  // signature is valid but the receipt's CLAIMS don't match what the
+  // server recomputed from raw events.
+  if (hv.trustTier === 'client_attested_bounds_violated' ||
+      (hv.serverRecompute && hv.serverRecompute.divergent === true)) {
+    const sr = hv.serverRecompute || {};
+    const reasons = [];
+    if (sr.divergent) {
+      reasons.push('server recomputed composite ' + sr.server_composite +
+                   ' vs client claim ' + sr.client_composite);
+    }
+    if (Array.isArray(hv.boundsViolations) && hv.boundsViolations.length > 0) {
+      reasons.push('bounds: ' + hv.boundsViolations.join('; '));
+    }
+    vSlot.innerHTML =
+      '<div class="verdict bad">' +
+      '<div class="big">⚠ Server-side recompute REJECTED this credential</div>' +
+      '<div class="detail">The Ed25519 signature is valid, but the issuer\'s ' +
+      'server-side recompute (R2-NEW-2) flagged this receipt: ' +
+      (reasons.join(' | ') || 'plausibility violations') + '. ' +
+      'A decision-grade verifier should reject. OK for forensic only.</div>' +
+      '</div>';
+    return;
+  }
+
   // Time until expiry (graceful fallback if exp missing)
   const hasExp = typeof result.payload.exp === 'number';
   const expDate = hasExp ? new Date(result.payload.exp * 1000) : null;

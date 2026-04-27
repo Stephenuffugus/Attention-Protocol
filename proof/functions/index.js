@@ -82,7 +82,15 @@ async function signPayload(payload, keyHex, kid) {
 // Payload → Verifiable Credential (minimal inline)
 // ============================================================
 
-function buildCredential(session) {
+function buildCredential(session, walledOutcome) {
+  // walledOutcome (optional): { trust_tier, server_recompute, bounds_violations }
+  // Set by onSessionWritten when the wall has run; absent on the legacy
+  // HTTP endpoint path. When present, the values are embedded in the
+  // signed credentialSubject so OFFLINE verifiers (verify.html paste-a-
+  // JWT, prove-humanness.html, scripts/verify-offline.js) can render
+  // the trust tier + recompute divergence without needing the Firestore
+  // doc. Without this, the wall's signal lives only in Firestore and
+  // an offline verifier sees a green ✓ even on a divergent receipt.
   const now = new Date();
   const validUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24h
   const subjectDid = 'did:sws:user:' + (session.uid_hash ||
@@ -103,6 +111,22 @@ function buildCredential(session) {
     compositeScore: session.composite || null,
     signals: session.signals || {}
   };
+  // Wall outcome plumbed into humanVerification (alongside the other
+  // round-2/3 attestation flags like compositeScoreFinal + gatesApplied).
+  // Verifiers consume:
+  //   - hv.trustTier ∈ { 'server_attested', 'client_attested_bounds_clean',
+  //                      'client_attested_no_event_log',
+  //                      'client_attested_bounds_violated' }
+  //   - hv.serverRecompute = { server_composite, divergence, divergent,
+  //                            threshold, version } | { ok:false, reason }
+  //   - hv.boundsViolations = string[]
+  if (walledOutcome) {
+    if (walledOutcome.trust_tier) hv.trustTier = walledOutcome.trust_tier;
+    if (walledOutcome.server_recompute) hv.serverRecompute = walledOutcome.server_recompute;
+    if (walledOutcome.bounds_violations && walledOutcome.bounds_violations.length > 0) {
+      hv.boundsViolations = walledOutcome.bounds_violations;
+    }
+  }
 
   const receiptHash = crypto.createHash('sha256')
     .update(JSON.stringify({
@@ -157,8 +181,8 @@ function buildCredential(session) {
 // ============================================================
 const { sanitizeSession } = require('./sanitize');
 
-async function signSessionReceipt(session, keyHex, kid) {
-  const cred = buildCredential(session);
+async function signSessionReceipt(session, keyHex, kid, walledOutcome) {
+  const cred = buildCredential(session, walledOutcome);
   const payload = {
     iss: cred.issuer.id,
     sub: cred.credentialSubject.id,
@@ -346,8 +370,24 @@ exports.onSessionWritten = onDocumentCreated(
         consent: session.consent,
         uid: session.uid
       });
+      // Embed wall outcome in the signed credential so offline verifiers
+      // (verify.html, prove-humanness.html, verify-offline.js) see the
+      // trust_tier + recompute divergence without needing the Firestore
+      // doc. THIS is what makes THE WALL user-visible end-to-end.
+      const walledOutcomeForJwt = {
+        trust_tier: trustTier,
+        bounds_violations: boundsViolations,
+        server_recompute: serverRecomputeResult.ok ? {
+          server_composite: serverRecomputeResult.server_composite,
+          divergence: serverRecomputeResult.divergence,
+          divergent: serverRecomputeResult.divergent,
+          threshold: serverRecomputeResult.threshold,
+          version: serverRecomputeResult.version
+        } : { ok: false, reason: serverRecomputeResult.reason }
+      };
       const { jwt, credential } = await signSessionReceipt(
-        clean, SIGNING_KEY.value(), SIGNING_KID.value() || 'sws-attention-2026-04');
+        clean, SIGNING_KEY.value(), SIGNING_KID.value() || 'sws-attention-2026-04',
+        walledOutcomeForJwt);
 
       await snap.ref.update({
         signed_jwt: jwt,

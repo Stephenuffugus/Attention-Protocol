@@ -568,6 +568,60 @@ async function doVerify() {
       vSlot.appendChild(gateBanner);
     }
 
+    // R2-NEW-2 / "THE WALL": surface trust_tier + server_recompute.
+    // The signing path (proof/functions/index.js) embeds the wall's
+    // outcome into the signed credential when it runs the server-side
+    // recompute. Surfacing in the verifier is what makes the wall
+    // user-visible — without this, a divergent receipt still renders
+    // ✓ Verified.
+    if (hv && (hv.trustTier || hv.serverRecompute)) {
+      const tier = hv.trustTier || 'unknown';
+      const sr = hv.serverRecompute;
+
+      // Hard-warn on divergent server recompute or bounds-violated tier.
+      if (tier === 'client_attested_bounds_violated' || (sr && sr.divergent === true)) {
+        const wallBanner = el('div', 'verdict bad');
+        wallBanner.appendChild(el('div', 'big',
+          '⚠ Server-side recompute REJECTS this receipt'));
+        const reasons = [];
+        if (sr && sr.divergent) {
+          reasons.push('client claimed composite ' + sr.client_composite +
+                       ' but server recomputed ' + sr.server_composite +
+                       ' (divergence ' + sr.divergence + ', threshold ' + sr.threshold + ')');
+        }
+        if (Array.isArray(hv.boundsViolations) && hv.boundsViolations.length > 0) {
+          reasons.push('plausibility-bounds violations: ' + hv.boundsViolations.join('; '));
+        }
+        wallBanner.appendChild(el('div', null,
+          'The Ed25519 signature is mathematically valid, but the issuer\'s '
+          + 'server-side recompute (R2-NEW-2 / "THE WALL") flagged this receipt: '
+          + reasons.join(' | ') + '. A decision-grade verifier (CME credit, '
+          + 'regulated training, fraud gate) should reject.'));
+        vSlot.appendChild(wallBanner);
+      } else if (tier === 'client_attested_no_event_log') {
+        // Soft warn — legacy SDK path.
+        const noLogBanner = el('div', 'verdict warn');
+        noLogBanner.appendChild(el('div', 'big',
+          '⚠ Receipt issued without a raw-event log'));
+        noLogBanner.appendChild(el('div', null,
+          'The signing server did not have a raw-event log to recompute against. '
+          + 'OK for legacy sessions; future receipts should carry one. Trust tier: '
+          + tier + '.'));
+        vSlot.appendChild(noLogBanner);
+      } else if (tier === 'server_attested') {
+        // Positive signal — promote.
+        const okBanner = el('div', 'verdict ok');
+        okBanner.appendChild(el('div', 'big',
+          '✓ Server-attested — recompute matched within ±' + (sr ? sr.threshold : 0.20)));
+        okBanner.appendChild(el('div', null,
+          'Server-side recompute (R2-NEW-2) produced ' + (sr ? sr.server_composite : '—')
+          + ' against client-claimed ' + (sr ? sr.client_composite : '—')
+          + '. No plausibility-bounds violations. Highest trust tier.'));
+        vSlot.appendChild(okBanner);
+      }
+      // 'client_attested_bounds_clean' is the silent middle — no banner.
+    }
+
     rSlot.textContent = 'Header: ' + JSON.stringify(result.header, null, 2)
                       + '\n\nPayload: ' + JSON.stringify(result.payload, null, 2);
   } catch (e) {

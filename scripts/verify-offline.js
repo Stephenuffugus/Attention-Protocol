@@ -192,6 +192,24 @@ if (payload.vc && payload.vc.credentialSubject) {
     if (cs.humanVerification.gatesOverridden === true) {
       claimErrors.push('gates_overridden_by_issuer (decision-grade verifiers should reject)');
     }
+    // R2-NEW-2 / "THE WALL" surfacing: hard-reject if the issuer's
+    // server-side recompute flagged divergence or plausibility bounds
+    // were violated. This is the SCIF / cold-storage verifier; it
+    // should be the strictest of the three surfaces.
+    if (cs.humanVerification.trustTier === 'client_attested_bounds_violated') {
+      claimErrors.push('trust_tier:client_attested_bounds_violated (' +
+        ((cs.humanVerification.boundsViolations || []).join(';')) + ')');
+    }
+    const sr = cs.humanVerification.serverRecompute;
+    if (sr && sr.divergent === true) {
+      claimErrors.push('server_recompute_divergent:client=' + sr.client_composite +
+                       ',server=' + sr.server_composite);
+    }
+    if (cs.humanVerification.trustTier === 'server_attested') {
+      console.log('  trustTier:    server_attested (R2-NEW-2 recompute matched)');
+    } else if (cs.humanVerification.trustTier) {
+      console.log('  trustTier:    ' + cs.humanVerification.trustTier);
+    }
   }
   if (cs.conformalAnalysis && cs.conformalAnalysis.calibration) {
     if (cs.conformalAnalysis.calibration.calibration_override === true) {
