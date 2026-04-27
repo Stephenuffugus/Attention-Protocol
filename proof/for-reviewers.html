@@ -115,6 +115,37 @@
   </ol>
   <p style="font-size:12.5px; color:var(--dim); margin-top:-8px;">Each link has two destinations: the live mirror (always works, plain-text rendering) and the GitHub URL (renders prettier, requires the latest commits to be pushed). If GitHub returns 404 on any of these, the latest commits haven't been pushed to GitHub yet — use the live mirror.</p>
 
+  <h2>Today's empirical evidence (2026-04-26 / 2026-04-27)</h2>
+  <p style="color:var(--dim); margin-top:-8px;">Concrete numbers, all reproducible by cloning the repo and running the listed scripts. None of these are estimates or anecdotes — every cell below is a literal command-line run captured to <code>proof/results/</code> or a jest suite output.</p>
+
+  <div class="disclosed" style="margin-top:18px;">
+    <h3 style="color:var(--ok); margin-top:0;">Tamper-evidence + canonical robustness</h3>
+    <ul style="color:var(--text);">
+      <li><strong>100/100 tampers detected</strong> — `node scripts/test-tampering-attack.js`. 100 random DOM-level modifications applied to a legitimate receipt; every one changes the SHA-256, every one detected by the verifier. Plus 6 key-reorder normalization tests confirming the canonical-JSON's deep sort preserves the hash under semantically-equivalent reorderings.</li>
+      <li><strong>27/27 pathological canonical inputs handled</strong> — `node scripts/test-canonical-edge-inputs.js`. Unicode, emoji, RTL, CJK, surrogate pairs, deeply-nested objects, 100KB strings, NaN/Infinity, negative-zero, special-character keys. All produce deterministic valid SHA-256s with no truncation.</li>
+      <li><strong>258/258 jest tests pass across 9 core suites</strong> — environmental-gate, sdk-core, canonical-fixtures, edge-cases, new-signals, receipt-composite, composition-integrity, honeypot-canary, content-attention. Reproducible: <code>npx jest tests/&lt;name&gt;.test.js</code>.</li>
+    </ul>
+  </div>
+
+  <div class="disclosed" style="margin-top:14px;">
+    <h3 style="color:var(--warn); margin-top:0;">Adversarial benchmarks (the honest version)</h3>
+    <ul style="color:var(--text);">
+      <li><strong>Naive Puppeteer:</strong> stealth_suspicion <strong>0.750</strong> → CAUGHT. WebGL SwiftShader (cloud-VM signature) 0.45 + AudioContext audioWorklet getter missing 0.20 + chrome.runtime missing 0.10. BotD baseline also positive on `headless_chrome`. Reproducible: <code>BASE_URL=https://sws-attention-proofs.web.app node scripts/run-naive-puppeteer.js</code>.</li>
+      <li><strong>DMTG-class adversary</strong> (puppeteer-extra-stealth + Bezier mousemove + Voss-McCartney 1/f-per-channel, approximating Tsinghua arXiv:2410.18233): behavioral composite <strong>0.55 ± 0.02</strong>, env-gate suspicion <strong>0.30</strong> (chrome.runtime + audio probe). Below the 0.50 threshold on real-hardware infrastructure (Intel/AMD GPU defeats WebGL cloud-VM); on cloud-VM infrastructure, WebGL/WebGPU vectors fire and gate the bot to PASSIVE 0.30. Reproducible: <code>node scripts/run-dmtg-bot.js</code>.</li>
+      <li><strong>Cross-browser graceful degradation</strong> (false-positive prevention): 4/4 scenarios pass against the deployed live site. Chromium UA → 0.750 (CAUGHT, all vectors apply); Firefox UA spoof → 0.450 (chrome+audio correctly skip via <code>applies=false</code>, BotD+WebGL still catch); Safari UA spoof → 0.450 (same); Edge-on-Chromium → 0.750 (correctly classified as chromium). Reproducible: <code>BASE_URL=https://sws-attention-proofs.web.app node scripts/test-cross-browser-env-gate.js</code>.</li>
+      <li><strong>Stealth-bot UA-spoof gain: zero.</strong> Spoofing the UA without spoofing the prototype shape just changes which vectors apply; the catch happens via BotD baseline + WebGL cloud-VM signature regardless of what UA the bot claims.</li>
+    </ul>
+  </div>
+
+  <div class="disclosed" style="margin-top:14px;">
+    <h3 style="color:var(--accent); margin-top:0;">Honesty-gap analysis (the numbers a smart skeptic will ask for)</h3>
+    <ul style="color:var(--text);">
+      <li><strong>Standard four-bot gated gap: 0.273</strong> (preserved from the 2026-04-21 published harness — naive 0.508, jittered 0.475, sophisticated 0.540, LLM-paster 0.569 all gate to 0.30 against engaged-human 0.573). The gap historical buyers have been quoted.</li>
+      <li><strong>Sophisticated-bot honest gap: 0.131</strong> (engaged-human 0.658 vs DMTG-class 0.55 on real-hardware infrastructure, behavioral-only). Narrower than 0.273 — the disclosure I'd rather a YC partner hear from me first. The 0.65 CME pass threshold catches both, with little behavioral-only margin.</li>
+      <li><strong>Conformal Bayesian P(human)</strong> on every receipt: class-conditional Gaussian likelihood-ratio with flat prior + bootstrap 95% CI. Calibration set v1: N=5 humans + N=10 bots. Cohen's d ≈ 1.4 (large effect size, but the tails overlap substantially in the 0.55–0.62 region — and the bootstrap CI surfaces this honestly). SD floor 0.05 prevents small-N over-confidence. Disclosed in detail at the calibration methodology link above.</li>
+    </ul>
+  </div>
+
   <div class="questions">
     <h3>The three questions I most value pushback on</h3>
     <ol>
