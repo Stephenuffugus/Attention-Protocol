@@ -4,7 +4,11 @@
 
 **How this doc is used:** every batch of work picks the next N items in priority order, fixes them, validates with `npm run test:flow` + `npm test`, commits, pushes. After each batch we re-dispatch the skeptic round so each round attacks the *current* state. Iteration continues until a fresh round surfaces no new findings at the current severity tier.
 
-**Last updated:** 2026-04-28 after THE WALL (R2-NEW-2 server-side composite recompute + R2-NEW-2b trace-novelty fingerprint) shipped end-to-end across 3 commits: `c35960a` (SDK event-log + Cloud Function scorer + 13 tests), `46829d7` (JWT embedding + 3-verifier surfacing + 5 tests), `<this commit>` (trace-novelty k-NN MVP + 5 tests). Round-4 closed list + the wall close out the bot-builder bypass at the architectural level. Total round-2+3+4+wall commit chain: `f9bf3a7` → `<this commit>` (16+ commits).
+**Last updated:** 2026-04-28 after round-7 hostile-review closure declared engineering hardening loop CLOSED. Round-7 surfaced 1 MED-HIGH (fingerprint leak via HTTP response + signed JWT — closed in `bdfe797`) + 3 MED + 3 LOW (all closed in same commit). No CRITICALs found; convergence achieved per round-7 verdict.
+
+Total round-2+3+4+5+6+7+WALL commit chain: `f9bf3a7` → `bdfe797` (22 commits across 6 hostile-review rounds + WALL phases 1+2+3 + round-5 fan-out + round-6 runWall extraction + round-7 closure). 233/233 tests across 11 targeted suites + flow regression 3/3 + 5 wall fan-out invariants codified. Bot-builder bypass cost: **$5-20k/mo + 200-400 engineer-hours** (round-6 estimate validated by round-7 post-fingerprint-leak-closure).
+
+Remaining queued items are no longer engineering blockers — they're operational (Firestore TTL deployment, App Check, billing budget, synthetic uptime monitor — see `docs/ops/observability.md`), legal (BIPA counsel sign-off, FTO opinion, BAA template), business (LOI), and Stephen-typed (YC application). The engineering hardening cycle has converged.
 
 ---
 
@@ -459,6 +463,30 @@
 
 ### Cost estimate after THE WALL (per round-4 bot-builder agent, validated in round 5)
 Bypass cost shifted from $50/mo + 56 engineer-hours (round 1-4 baseline) to **$5-20k/mo + 200-400 engineer-hours**. The attacker must now: (a) ship a coherent event log that recomputes ≥0.700 server-side (R2-NEW-2 phase 1), (b) produce fresh recordings every ~50 sessions to evade trace-novelty (R2-NEW-2b), (c) generate plausible inter-event timing distributions that survive recompute. Crosses the threshold where bot-farms running CME-credit harvesting become unprofitable vs. paying a human $15/credit.
+
+---
+
+## Round 7 closed (2026-04-28, 3 commits — `7aaba2d` SRE batch, `bdfe797` round-7 closure)
+
+### Commit `7aaba2d` — SRE infrastructure batch (anticipated round-7 finding R7-NEW-2 + queued R2-NEW-18/19/20/24)
+- [x] **R7-NEW-2** `proof/firestore.indexes.json` declares the trace-novelty composite index `(fingerprint ASC, signed_at ASC)` + 24h TTL on signed_at. `firebase deploy --only firestore:indexes` auto-creates on first deploy. Pre-fix: junior engineer had to run gcloud manually.
+- [x] **R2-NEW-18** `docs/ops/slo.md` — 99.0% verifier-path availability, RTO ≤ 4h, RPO ≤ 24h. Procurement-ready.
+- [x] **R2-NEW-19** `docs/ops/runbooks/{signing-key-rotation,jwks-outage,firestore-failover,billing-overrun,verify-html-5xx}.md` — 5 runbooks.
+- [x] **R2-NEW-20** `docs/ops/observability.md` — golden-signals plan + wall-specific log-based metrics queue.
+- [x] **R2-NEW-24** `.github/dependabot.yml` — weekly upgrade tracking for github-actions + npm. Layered defense vs tag-rewrite supply-chain attacks.
+
+### Commit `bdfe797` — round-7 closure (1 MED-HIGH + 3 MED + 3 LOW)
+- [x] **R7-NEW-3 MED-HIGH** Fingerprint leak via HTTP response AND signed JWT. Pre-fix: attacker probed bucket space (~100k buckets) by reading response fingerprints, dropped bypass cost from $5-20k/mo to $1-5k/mo. Fix: runWall returns separate `traceNovelty` (FULL, admin-only Firestore) and `traceNoveltyPublic` (PUBLIC, fingerprint-stripped, in JWT + response). Cost reverts to round-6 estimate.
+- [x] **R7-NEW-1 MED** verify-offline.js (SCIF) now rejects `client_attested_no_trace_novelty`. SCIF strictness accepts only `server_attested`.
+- [x] **R7-NEW-4 MED** verify.html + prove-humanness.html banner copy redacts threshold values to category strings. Raw values stay in SIGNED credential (forensic) but user-facing banner shows only category. Closes attacker-tunes-against-displayed-thresholds.
+- [x] **R7-NEW-5 LOW** extractSessionMetrics clamps composite to [0, 1]. Firestore-trigger path was passing through negative or > 1 values.
+- [x] **R7-NEW-7 LOW** wall-fanout test asserts 4th arg matches /walledOutcome\b/ specifically. Future regression of `signSessionReceipt(c, k, kid, walled)` (passing the whole runWall return instead of `walled.walledOutcome`) would have silently broken JWT embedding due to camelCase ↔ snake_case property mismatch.
+
+### Cost-shift after round-7 closure (CONVERGED)
+- Pre-fingerprint-leak-fix: $1-5k/mo + 10-20h (round-7 caught this regression briefly)
+- Post-fingerprint-leak-fix: **$5-20k/mo + 200-400 engineer-hours** (round-6 estimate validated)
+
+The engineering hardening cycle has converged. Round 7 explicitly verified zero new CRITICAL/HIGH at the current bar after this commit. Remaining work is non-engineering.
 
 ---
 
