@@ -29,12 +29,18 @@ service cloud.firestore {
       // Reads: admin-only. Dashboards must be opened by an admin-claim user.
       allow read: if isAdmin();
       // Create: any authenticated user, but the doc must declare its uid
-      // and that uid must match the caller. Cap the doc at 50 fields and
-      // 64KB to bound abuse cost. No updates, no deletes.
+      // and that uid must match the caller. Cap the doc at 50 fields.
+      // Round-7 R3-NEW-10 fix: removed the `data.size() < 65536` check
+      // that was a no-op — Firestore rules' size() returns the COUNT
+      // OF TOP-LEVEL FIELDS, not byte length. The 50-field cap is the
+      // actual bound; per-field byte limits come from Firestore's
+      // built-in 1MB-per-document limit. The R5-NEW-4 sanitizer in
+      // proof/functions/sanitize.js enforces a 384KB JSON limit on
+      // the HTTP path; the Firestore-trigger path inherits the 1MB
+      // built-in limit. No updates, no deletes.
       allow create: if request.auth != null
                     && request.resource.data.uid == request.auth.uid
-                    && request.resource.data.keys().size() <= 50
-                    && request.resource.data.size() < 65536;
+                    && request.resource.data.keys().size() <= 50;
       allow update, delete: if false;
     }
 

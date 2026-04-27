@@ -285,12 +285,30 @@
               bot: credential.credentialSubject.environmental.bot,
               botKind: credential.credentialSubject.environmental.botKind }
           : null;
-        var gated = rcMod.computeFinalComposite({
+        // Round-7 R4-NEW-2 fix: wire the optional gates-override
+        // through. Pre-fix verifiable-credentials.js never passed
+        // `gates` to computeFinalComposite, so gatesOverridden was
+        // structurally always false in production — round-4 caught
+        // it as dead code. Now: if the caller's receipt includes
+        // human_verification.gates_override (a verifier-explicit
+        // opt-in field, e.g., for a multi-tenant deployment where a
+        // customer overrides the gate caps), pass it through. The
+        // receipt-composite module only sets gatesOverridden=true
+        // when resolved values DIFFER from DEFAULT_GATES; empty
+        // {gates:{}} doesn't trigger it. So the verify.html banner
+        // is now reachable from any receipt that opts in.
+        var gatesOverride = (receipt.human_verification
+          && receipt.human_verification.gates_override
+          && typeof receipt.human_verification.gates_override === 'object')
+          ? receipt.human_verification.gates_override : null;
+        var computeArgs = {
           behavioralComposite: bc,
           environmental: envInput,
           compositionIntegrity: ciInput,
           honeypot: hpInput
-        });
+        };
+        if (gatesOverride) computeArgs.gates = gatesOverride;
+        var gated = rcMod.computeFinalComposite(computeArgs);
         credential.credentialSubject.humanVerification.compositeScoreFinal = gated.finalComposite;
         credential.credentialSubject.humanVerification.qualityTierFinal = gated.tierFinal;
         credential.credentialSubject.humanVerification.gatesApplied = gated.gatesApplied;

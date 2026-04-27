@@ -12,6 +12,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  sdk-sync:
+    name: SDK sync (proof/sdk vs src/sdk drift check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Round-6 R3-NEW-9 fan-out drift check
+        run: node scripts/check-sdk-sync.js
+
   jest:
     name: Jest suite (${{ matrix.suite }})
     runs-on: ubuntu-latest
