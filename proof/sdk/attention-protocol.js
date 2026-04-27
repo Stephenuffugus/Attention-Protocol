@@ -213,18 +213,30 @@
   }
 
   // Canonical JSON: deep key-sorted serialization for deterministic hashing.
-  // Required for tamper-evident receipts — JSON.stringify with shallow key sort
-  // is non-deterministic for nested objects, which breaks reproducible verification.
+  // Round-2 R2-NEW-10 fix: NFC-normalize every string + object key
+  // before serialization. Without this, "naïve" typed via NFC
+  // (composed é) vs NFD (e + combining acute) hashes differently —
+  // a verifier on a system that re-normalized differently would fail
+  // to reproduce the signer's hash.
+  function _nfc(s) {
+    return (typeof s === 'string' && typeof s.normalize === 'function')
+      ? s.normalize('NFC') : s;
+  }
   function _canonicalJSON(obj) {
     if (obj === null || obj === undefined) return 'null';
     if (typeof obj === 'number') return Number.isFinite(obj) ? String(obj) : 'null';
     if (typeof obj === 'boolean') return obj ? 'true' : 'false';
-    if (typeof obj === 'string') return JSON.stringify(obj);
+    if (typeof obj === 'string') return JSON.stringify(_nfc(obj));
     if (Array.isArray(obj)) return '[' + obj.map(_canonicalJSON).join(',') + ']';
     if (typeof obj === 'object') {
-      var keys = Object.keys(obj).sort();
-      return '{' + keys.map(function(k) {
-        return JSON.stringify(k) + ':' + _canonicalJSON(obj[k]);
+      var entries = [];
+      var origKeys = Object.keys(obj);
+      for (var i = 0; i < origKeys.length; i++) {
+        entries.push([_nfc(origKeys[i]), obj[origKeys[i]]]);
+      }
+      entries.sort(function(a, b) { return a[0] < b[0] ? -1 : (a[0] > b[0] ? 1 : 0); });
+      return '{' + entries.map(function(e) {
+        return JSON.stringify(e[0]) + ':' + _canonicalJSON(e[1]);
       }).join(',') + '}';
     }
     return 'null';

@@ -30,7 +30,15 @@
 const crypto = require('crypto');
 const { MerkleTree } = require('merkletreejs');
 
-const DETECTOR = 'sws-merkle-v1';
+// Round-2 R2-NEW-14 fix: domain-separated tree per RFC 6962 §2.1.
+// Pre-fix: leaves were raw 32-byte SHA-256 outputs with no prefix.
+// This is the textbook second-preimage condition (CVE-2012-2459 in
+// Bitcoin) — an attacker who controls any internal node hash H can
+// present H as a leaf and produce a valid inclusion proof. Now: leaf
+// hashes prefix 0x00 before SHA-256; internal-node hashes prefix 0x01.
+// The DETECTOR string bumps to v2 so a verifier can distinguish v1
+// (vulnerable, only used for pre-2026-04-28 fixtures) from v2.
+const DETECTOR = 'sws-merkle-v2-rfc6962';
 const HASH_ALG = 'SHA-256';
 
 // ============================================================
@@ -39,6 +47,18 @@ const HASH_ALG = 'SHA-256';
 
 function _sha256(input) {
   return crypto.createHash('sha256').update(input).digest();
+}
+
+// RFC 6962 leaf prefix: SHA-256(0x00 || data). Used at the leaf level
+// to domain-separate from internal-node hashes.
+function _leafHash(data) {
+  return _sha256(Buffer.concat([Buffer.from([0x00]), data]));
+}
+
+// RFC 6962 internal-node prefix: SHA-256(0x01 || left || right). Used
+// at every parent level to domain-separate from leaves.
+function _nodeHash(left, right) {
+  return _sha256(Buffer.concat([Buffer.from([0x01]), left, right]));
 }
 
 function _toBuffer(h) {
@@ -66,17 +86,35 @@ function buildTree(hashes) {
   if (!Array.isArray(hashes) || hashes.length === 0) {
     throw new Error('need_at_least_one_hash');
   }
-  const leaves = hashes.map(_toBuffer);
-  for (const l of leaves) {
+  const rawHashes = hashes.map(_toBuffer);
+  for (const l of rawHashes) {
     if (l.length !== 32) throw new Error('leaves_must_be_32_bytes');
   }
-  const tree = new MerkleTree(leaves, _sha256, { sortPairs: false });
+  // RFC 6962: pre-hash each receipt hash with 0x00 prefix to produce
+  // the domain-separated leaf input, then use 0x01-prefixed concat
+  // for internal nodes. merkletreejs's hashFn argument is what gets
+  // called at every internal level, so we provide a custom function
+  // that prefixes 0x01 before SHA-256.
+  const leaves = rawHashes.map(_leafHash);
+  const internalHashFn = (data) => {
+    // merkletreejs concatenates left||right and passes that to the
+    // hashFn. We re-prefix with 0x01 to get RFC 6962 internal-node
+    // semantics. This makes leaf hashes (0x00-prefixed) unforgeable
+    // as internal-node intermediates.
+    return _sha256(Buffer.concat([Buffer.from([0x01]), data]));
+  };
+  const tree = new MerkleTree(leaves, internalHashFn, { sortPairs: false });
   const root = tree.getRoot();
   return {
     tree: tree,
     root: root,
     rootHex: root.toString('hex'),
-    leafCount: leaves.length
+    leafCount: leaves.length,
+    // Round-2 R2-NEW-14: callers verify inclusion via verifyInclusion
+    // below. The original receipt hashes (raw 32-byte SHA-256 of the
+    // signed canonical) are passed in; verifier MUST re-apply
+    // _leafHash before checking the path. Detector v2 indicates this.
+    detector: DETECTOR
   };
 }
 
@@ -92,10 +130,16 @@ function buildTree(hashes) {
  *   path is an array of { position: 'left'|'right', hash_hex }
  */
 function proveInclusion(treeWrap, hash) {
-  const leaf = _toBuffer(hash);
-  const proof = treeWrap.tree.getProof(leaf);
+  // Round-2 R2-NEW-14: the tree was built from 0x00-prefixed leaf
+  // hashes, so we must look up the proof using the prefixed leaf,
+  // not the raw input hash.
+  const rawHash = _toBuffer(hash);
+  const prefixedLeaf = _leafHash(rawHash);
+  const proof = treeWrap.tree.getProof(prefixedLeaf);
   return {
-    hash_hex: leaf.toString('hex'),
+    // hash_hex returns the RAW user-facing hash (the receipt hash);
+    // verifier re-applies the prefix.
+    hash_hex: rawHash.toString('hex'),
     root_hex: treeWrap.rootHex,
     path: proof.map(p => ({
       position: p.position,
@@ -121,12 +165,19 @@ function proveInclusion(treeWrap, hash) {
 function verifyInclusion(proof) {
   if (!proof || !proof.hash_hex || !proof.root_hex) return false;
   if (proof.algorithm && proof.algorithm !== HASH_ALG) return false;
-  const leaf = Buffer.from(proof.hash_hex, 'hex');
+  // RFC 6962 fix: re-apply the 0x00 leaf prefix + use the 0x01
+  // internal-node hash function. Without this, a verifier would
+  // compute the wrong hash at every level and reject all proofs
+  // produced by the v2 builder.
+  const rawHash = Buffer.from(proof.hash_hex, 'hex');
+  if (rawHash.length !== 32) return false;
+  const leaf = _leafHash(rawHash);
   const pathBuf = (proof.path || []).map(p => ({
     position: p.position,
     data: Buffer.from(p.hash_hex, 'hex')
   }));
-  const recomputed = MerkleTree.verify(pathBuf, leaf, Buffer.from(proof.root_hex, 'hex'), _sha256, { sortPairs: false });
+  const internalHashFn = (data) => _sha256(Buffer.concat([Buffer.from([0x01]), data]));
+  const recomputed = MerkleTree.verify(pathBuf, leaf, Buffer.from(proof.root_hex, 'hex'), internalHashFn, { sortPairs: false });
   return !!recomputed;
 }
 

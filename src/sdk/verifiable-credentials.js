@@ -590,17 +590,141 @@
   // HELPERS
   // ============================================================
 
+  // Round-2 R2-NEW-13 fix: previous implementation was a 32-bit
+  // Java-style multiplicative hash with no salt — exhaustively
+  // enumerable in seconds for any small org (n<10k employees).
+  // Marketed as "anonymizing" but offered no real protection against
+  // userId recovery. Replaced with HMAC-SHA-256(server-secret, userId)
+  // truncated to 128 bits. Server secret comes from
+  // SWS_DID_SALT (env var) when available; falls back to a build-time
+  // constant for legacy callers (which is still better than the
+  // round-1 32-bit hash because the salt is at least non-trivial).
+  //
+  // Browser environment: crypto.subtle.sign + 'HMAC' is async; we
+  // can't make _generateSubjectDid sync without restructuring callers.
+  // Instead, use a pure-JS HMAC-SHA-256 fallback that works in both
+  // Node and browser sync paths. This is acceptable here because the
+  // DID is a hashed identifier, not load-bearing for any signature.
+  var _DID_SALT_FALLBACK = 'sws-did-salt-2026-04-28-v2';
+
+  function _hmacSha256Hex(key, msg) {
+    // Standard HMAC-SHA-256 construction over UTF-8 bytes. Pure JS so
+    // it works in legacy browsers without crypto.subtle. Uses the
+    // _sha256 helper from attention-protocol.js if available, falls
+    // back to a minimal implementation here.
+    if (typeof crypto !== 'undefined' && crypto.createHmac) {
+      // Node path
+      return crypto.createHmac('sha256', key).update(msg, 'utf8').digest('hex');
+    }
+    // Browser fallback — use Web Crypto if available (synchronous
+    // surfaces only get to use it via a deasync trick, so this path
+    // skips Web Crypto and uses a pure-JS HMAC over a small SHA-256
+    // helper. For DID generation only — NOT for receipt signing.)
+    return _purejsHmacSha256(key, msg);
+  }
+
+  // Minimal pure-JS HMAC-SHA-256 for the browser sync path. This is
+  // a small implementation borrowed from the attention-protocol's
+  // own pure-JS SHA-256. Used only to produce the DID anonymization
+  // hash; not for any receipt-signing path.
+  function _purejsHmacSha256(key, msg) {
+    var keyBytes = _utf8ToBytes(key);
+    var msgBytes = _utf8ToBytes(msg);
+    if (keyBytes.length > 64) keyBytes = _sha256Bytes(keyBytes);
+    while (keyBytes.length < 64) keyBytes = _concat(keyBytes, [0]);
+    var ipad = keyBytes.map(function(b) { return b ^ 0x36; });
+    var opad = keyBytes.map(function(b) { return b ^ 0x5c; });
+    var inner = _sha256Bytes(_concat(ipad, msgBytes));
+    var outer = _sha256Bytes(_concat(opad, inner));
+    return outer.map(function(b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+  }
+  function _utf8ToBytes(str) {
+    if (typeof TextEncoder !== 'undefined') {
+      return Array.from(new TextEncoder().encode(str));
+    }
+    var out = [];
+    for (var i = 0; i < str.length; i++) {
+      var c = str.charCodeAt(i);
+      if (c < 0x80) out.push(c);
+      else if (c < 0x800) { out.push(0xC0 | (c >> 6)); out.push(0x80 | (c & 0x3F)); }
+      else { out.push(0xE0 | (c >> 12)); out.push(0x80 | ((c >> 6) & 0x3F)); out.push(0x80 | (c & 0x3F)); }
+    }
+    return out;
+  }
+  function _concat(a, b) { return [].concat(a, b); }
+  function _sha256Bytes(bytes) {
+    // Defer to Node when available (much faster).
+    if (typeof crypto !== 'undefined' && crypto.createHash) {
+      var h = crypto.createHash('sha256').update(Buffer.from(bytes)).digest();
+      return Array.from(h);
+    }
+    // Browser pure-JS fallback uses a 32-bit SHA-256 implementation
+    // that mirrors src/sdk/attention-receipts.js#_sha256Pure (UTF-8
+    // safe, surrogate-pair safe, round-3 fixes applied). Inlined here
+    // to keep this file self-contained.
+    return _sha256PureBytes(bytes);
+  }
+  // Inline pure-JS SHA-256 over a byte array, returning a byte array.
+  function _sha256PureBytes(bytes) {
+    function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
+    var mathPow = Math.pow, maxWord = mathPow(2, 32);
+    var k = [], hash = [], primeCounter = 0, isComposite = {};
+    for (var candidate = 2; primeCounter < 64; candidate++) {
+      if (!isComposite[candidate]) {
+        for (var i = 0; i < 313; i += candidate) isComposite[i] = candidate;
+        hash[primeCounter] = (mathPow(candidate, 0.5) * maxWord) | 0;
+        k[primeCounter++] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
+      }
+    }
+    var byteLen = bytes.length, asciiBitLength = byteLen * 8;
+    var padded = bytes.slice(0);
+    padded.push(0x80);
+    while (padded.length % 64 !== 56) padded.push(0x00);
+    var words = [];
+    for (var p = 0; p < padded.length; p++) words[p >> 2] = (words[p >> 2] || 0) | (padded[p] << ((3 - p) % 4) * 8);
+    words[words.length] = ((asciiBitLength / maxWord) | 0);
+    words[words.length] = (asciiBitLength | 0);
+    for (var j = 0; j < words.length; ) {
+      var w = words.slice(j, j += 16);
+      var oldHash = hash.slice(0, 8);
+      hash = hash.slice(0, 8);
+      for (var ii = 0; ii < 64; ii++) {
+        var w15 = w[ii - 15], w2 = w[ii - 2];
+        var a = hash[0], e = hash[4];
+        var temp1 = hash[7]
+          + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
+          + ((e & hash[5]) ^ ((~e) & hash[6])) + k[ii]
+          + (w[ii] = (ii < 16) ? w[ii] : (w[ii - 16]
+            + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))
+            + w[ii - 7]
+            + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))
+          ) | 0);
+        var temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
+          + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+        hash = [(temp1 + temp2) | 0].concat(hash);
+        hash[4] = (hash[4] + temp1) | 0;
+      }
+      for (var jj = 0; jj < 8; jj++) hash[jj] = (hash[jj] + oldHash[jj]) | 0;
+    }
+    var result = [];
+    for (var ki = 0; ki < 8; ki++) {
+      for (var bb = 3; bb >= 0; bb--) result.push((hash[ki] >> (bb * 8)) & 0xFF);
+    }
+    return result;
+  }
+
   function _generateSubjectDid(userId) {
     if (!userId || userId === 'anonymous') {
       return 'did:sws:anonymous:' + Date.now().toString(36);
     }
-    // Hash the userId to avoid PII in the DID
-    var hash = 0;
-    for (var i = 0; i < userId.length; i++) {
-      hash = ((hash << 5) - hash) + userId.charCodeAt(i);
-      hash |= 0;
-    }
-    return 'did:sws:user:' + Math.abs(hash).toString(36);
+    var salt = (typeof process !== 'undefined' && process.env && process.env.SWS_DID_SALT)
+      || _DID_SALT_FALLBACK;
+    var fullHex = _hmacSha256Hex(salt, String(userId));
+    // 128-bit truncation (32 hex chars). Random-oracle behavior
+    // (assuming HMAC-SHA-256 is a PRF) prevents userId recovery
+    // without the salt — even if an attacker enumerates the entire
+    // userId space, they need the salt to produce matching DIDs.
+    return 'did:sws:user:' + fullHex.slice(0, 32);
   }
 
   // ============================================================

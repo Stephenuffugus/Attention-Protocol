@@ -451,16 +451,24 @@ function renderLayers(cs) {
     grid.appendChild(layerCard('6a. Bitcoin anchor (OTS)', status, rows));
   }
 
-  // 6b. RFC 3161 TSA timestamp (regulator-familiar timestamp format)
+  // 6b. RFC 3161 TSA timestamp (regulator-familiar timestamp format).
+  // Round-2 R2-NEW-7 honest framing: this layer renders the receipt's
+  // self-reported TSA token — we do NOT cryptographically verify the
+  // TSA cert chain in the browser. A full RFC 3161 verification needs
+  // @peculiar/x509 (~80KB) + the TSA root certs hard-coded; that's a
+  // post-pilot deliverable. For now, the label honestly says "claim"
+  // not "verified" so a careful reviewer doesn't mistake the
+  // structural-only check for cryptographic verification.
   if (cs.rfc3161Timestamp) {
     const t = cs.rfc3161Timestamp;
     const status = t.status === 'signed'
-                    ? { cls: 'ok', label: 'signed by ' + (t.tsaName || 'TSA') }
+                    ? { cls: 'warn', label: 'TSA token present (chain not verified in-browser)' }
                     : { cls: 'dim', label: t.status || 'unknown' };
     grid.appendChild(layerCard('6b. RFC 3161 timestamp', status, [
-      ['TSA', t.tsaName || '—'],
-      ['Stamped at', t.stampedAt || t.genTime || '—'],
-      ['Policy OID', t.tsaPolicyOid || '—', { code: true }]
+      ['TSA (claimed)', t.tsaName || '—'],
+      ['Stamped at (claimed)', t.stampedAt || t.genTime || '—'],
+      ['Policy OID', t.tsaPolicyOid || '—', { code: true }],
+      ['Verification', 'Structural only — TSA cert chain validation requires @peculiar/x509 (~80KB) + hard-coded TSA roots; deferred to post-pilot. Use scripts/verify-offline.js for full chain verification.']
     ]));
   }
 
@@ -688,18 +696,25 @@ document.getElementById('clear-btn').addEventListener('click', () => {
 });
 
 // ---------- Content-bound receipt verifier (SHA-256 over canonical JSON) ----------
-// Mirrors the SDK's _canonicalJSON exactly: deeply key-sorted, recursive.
+// Mirrors the SDK's _canonicalJSON exactly: deeply key-sorted, recursive,
+// NFC-normalized strings + keys (R2-NEW-10).
 // Any divergence here would silently break verification, so this is intentionally
 // a verbatim copy of the sender-side implementation.
+function _nfc(s) {
+  return (typeof s === 'string' && typeof s.normalize === 'function')
+    ? s.normalize('NFC') : s;
+}
 function canonicalJSON(obj) {
   if (obj === null || obj === undefined) return 'null';
   if (typeof obj === 'number') return Number.isFinite(obj) ? String(obj) : 'null';
   if (typeof obj === 'boolean') return obj ? 'true' : 'false';
-  if (typeof obj === 'string') return JSON.stringify(obj);
+  if (typeof obj === 'string') return JSON.stringify(_nfc(obj));
   if (Array.isArray(obj)) return '[' + obj.map(canonicalJSON).join(',') + ']';
   if (typeof obj === 'object') {
-    const keys = Object.keys(obj).sort();
-    return '{' + keys.map(k => JSON.stringify(k) + ':' + canonicalJSON(obj[k])).join(',') + '}';
+    // (nfcKey, originalValue) pairs — see attention-protocol.js for rationale.
+    const entries = Object.keys(obj).map(k => [_nfc(k), obj[k]]);
+    entries.sort((a, b) => a[0] < b[0] ? -1 : (a[0] > b[0] ? 1 : 0));
+    return '{' + entries.map(e => JSON.stringify(e[0]) + ':' + canonicalJSON(e[1])).join(',') + '}';
   }
   return 'null';
 }

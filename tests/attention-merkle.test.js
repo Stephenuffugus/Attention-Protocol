@@ -36,11 +36,23 @@ function makeHashes(n, seed = 'h') {
 // ============================================================
 
 describe('attention-merkle — buildTree', () => {
-  test('builds a tree from 1 leaf (root = leaf hash)', () => {
+  test('builds a tree from 1 leaf (root = leaf hash with RFC 6962 0x00 prefix)', () => {
+    // Round-2 R2-NEW-14 fix: leaves are now 0x00-prefixed before
+    // hashing per RFC 6962 §2.1, so the single-leaf root is
+    // SHA-256(0x00 || leaf), not leaf itself. Pre-fix this allowed
+    // an attacker who controlled an internal node hash H to present
+    // H as a leaf — second-preimage flexibility (CVE-2012-2459 in
+    // Bitcoin).
     const hashes = makeHashes(1);
     const t = merkle.buildTree(hashes);
     expect(t.leafCount).toBe(1);
-    expect(t.rootHex).toBe(hashes[0]); // Single-leaf tree: root = leaf
+    expect(t.detector).toBe('sws-merkle-v2-rfc6962');
+    // Root must be SHA-256(0x00 || leaf), NOT leaf itself
+    const expectedLeafHash = crypto.createHash('sha256')
+      .update(Buffer.concat([Buffer.from([0x00]), Buffer.from(hashes[0], 'hex')]))
+      .digest('hex');
+    expect(t.rootHex).toBe(expectedLeafHash);
+    expect(t.rootHex).not.toBe(hashes[0]); // critical: NOT identity
   });
 
   test('builds a tree from 2 leaves', () => {
@@ -79,13 +91,35 @@ describe('attention-merkle — buildTree', () => {
     expect(() => merkle.buildTree(['abc123'])).toThrow(/leaves_must_be_32_bytes/);
   });
 
-  test('accepts hashes as hex string OR Buffer OR Uint8Array', () => {
+  test('accepts hashes as hex string OR Buffer OR Uint8Array (same root)', () => {
+    // Round-2 R2-NEW-14: regardless of input type the root computes
+    // as SHA-256(0x00 || hash). Three input shapes must produce the
+    // same root.
     const hex = crypto.createHash('sha256').update('x').digest('hex');
     const buf = Buffer.from(hex, 'hex');
     const u8 = new Uint8Array(buf);
-    expect(merkle.buildTree([hex]).rootHex).toBe(hex);
-    expect(merkle.buildTree([buf]).rootHex).toBe(hex);
-    expect(merkle.buildTree([u8]).rootHex).toBe(hex);
+    const expected = crypto.createHash('sha256')
+      .update(Buffer.concat([Buffer.from([0x00]), buf]))
+      .digest('hex');
+    expect(merkle.buildTree([hex]).rootHex).toBe(expected);
+    expect(merkle.buildTree([buf]).rootHex).toBe(expected);
+    expect(merkle.buildTree([u8]).rootHex).toBe(expected);
+  });
+
+  test('RFC 6962 second-preimage resistance: internal-node hash CANNOT be presented as a leaf', () => {
+    // The whole point of domain-separation. Build a 4-leaf tree, take
+    // the internal node H = hash(leaf0||leaf1)-with-0x01-prefix.
+    // Constructing a tree where H appears as a leaf MUST produce a
+    // DIFFERENT root than the original tree. Pre-fix (no domain
+    // separation), `tree([H]).root === H` was the second-preimage
+    // attack. Post-fix, `tree([H]).root = SHA-256(0x00||H) ≠ H_as_node`.
+    const hashes = makeHashes(4);
+    const tree = merkle.buildTree(hashes);
+    // The root itself, as a hash, presented as a single-leaf tree:
+    const rootAsLeaf = merkle.buildTree([tree.rootHex]);
+    // The single-leaf root is SHA-256(0x00||rootBytes), NOT the
+    // original root.
+    expect(rootAsLeaf.rootHex).not.toBe(tree.rootHex);
   });
 });
 

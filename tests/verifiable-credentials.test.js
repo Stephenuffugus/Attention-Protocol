@@ -122,6 +122,33 @@ describe('Verifiable Credentials Module', () => {
       expect(cred.credentialSubject.id).toMatch(/^did:sws:user:/);
     });
 
+    test('subject DID is 32-hex-char HMAC-derived, not 32-bit Java hash (R2-NEW-13)', () => {
+      // Round-2 R2-NEW-13: pre-fix the DID was a 32-bit
+      // Math.abs(hash).toString(36) → ≤7 base36 chars, exhaustively
+      // enumerable. Post-fix it's HMAC-SHA-256 truncated to 128 bits
+      // → 32 hex chars, salted, not enumerable without the salt.
+      const cred = VC.fromReceipt(makeReceipt());
+      const id = cred.credentialSubject.id;
+      const suffix = id.replace('did:sws:user:', '');
+      expect(suffix).toMatch(/^[0-9a-f]{32}$/);
+    });
+
+    test('two different subject_ids produce different DIDs (collision-resistant)', () => {
+      const r1 = makeReceipt(); r1.subject_id = 'alice@example.com';
+      const r2 = makeReceipt(); r2.subject_id = 'bob@example.com';
+      const c1 = VC.fromReceipt(r1);
+      const c2 = VC.fromReceipt(r2);
+      expect(c1.credentialSubject.id).not.toBe(c2.credentialSubject.id);
+    });
+
+    test('same subject_id produces same DID (deterministic — verifier can match)', () => {
+      const r1 = makeReceipt(); r1.subject_id = 'alice@example.com';
+      const r2 = makeReceipt(); r2.subject_id = 'alice@example.com';
+      const c1 = VC.fromReceipt(r1);
+      const c2 = VC.fromReceipt(r2);
+      expect(c1.credentialSubject.id).toBe(c2.credentialSubject.id);
+    });
+
     test('accepts custom subject DID', () => {
       const cred = VC.fromReceipt(makeReceipt(), { subjectDid: 'did:example:custom' });
       expect(cred.credentialSubject.id).toBe('did:example:custom');
