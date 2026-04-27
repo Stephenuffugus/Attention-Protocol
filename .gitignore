@@ -10,12 +10,30 @@ credentials.json
 firebase-debug.log
 .firebase/
 dist/
-proof/results/
 
 # Real-tester data — contains tester names + typed reflections (PII).
 # Calibration values from these runs are integrated into DEFAULT_CALIBRATION
 # in src/sdk/attention-protocol.js as anonymized scalars; the raw artifacts
 # stay local. Do not commit these archives.
+#
+# Round-2 narrowing (2026-04-28): the original `proof/results/` directory
+# rule was too broad — it excluded the canonical demo fixtures
+# (stephen-0573-anchored.json, humanness-sample.json,
+# verify-sample-{6,7}layer.json) which carry NO PII (anonymized scalars
+# only) but ARE the regression-test inputs for canonical-fixtures.test.js.
+# CI was failing because the fixtures aren't checked in.
+#
+# Approach: ignore proof/results/* by default (timestamped bot runs, live-
+# roundtrip outputs, signed-jwts archives — none of which are required at
+# build/CI time), then explicitly un-ignore the 4 canonical fixtures plus
+# the openbadge sample. Add new fixtures by name as they're created.
 proof/real_tests_apr26/
+proof/results/*
+!proof/results/stephen-0573-anchored.json
+!proof/results/stephen-0573-signed.json
+!proof/results/stephen-openbadge-sample.json
+!proof/results/humanness-sample.json
+!proof/results/verify-sample-6layer.json
+!proof/results/verify-sample-7layer.json
 proof/Results-*.zip
 public/proof/Results*.zip

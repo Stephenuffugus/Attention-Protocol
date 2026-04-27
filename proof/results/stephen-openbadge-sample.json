@@ -1,0 +1,87 @@
+{
+  "achievement_id": "https://sws-attention-proofs.web.app/achievements/attention-verified-session-v1",
+  "achievement_name": "Attention-Verified Learning Session",
+  "openbadge_credential": {
+    "@context": [
+      "https://www.w3.org/ns/credentials/v2",
+      "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json"
+    ],
+    "id": "urn:sws:openbadge:urn:sws:receipt:rcpt_stephen_20260420_real_anchored",
+    "type": [
+      "VerifiableCredential",
+      "OpenBadgeCredential"
+    ],
+    "issuer": {
+      "id": "did:web:sws-attention-proofs.web.app",
+      "type": [
+        "Profile"
+      ],
+      "name": "SWS Strategic Media LLC",
+      "url": "https://sws-attention-proofs.web.app"
+    },
+    "validFrom": "2026-04-20T06:49:00.000Z",
+    "issuanceDate": "2026-04-20T06:49:00.000Z",
+    "credentialSubject": {
+      "type": [
+        "AchievementSubject"
+      ],
+      "id": "did:sws:user:vbdlx7",
+      "achievement": {
+        "id": "https://sws-attention-proofs.web.app/achievements/attention-verified-session-v1",
+        "type": [
+          "Achievement"
+        ],
+        "name": "Attention-Verified Learning Session",
+        "criteria": {
+          "narrative": "Composite score >= 0.55 with verified_human verdict; receipt Ed25519-signed and anchored to Bitcoin via OpenTimestamps."
+        },
+        "description": "Completed a learning session with cryptographically verified human attention on stevieweedseed.com.",
+        "tag": [
+          "attention",
+          "proof-of-work",
+          "pilot"
+        ]
+      },
+      "result": [
+        {
+          "type": [
+            "Result"
+          ],
+          "value": "0.573",
+          "resultDescription": "urn:sws:result:behavioral-composite"
+        },
+        {
+          "type": [
+            "Result"
+          ],
+          "status": "verified_human_active_engagement"
+        }
+      ]
+    },
+    "evidence": [
+      {
+        "id": "urn:sws:evidence:receipt:urn:sws:receipt:rcpt_stephen_20260420_real_anchored",
+        "type": [
+          "Evidence"
+        ],
+        "narrative": "SWS signed attention receipt (VC-JWT, EdDSA). Verify offline against https://sws-attention-proofs.web.app/.well-known/attention-pubkey.json.",
+        "signedReceiptJwt": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InN3cy1hdHRlbnRpb24tMjAyNi0wNCJ9.eyJpc3MiOiJkaWQ6d2ViOnN3cy1hdHRlbnRpb24tcHJvb2ZzLndlYi5hcHAiLCJzdWIiOiJkaWQ6c3dzOnVzZXI6dmJkbHg3IiwiaWF0IjoxNzc2NjY3NzQwLCJ2YyI6eyJAY29udGV4dCI6WyJodHRwczovL3d3dy53My5vcmcvbnMvY3JlZGVudGlhbHMvdjIiLCJodHRwczovL3N3cy1hdHRlbnRpb24tcHJvb2ZzLndlYi5hcHAvc2NoZW1hcy9hdHRlbnRpb24vdjEiXSwidHlwZSI6WyJWZXJpZmlhYmxlQ3JlZGVudGlhbCIsIkF0dGVudGlvblZlcmlmaWNhdGlvbkNyZWRlbnRpYWwiXSwiaWQiOiJ1cm46c3dzOnJlY2VpcHQ6cmNwdF9zdGVwaGVuXzIwMjYwNDIwX3JlYWxfYW5jaG9yZWQiLCJpc3N1ZXIiOnsiaWQiOiJkaWQ6d2ViOnN3cy1hdHRlbnRpb24tcHJvb2ZzLndlYi5hcHAiLCJuYW1lIjoiU1dTIFN0cmF0ZWdpYyBNZWRpYSBMTEMiLCJwYXRlbnQiOiJTV1MtUFJPVi0wMDEifSwiaXNzdWFuY2VEYXRlIjoiMjAyNi0wNC0yMFQwNjo0OTowMC4wMDBaIiwidmFsaWRGcm9tIjoiMjAyNi0wNC0yMFQwNjo0OTowMC4wMDBaIiwiY3JlZGVudGlhbFN1YmplY3QiOnsiaWQiOiJkaWQ6c3dzOnVzZXI6dmJkbHg3IiwidHlwZSI6IkF0dGVudGlvblNlc3Npb24iLCJlbmdhZ2VtZW50Ijp7ImNvbnRlbnRJZCI6ImdhbWVfc2Vzc2lvbiIsImNvbnRlbnROYW1lIjoiU1dTIExpdmUgRGVtbyIsImR1cmF0aW9uTXMiOjE4NTAwMCwiZHVyYXRpb25Gb3JtYXR0ZWQiOiIzIG1pbiA1IHNlYyIsImZvY3VzU2NvcmUiOjU3LCJxdWFsaXR5VGllciI6ImFjdGl2ZSIsImludGVyYWN0aW9uQ291bnQiOjQyfSwiaHVtYW5WZXJpZmljYXRpb24iOnsidmVyZGljdCI6InZlcmlmaWVkX2h1bWFuX2FjdGl2ZV9lbmdhZ2VtZW50IiwiY29tcG9zaXRlU2NvcmUiOjAuNTczLCJzaWduYWxzIjp7fX0sImF0dGVudGlvblByb29mIjp7ImFsZ29yaXRobSI6IlNIQS0yNTYiLCJoYXNoQ291bnQiOjYyLCJyZWNlaXB0SGFzaCI6IjdkNzgwYzM4YzY1ZDg3ODAwNWQzNWNmNjU5MTM2ZDhkYTZlZmI2MDMzNDUxY2FjZDk3MDQxODdhMjNlMjZlM2MifX0sImV2aWRlbmNlIjpbeyJ0eXBlIjoiUHJpdmFjeUF0dGVzdGF0aW9uIiwibm9Db250ZW50UmVjb3JkZWQiOnRydWUsIm5vUGlpQ29sbGVjdGVkIjp0cnVlLCJub1VybHNUcmFja2VkIjp0cnVlLCJjb3BwYUNvbXBsaWFudCI6dHJ1ZX1dLCJwcm9vZiI6eyJ0eXBlIjoiU2hhMjU2UmVjZWlwdEludGVncml0eTIwMjYiLCJjcmVhdGVkIjoiMjAyNi0wNC0yMFQwNjo0OTowMC4wMDBaIiwidmVyaWZpY2F0aW9uTWV0aG9kIjoiZGlkOndlYjpzd3MtYXR0ZW50aW9uLXByb29mcy53ZWIuYXBwI3JlY2VpcHQtc2lnbmluZy1rZXkiLCJwcm9vZlB1cnBvc2UiOiJhc3NlcnRpb25NZXRob2QiLCJyZWNlaXB0SGFzaCI6IjdkNzgwYzM4YzY1ZDg3ODAwNWQzNWNmNjU5MTM2ZDhkYTZlZmI2MDMzNDUxY2FjZDk3MDQxODdhMjNlMjZlM2MifX19.IxXNFGKbjZoFQB1twN37iPitLs-ET9iEX725NF5Lh5QpvYmOe0fcFIqUNj9UcZbORt_HTZm7HJf7cbVsmkGVBw",
+        "genre": "attention_attestation"
+      },
+      {
+        "id": "urn:sws:evidence:hash:7d780c38c65d878005d35cf659136d8da6efb6033451cacd9704187a23e26e3c",
+        "type": [
+          "Evidence"
+        ],
+        "narrative": "SHA-256 of the SWS attention receipt payload. Tamper-evident.",
+        "receiptHash": "7d780c38c65d878005d35cf659136d8da6efb6033451cacd9704187a23e26e3c",
+        "genre": "integrity_hash"
+      }
+    ]
+  },
+  "signed_jwt": "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InN3cy1hdHRlbnRpb24tMjAyNi0wNCJ9.eyJpc3MiOiJkaWQ6d2ViOnN3cy1hdHRlbnRpb24tcHJvb2ZzLndlYi5hcHAiLCJzdWIiOiJkaWQ6c3dzOnVzZXI6dmJkbHg3IiwiaWF0IjoxNzc2NjY3NzQwLCJ2YyI6eyJAY29udGV4dCI6WyJodHRwczovL3d3dy53My5vcmcvbnMvY3JlZGVudGlhbHMvdjIiLCJodHRwczovL3B1cmwuaW1zZ2xvYmFsLm9yZy9zcGVjL29iL3YzcDAvY29udGV4dC0zLjAuMy5qc29uIl0sImlkIjoidXJuOnN3czpvcGVuYmFkZ2U6dXJuOnN3czpyZWNlaXB0OnJjcHRfc3RlcGhlbl8yMDI2MDQyMF9yZWFsX2FuY2hvcmVkIiwidHlwZSI6WyJWZXJpZmlhYmxlQ3JlZGVudGlhbCIsIk9wZW5CYWRnZUNyZWRlbnRpYWwiXSwiaXNzdWVyIjp7ImlkIjoiZGlkOndlYjpzd3MtYXR0ZW50aW9uLXByb29mcy53ZWIuYXBwIiwidHlwZSI6WyJQcm9maWxlIl0sIm5hbWUiOiJTV1MgU3RyYXRlZ2ljIE1lZGlhIExMQyIsInVybCI6Imh0dHBzOi8vc3dzLWF0dGVudGlvbi1wcm9vZnMud2ViLmFwcCJ9LCJ2YWxpZEZyb20iOiIyMDI2LTA0LTIwVDA2OjQ5OjAwLjAwMFoiLCJpc3N1YW5jZURhdGUiOiIyMDI2LTA0LTIwVDA2OjQ5OjAwLjAwMFoiLCJjcmVkZW50aWFsU3ViamVjdCI6eyJ0eXBlIjpbIkFjaGlldmVtZW50U3ViamVjdCJdLCJpZCI6ImRpZDpzd3M6dXNlcjp2YmRseDciLCJhY2hpZXZlbWVudCI6eyJpZCI6Imh0dHBzOi8vc3dzLWF0dGVudGlvbi1wcm9vZnMud2ViLmFwcC9hY2hpZXZlbWVudHMvYXR0ZW50aW9uLXZlcmlmaWVkLXNlc3Npb24tdjEiLCJ0eXBlIjpbIkFjaGlldmVtZW50Il0sIm5hbWUiOiJBdHRlbnRpb24tVmVyaWZpZWQgTGVhcm5pbmcgU2Vzc2lvbiIsImNyaXRlcmlhIjp7Im5hcnJhdGl2ZSI6IkNvbXBvc2l0ZSBzY29yZSA-PSAwLjU1IHdpdGggdmVyaWZpZWRfaHVtYW4gdmVyZGljdDsgcmVjZWlwdCBFZDI1NTE5LXNpZ25lZCBhbmQgYW5jaG9yZWQgdG8gQml0Y29pbiB2aWEgT3BlblRpbWVzdGFtcHMuIn0sImRlc2NyaXB0aW9uIjoiQ29tcGxldGVkIGEgbGVhcm5pbmcgc2Vzc2lvbiB3aXRoIGNyeXB0b2dyYXBoaWNhbGx5IHZlcmlmaWVkIGh1bWFuIGF0dGVudGlvbiBvbiBzdGV2aWV3ZWVkc2VlZC5jb20uIiwidGFnIjpbImF0dGVudGlvbiIsInByb29mLW9mLXdvcmsiLCJwaWxvdCJdfSwicmVzdWx0IjpbeyJ0eXBlIjpbIlJlc3VsdCJdLCJ2YWx1ZSI6IjAuNTczIiwicmVzdWx0RGVzY3JpcHRpb24iOiJ1cm46c3dzOnJlc3VsdDpiZWhhdmlvcmFsLWNvbXBvc2l0ZSJ9LHsidHlwZSI6WyJSZXN1bHQiXSwic3RhdHVzIjoidmVyaWZpZWRfaHVtYW5fYWN0aXZlX2VuZ2FnZW1lbnQifV19LCJldmlkZW5jZSI6W3siaWQiOiJ1cm46c3dzOmV2aWRlbmNlOnJlY2VpcHQ6dXJuOnN3czpyZWNlaXB0OnJjcHRfc3RlcGhlbl8yMDI2MDQyMF9yZWFsX2FuY2hvcmVkIiwidHlwZSI6WyJFdmlkZW5jZSJdLCJuYXJyYXRpdmUiOiJTV1Mgc2lnbmVkIGF0dGVudGlvbiByZWNlaXB0IChWQy1KV1QsIEVkRFNBKS4gVmVyaWZ5IG9mZmxpbmUgYWdhaW5zdCBodHRwczovL3N3cy1hdHRlbnRpb24tcHJvb2ZzLndlYi5hcHAvLndlbGwta25vd24vYXR0ZW50aW9uLXB1YmtleS5qc29uLiIsInNpZ25lZFJlY2VpcHRKd3QiOiJleUpoYkdjaU9pSkZaRVJUUVNJc0luUjVjQ0k2SWtwWFZDSXNJbXRwWkNJNkluTjNjeTFoZEhSbGJuUnBiMjR0TWpBeU5pMHdOQ0o5LmV5SnBjM01pT2lKa2FXUTZkMlZpT25OM2N5MWhkSFJsYm5ScGIyNHRjSEp2YjJaekxuZGxZaTVoY0hBaUxDSnpkV0lpT2lKa2FXUTZjM2R6T25WelpYSTZkbUprYkhnM0lpd2lhV0YwSWpveE56YzJOalkzTnpRd0xDSjJZeUk2ZXlKQVkyOXVkR1Y0ZENJNld5Sm9kSFJ3Y3pvdkwzZDNkeTUzTXk1dmNtY3Zibk12WTNKbFpHVnVkR2xoYkhNdmRqSWlMQ0pvZEhSd2N6b3ZMM04zY3kxaGRIUmxiblJwYjI0dGNISnZiMlp6TG5kbFlpNWhjSEF2YzJOb1pXMWhjeTloZEhSbGJuUnBiMjR2ZGpFaVhTd2lkSGx3WlNJNld5SldaWEpwWm1saFlteGxRM0psWkdWdWRHbGhiQ0lzSWtGMGRHVnVkR2x2YmxabGNtbG1hV05oZEdsdmJrTnlaV1JsYm5ScFlXd2lYU3dpYVdRaU9pSjFjbTQ2YzNkek9uSmxZMlZwY0hRNmNtTndkRjl6ZEdWd2FHVnVYekl3TWpZd05ESXdYM0psWVd4ZllXNWphRzl5WldRaUxDSnBjM04xWlhJaU9uc2lhV1FpT2lKa2FXUTZkMlZpT25OM2N5MWhkSFJsYm5ScGIyNHRjSEp2YjJaekxuZGxZaTVoY0hBaUxDSnVZVzFsSWpvaVUxZFRJRk4wY21GMFpXZHBZeUJOWldScFlTQk1URU1pTENKd1lYUmxiblFpT2lKVFYxTXRVRkpQVmkwd01ERWlmU3dpYVhOemRXRnVZMlZFWVhSbElqb2lNakF5Tmkwd05DMHlNRlF3TmpvME9Ub3dNQzR3TURCYUlpd2lkbUZzYVdSR2NtOXRJam9pTWpBeU5pMHdOQzB5TUZRd05qbzBPVG93TUM0d01EQmFJaXdpWTNKbFpHVnVkR2xoYkZOMVltcGxZM1FpT25zaWFXUWlPaUprYVdRNmMzZHpPblZ6WlhJNmRtSmtiSGczSWl3aWRIbHdaU0k2SWtGMGRHVnVkR2x2YmxObGMzTnBiMjRpTENKbGJtZGhaMlZ0Wlc1MElqcDdJbU52Ym5SbGJuUkpaQ0k2SW1kaGJXVmZjMlZ6YzJsdmJpSXNJbU52Ym5SbGJuUk9ZVzFsSWpvaVUxZFRJRXhwZG1VZ1JHVnRieUlzSW1SMWNtRjBhVzl1VFhNaU9qRTROVEF3TUN3aVpIVnlZWFJwYjI1R2IzSnRZWFIwWldRaU9pSXpJRzFwYmlBMUlITmxZeUlzSW1adlkzVnpVMk52Y21VaU9qVTNMQ0p4ZFdGc2FYUjVWR2xsY2lJNkltRmpkR2wyWlNJc0ltbHVkR1Z5WVdOMGFXOXVRMjkxYm5RaU9qUXlmU3dpYUhWdFlXNVdaWEpwWm1sallYUnBiMjRpT25zaWRtVnlaR2xqZENJNkluWmxjbWxtYVdWa1gyaDFiV0Z1WDJGamRHbDJaVjlsYm1kaFoyVnRaVzUwSWl3aVkyOXRjRzl6YVhSbFUyTnZjbVVpT2pBdU5UY3pMQ0p6YVdkdVlXeHpJanA3Zlgwc0ltRjBkR1Z1ZEdsdmJsQnliMjltSWpwN0ltRnNaMjl5YVhSb2JTSTZJbE5JUVMweU5UWWlMQ0pvWVhOb1EyOTFiblFpT2pZeUxDSnlaV05sYVhCMFNHRnphQ0k2SWpka056Z3dZek00WXpZMVpEZzNPREF3TldRek5XTm1OalU1TVRNMlpEaGtZVFpsWm1JMk1ETXpORFV4WTJGalpEazNNRFF4T0RkaE1qTmxNalpsTTJNaWZYMHNJbVYyYVdSbGJtTmxJanBiZXlKMGVYQmxJam9pVUhKcGRtRmplVUYwZEdWemRHRjBhVzl1SWl3aWJtOURiMjUwWlc1MFVtVmpiM0prWldRaU9uUnlkV1VzSW01dlVHbHBRMjlzYkdWamRHVmtJanAwY25WbExDSnViMVZ5YkhOVWNtRmphMlZrSWpwMGNuVmxMQ0pqYjNCd1lVTnZiWEJzYVdGdWRDSTZkSEoxWlgxZExDSndjbTl2WmlJNmV5SjBlWEJsSWpvaVUyaGhNalUyVW1WalpXbHdkRWx1ZEdWbmNtbDBlVEl3TWpZaUxDSmpjbVZoZEdWa0lqb2lNakF5Tmkwd05DMHlNRlF3TmpvME9Ub3dNQzR3TURCYUlpd2lkbVZ5YVdacFkyRjBhVzl1VFdWMGFHOWtJam9pWkdsa09uZGxZanB6ZDNNdFlYUjBaVzUwYVc5dUxYQnliMjltY3k1M1pXSXVZWEJ3STNKbFkyVnBjSFF0YzJsbmJtbHVaeTFyWlhraUxDSndjbTl2WmxCMWNuQnZjMlVpT2lKaGMzTmxjblJwYjI1TlpYUm9iMlFpTENKeVpXTmxhWEIwU0dGemFDSTZJamRrTnpnd1l6TTRZelkxWkRnM09EQXdOV1F6TldObU5qVTVNVE0yWkRoa1lUWmxabUkyTURNek5EVXhZMkZqWkRrM01EUXhPRGRoTWpObE1qWmxNMk1pZlgxOS5JeFhORkdLYmpab0ZRQjF0d04zN2lQaXRMcy1FVDlpRVg3MjVORjVMaDVRcHZZbU9lMGZjRklxVU5qOVVjWmJPUnRfSFRabTdISmY3Y2JWc21rR1ZCdyIsImdlbnJlIjoiYXR0ZW50aW9uX2F0dGVzdGF0aW9uIn0seyJpZCI6InVybjpzd3M6ZXZpZGVuY2U6aGFzaDo3ZDc4MGMzOGM2NWQ4NzgwMDVkMzVjZjY1OTEzNmQ4ZGE2ZWZiNjAzMzQ1MWNhY2Q5NzA0MTg3YTIzZTI2ZTNjIiwidHlwZSI6WyJFdmlkZW5jZSJdLCJuYXJyYXRpdmUiOiJTSEEtMjU2IG9mIHRoZSBTV1MgYXR0ZW50aW9uIHJlY2VpcHQgcGF5bG9hZC4gVGFtcGVyLWV2aWRlbnQuIiwicmVjZWlwdEhhc2giOiI3ZDc4MGMzOGM2NWQ4NzgwMDVkMzVjZjY1OTEzNmQ4ZGE2ZWZiNjAzMzQ1MWNhY2Q5NzA0MTg3YTIzZTI2ZTNjIiwiZ2VucmUiOiJpbnRlZ3JpdHlfaGFzaCJ9XX19.dN4uGyF0QvJi3Ye6MkC5k6oFV3PA1QePWZCVuxSuhED-qYz0S0XmMBnymC6yZnzqgf4HGMc_h1NuavfVvqfRBA",
+  "issuer": "did:web:sws-attention-proofs.web.app",
+  "public_key_url": "https://sws-attention-proofs.web.app/.well-known/attention-pubkey.json",
+  "verify_page": "https://sws-attention-proofs.web.app/verify.html",
+  "issued_at": "2026-04-20T18:37:56.056Z"
+}
