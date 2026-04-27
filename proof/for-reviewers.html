@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SWS Attention Protocol — For Technical Reviewers</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="A reading order for technical reviewers of the SWS Attention Protocol — cryptographic receipts of human attention. The structural limits and disclosures are surfaced up front so you can probe what matters.">
+<meta property="og:title" content="SWS Attention Protocol — For Technical Reviewers">
+<meta property="og:description" content="Cryptographic proof-of-human-attention. Patent filed. Live at sws-attention-proofs.web.app. This is the reviewer entry point — read in order, push back hard.">
+<meta property="og:url" content="https://sws-attention-proofs.web.app/for-reviewers.html">
+<meta property="og:type" content="website">
+<style>
+  :root { --bg:#0b1220; --panel:#0f172a; --panel2:#1e293b; --text:#e2e8f0; --dim:#94a3b8;
+          --accent:#06b6d4; --ok:#10b981; --warn:#f59e0b; --bad:#ef4444; --line:#334155; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; line-height:1.6; }
+  .top { background:linear-gradient(90deg,#0f172a 0%,#1e293b 100%); padding:14px 24px; border-bottom:1px solid var(--line); }
+  .brand { font-size:13px; color:var(--dim); letter-spacing:0.05em; }
+  .hdr { font-size:11px; color:var(--ok); margin-top:2px; }
+  .wrap { max-width:880px; margin:0 auto; padding:48px 24px 80px; }
+  h1 { font-size:32px; margin:0 0 12px; line-height:1.2; }
+  h2 { font-size:20px; margin:32px 0 12px; color:var(--accent); }
+  h3 { font-size:16px; margin:18px 0 8px; color:#cbd5e1; }
+  p { margin:0 0 14px; }
+  p.lead { color:var(--dim); font-size:16px; margin-bottom:24px; max-width:760px; }
+  .ask { background:linear-gradient(120deg,rgba(6,182,212,0.06),rgba(16,185,129,0.06)); border:1px solid rgba(6,182,212,0.3); border-radius:10px; padding:20px 24px; margin:24px 0; }
+  .ask h2 { margin-top:0; color:var(--ok); }
+  .reading-list { padding-left:0; list-style:none; counter-reset:item; }
+  .reading-list li { counter-increment:item; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:16px 18px 16px 56px; margin-bottom:10px; position:relative; }
+  .reading-list li::before { content:counter(item); position:absolute; left:18px; top:14px; width:28px; height:28px; line-height:28px; text-align:center; background:var(--accent); color:#001016; border-radius:50%; font-weight:700; font-size:13px; }
+  .reading-list a { color:var(--accent); text-decoration:none; font-weight:600; }
+  .reading-list a:hover { text-decoration:underline; }
+  .reading-list .kicker { color:var(--dim); font-size:13px; margin-top:4px; }
+  .reading-list .meta { color:var(--dim); font-size:11.5px; font-family:ui-monospace,Menlo,monospace; margin-top:6px; }
+  .questions { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px 24px; margin:24px 0; }
+  .questions h3 { margin-top:0; color:var(--warn); }
+  .questions ol { padding-left:24px; margin:0; }
+  .questions ol li { margin:10px 0; }
+  .disclosed { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px 24px; margin:24px 0; }
+  .disclosed h3 { margin-top:0; }
+  .disclosed ul { padding-left:24px; margin:0; }
+  .disclosed li { margin:6px 0; color:var(--dim); font-size:13.5px; }
+  .disclosed strong { color:var(--text); }
+  code { font-family:ui-monospace,Menlo,monospace; background:var(--panel2); padding:1px 6px; border-radius:3px; font-size:12.5px; color:#cbd5e1; }
+  a { color:var(--accent); }
+  .footer { margin-top:48px; color:var(--dim); font-size:13px; border-top:1px solid var(--line); padding-top:20px; }
+  .footer a { color:var(--accent); }
+  .pill { display:inline-block; padding:3px 10px; border-radius:14px; font-size:11px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; margin-right:6px; }
+  .pill.ok { background:rgba(16,185,129,0.15); color:var(--ok); }
+  .pill.warn { background:rgba(245,158,11,0.15); color:var(--warn); }
+  .pill.dim { background:rgba(148,163,184,0.15); color:var(--dim); }
+  .pill.accent { background:rgba(6,182,212,0.15); color:var(--accent); }
+  .header-meta { display:flex; gap:6px; flex-wrap:wrap; margin:12px 0 8px; }
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="brand">SWS ATTENTION PROTOCOL · For Technical Reviewers</div>
+  <div class="hdr">A READING ORDER · THE DISCLOSURES UP FRONT · PUSH BACK HARD</div>
+</div>
+<div class="wrap">
+
+  <div class="header-meta">
+    <span class="pill ok">PATENT FILED 2026-03-17</span>
+    <span class="pill accent">LIVE</span>
+    <span class="pill dim">YC S26 SUBMISSION DRAFTED</span>
+    <span class="pill warn">PRE-PILOT</span>
+  </div>
+
+  <h1>If you've been asked to review this work, this page is the entry point.</h1>
+
+  <p class="lead">SWS Attention Protocol is a cryptographic receipt of human attention — a SHA-256-anchored, content-bound, tamper-evident record of what happened in a session. Not a confidence score to trust. An audit artifact a regulator, auditor, or court can verify offline using only a public key and standard crypto primitives.</p>
+
+  <p class="lead">It is not a CAPTCHA. It is not a classifier. The receipt-as-product framing is the thesis: behavioral classifiers leak under sophisticated adversaries — receipts don't. Even when bot detection fails, the receipt is still content-bound, tamper-tested at 100/100, and audit-grade.</p>
+
+  <div class="ask">
+    <h2>What I'm asking for</h2>
+    <p><strong>Critique, not validation.</strong> The structural limits this protocol hits against curve-aware adversaries are disclosed openly in the deep dive — that's the kind of critique I want more of, not less. If you find more, that's the gold. I have 7 days before my YC application is due. Hard pushback now is worth more than a polite read later.</p>
+    <p style="margin-bottom:0;"><strong>Don't apologize for finding flaws.</strong> If you think a claim doesn't survive a smart skeptic, say so. I'd rather a YC partner not be the one who first surfaces it.</p>
+  </div>
+
+  <h2>Reading order, by depth required</h2>
+
+  <ol class="reading-list">
+    <li>
+      <a href="https://github.com/Stephenuffugus/Attention-Protocol/blob/main/README.md">README.md</a>
+      <div class="kicker">Two-minute orientation. Thesis, the seven-layer attestation stack, where to read deeper.</div>
+      <div class="meta">~90 sec read</div>
+    </li>
+    <li>
+      <a href="cme-demo.html">cme-demo.html — take a 5-minute CME activity</a>
+      <div class="kicker">Most concrete way to feel what's happening. You'll get a real receipt with a real SHA-256 hash, a 23-signal breakdown, a calibrated Bayesian P(human), and a one-click "Verify This Receipt" button that round-trips through the offline verifier.</div>
+      <div class="meta">5 min interaction · produces a real, verifiable artifact</div>
+    </li>
+    <li>
+      <a href="receipt-explorer.html">receipt-explorer.html — the receipt anatomy visualizer</a>
+      <div class="kicker">Paste any receipt JSON and see every layer of evidence: identity, gating-layer status, conformal Bayesian posterior with bootstrap 95% CI, all 23 signals (color-coded), the content-binding re-hash. Loads with a sample receipt that demos the page itself.</div>
+      <div class="meta">~3 min · the fastest way to understand a receipt's anatomy</div>
+    </li>
+    <li>
+      <a href="https://github.com/Stephenuffugus/Attention-Protocol/blob/main/SEVEN_LAYER_DEEP_DIVE.md">SEVEN_LAYER_DEEP_DIVE.md — the technical-reviewer document</a>
+      <div class="kicker">580 lines. Every layer with the real numbers, the structural limits we hit, what we chose under uncertainty. Includes the 2026-04-26 expanded adversary table (DMTG-class Bezier+1/f+stealth at 0.55 behavioral, gap analysis by infrastructure) and the empirical structural-single-signal-motor-limit disclosure.</div>
+      <div class="meta">~25 min serious read · this is the meat</div>
+    </li>
+    <li>
+      <a href="https://github.com/Stephenuffugus/Attention-Protocol/blob/main/docs/yc-defense/11_calibration_methodology.md">11_calibration_methodology.md — for stats-trained reviewers</a>
+      <div class="kicker">~280 lines. Conformal Bayesian P(human) construction defended for a stats-trained reader: class-conditional Gaussian likelihood-ratio with flat prior, the SD-floor 0.05 as a one-sided point prior on σ (the load-bearing skepticism), bootstrap CI per Efron-Tibshirani 1993 with documented limitations, the full calibration set v1 (5 humans + 10 bots, Cohen's d ≈ 1.4), six anticipated reviewer questions with answers, six known limitations, the v2 path. Citations: Vovk-Gammerman-Shafer 2005, Angelopoulos-Bates 2023, Efron-Tibshirani 1993, Gelman 2013, Cohen 1988 — all real, verifiable.</div>
+      <div class="meta">~12 min · skip if not your domain</div>
+    </li>
+    <li>
+      <a href="https://github.com/Stephenuffugus/Attention-Protocol/blob/main/docs/yc-defense/09_cross_signal_coherence_math.md">09_cross_signal_coherence_math.md — the math defense</a>
+      <div class="kicker">The formal grounding for why cross-signal joint-distribution coherence is the right defense against curve-aware adversaries (and per-signal threshold tightening isn't): Sklar 1959 copula decomposition + Nandakumar 2008 TPAMI Neyman-Pearson optimality of joint-distribution likelihood-ratio over score-level fusion + Harris-Wolpert 1998 Nature signal-dependent-noise + Gilden 2001 Psych Review 1/f cognitive emissions.</div>
+      <div class="meta">~10 min · skip if not your domain</div>
+    </li>
+  </ol>
+
+  <div class="questions">
+    <h3>The three questions I most value pushback on</h3>
+    <ol>
+      <li>
+        <strong>Is the receipt-as-product framing actually distinct from "another bot detector"?</strong>
+        I argue yes — the receipt is auditable offline, content-bound, signed, verifiable in any browser using only WebCrypto, and survives even when bot detection fails. Roundtable (YC W26) ships a score; Didit (YC W26) ships ID verification; we ship the audit artifact. Push back if you think the distinction is weaker than I'm framing it.
+      </li>
+      <li>
+        <strong>Is the conformal Bayesian P(human) honestly disclosed?</strong>
+        The calibration set is N=5 humans + N=10 bots — small. The methodology doc walks through what would and wouldn't survive a stats-class reviewer (SD-floor 0.05 rationale, Gaussian-likelihood-ratio choice, bootstrap CI limitations). Tell me what I missed.
+      </li>
+      <li>
+        <strong>Is the structural single-signal motor limit framed correctly?</strong>
+        I claim Bezier mouse trajectories with random control points + 60Hz sampling + ~3px Gaussian jitter produce statistics inside the human-typical band on every individual motor signal we measure (Two-Thirds Power Law β, Cursor Jerk CV, Curvature Index, velocity bell-shape ratio, microsaccade frequency). I claim per-signal threshold tightening cannot fix this and the layered stack is the answer. Push back on either claim.
+      </li>
+    </ol>
+  </div>
+
+  <h2>What's already disclosed (so you can skip checking these)</h2>
+
+  <div class="disclosed">
+    <h3>Limits and weaknesses I've already surfaced in the docs</h3>
+    <ul>
+      <li><strong>Behavioral-only gap to DMTG-class adversary is 0.131</strong> (engaged human 0.658 vs DMTG 0.55), narrower than the published "0.273 against standard four-bot harness" figure. The 0.65 CME pass threshold catches both with little behavioral-only margin. Disclosed in §0 and §2.5 of the deep dive.</li>
+      <li><strong>Per-signal motor threshold tightening has been tried and reverted</strong> twice — Two-Thirds Power Law SD-band tightening and Cursor Jerk Gaussian-decay scoring both made the bot more credible, not less. Documented in §2 of the deep dive and the structural-limit section.</li>
+      <li><strong>Two of the 23 signals carry weight 0</strong> (`oneOverFCoherence`, `microsaccades`) — diagnostic-only because their false-positive rates against curve-aware adversaries haven't earned them weight yet. The receipt surfaces all 23 score values plus a `signalActive` map. Disclosed in §2.</li>
+      <li><strong>Stealth puppeteer on real-hardware can still slip past the 0.50 env-gate threshold</strong> at suspicion 0.30 (chrome.runtime missing 0.10 + AudioContext audioWorklet missing 0.20). The audio probe is a real new defensive layer (validated 2026-04-26 evening — naive Puppeteer hits 0.75, stealth Puppeteer hits 0.30) but on real hardware it does not single-handedly catch the most-sophisticated adversary. The defense-in-depth story is honest about this.</li>
+      <li><strong>Honeypot canary detection rate is unbenchmarked.</strong> The architectural construction (CSS-hidden + zero-width-chars + HTML-comment redundancy) is sound but we have not run a published-dataset benchmark. Next-quarter work. Disclosed in §4.</li>
+      <li><strong>Calibration set is small (N=5 humans + N=10 bots).</strong> SD floor 0.05 prevents over-confident classification at small N; bootstrap CI surfaces sample-size uncertainty. The methodology doc walks through this in detail.</li>
+      <li><strong>Bot population is ours.</strong> A real-world adversary not in our calibration set might score elsewhere. The receipt's `p_human` reflects the calibration we have, not an absolute truth claim.</li>
+      <li><strong>Patent is a provisional</strong> filed 2026-03-17, must convert to utility by 2026-09-17 with $3-5K conversion cost. 247 claims drafted but not yet defended in prosecution.</li>
+    </ul>
+  </div>
+
+  <h2>How to send feedback</h2>
+  <p>Email <a href="mailto:stephenfurpahs@gmail.com">stephenfurpahs@gmail.com</a> directly, or open an issue on the GitHub repo if the comment fits an issue (claim X is wrong, file Y has an error, etc.).</p>
+  <p>Critique that lands by <strong>2026-05-03</strong> can be integrated into the YC application. After 2026-05-04 the application is locked but the protocol keeps shipping; pushback after that goes into the v2 plan.</p>
+
+  <div class="footer">
+    <p><strong>Repository:</strong> <a href="https://github.com/Stephenuffugus/Attention-Protocol">github.com/Stephenuffugus/Attention-Protocol</a></p>
+    <p><strong>Verifier (any receipt, any browser, no SWS server):</strong> <a href="verify.html">verify.html</a> · <strong>Receipt anatomy:</strong> <a href="receipt-explorer.html">receipt-explorer.html</a></p>
+    <p><strong>Public Ed25519 key:</strong> <a href="/.well-known/attention-pubkey.json">/.well-known/attention-pubkey.json</a> · <strong>Patent:</strong> SWS-PROV-001 (Stephen Furpahs / SWS Strategic Media LLC)</p>
+    <p style="margin-top:18px; font-size:11.5px; color:var(--dim);">This page is the canonical reviewer entry point. Share the URL freely with anyone you want feedback from. No personalization or identification required to read it.</p>
+  </div>
+</div>
+</body>
+</html>
