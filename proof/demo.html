@@ -112,7 +112,7 @@
 <body>
   <div class="header">
     <h1>SWS Attention Verification — Live Demo</h1>
-    <div class="subtitle">Complete 5 tasks. 23 behavioral signals from 5 research domains measuring your attention in real time.</div>
+    <div class="subtitle">Complete 5 tasks. 20 weighted + 3 diagnostic behavioral signals from 5 research domains measuring your attention in real time.</div>
     <div class="patent">Patent filed March 17, 2026 — SWS-PROV-001 — SWS Strategic Media LLC</div>
   </div>
 
@@ -215,13 +215,13 @@
 
             <!-- Biological-signature narrative block -->
             <div class="result-card" id="bio-narrative-card" style="border-left:3px solid #06b6d4;background:rgba(6,182,212,0.04)">
-              <h4 style="color:#67e8f9;font-size:12px;margin-bottom:10px;letter-spacing:0.05em;">WHY THIS IS BIOLOGICALLY HUMAN</h4>
+              <h4 id="bio-narrative-title" style="color:#67e8f9;font-size:12px;margin-bottom:10px;letter-spacing:0.05em;">WHY THIS IS BIOLOGICALLY HUMAN</h4>
               <div id="bio-narrative" style="font-size:13px;color:#cbd5e1;line-height:1.7"></div>
             </div>
 
-            <!-- All 23 signals -->
+            <!-- All 20 weighted + 3 diagnostic signals -->
             <div class="result-card">
-              <h4 style="color:#10b981;">23 BEHAVIORAL SIGNALS</h4>
+              <h4 style="color:#10b981;">BEHAVIORAL SIGNALS (20 weighted + 3 diagnostic)</h4>
               <div id="signal-results"></div>
             </div>
 
@@ -842,9 +842,32 @@
       // Big verdict
       var tierName = c.composite >= 0.7 ? 'DEEP FOCUS' : c.composite >= 0.5 ? 'ACTIVE ENGAGEMENT' : c.composite >= 0.25 ? 'PASSIVE PRESENCE' : 'BACKGROUND';
       var tierClass = c.composite >= 0.7 ? 'tier-deep' : c.composite >= 0.5 ? 'tier-active' : c.composite >= 0.25 ? 'tier-passive' : 'tier-background';
+      var tierIsHuman = c.composite >= 0.5;  // deep + active count as "biologically human"
       document.getElementById('r-tier-badge').textContent = tierName;
       document.getElementById('r-tier-badge').className = 'tier-badge ' + tierClass;
       document.getElementById('r-composite-big').textContent = c.composite.toFixed(3);
+
+      // Round-2 fix: same verdict-coherent narrative as cme-demo.html. The
+      // round-1 patch (commit acc9769) corrected the "biologically human"
+      // header on cme-demo.html only; demo.html still painted that header
+      // on PASSIVE/BACKGROUND tiers. A YC partner pasting from ChatGPT
+      // would see "caught you → here's why you're biologically human" and
+      // the trust story would collapse.
+      var bioTitleEl = document.getElementById('bio-narrative-title');
+      var bioCard = document.getElementById('bio-narrative-card');
+      if (bioTitleEl) {
+        bioTitleEl.textContent =
+          c.composite >= 0.7 ? 'WHY THIS IS BIOLOGICALLY HUMAN' :
+          c.composite >= 0.5 ? 'WHY THIS SCORE REFLECTS HUMAN ENGAGEMENT' :
+          c.composite >= 0.25 ? 'WHY THIS SESSION IS FLAGGED FOR REVIEW' :
+                                'WHY THIS SESSION DID NOT MEET ENGAGEMENT STANDARDS';
+      }
+      if (bioCard) {
+        // PASSIVE / BACKGROUND get a warning border, not the celebratory cyan.
+        bioCard.style.borderLeftColor = tierIsHuman ? '#06b6d4' : (c.composite >= 0.25 ? '#f59e0b' : '#ef4444');
+        bioCard.style.background = tierIsHuman ? 'rgba(6,182,212,0.04)'
+                                              : (c.composite >= 0.25 ? 'rgba(245,158,11,0.05)' : 'rgba(239,68,68,0.05)');
+      }
 
       // Summary
       var activeSignals = c.activeSignals || 0;
@@ -963,6 +986,15 @@
         var top = eligible.slice(0, 3);
         var el = document.getElementById('bio-narrative');
         if (!el) return;
+        if (!tierIsHuman) {
+          // Round-2 fix: PASSIVE / BACKGROUND must NOT receive the "human
+          // signatures machines can't reproduce" copy. Show the gate-aware
+          // explanation instead.
+          el.innerHTML = c.composite >= 0.25
+            ? '<em>This session falls into the <strong>passive presence</strong> tier — present at the page but not deeply engaged. Several signals scored below the human-engagement threshold, which can mean a rushed read, mechanical typing, or an automated browser the environmental gate did not catch. Re-run with deliberate reading to surface the biological signatures.</em>'
+            : '<em>This session is in the <strong>background</strong> tier — most behavioral signals returned no human-shaped data, or the environmental gate flagged automation. Receipt is issued for audit purposes only and should not be presented as evidence of human engagement.</em>';
+          return;
+        }
         if (top.length === 0) {
           el.innerHTML = '<em>Signal-by-signal biological narrative requires deeper engagement. Your session scored modestly across most signatures; consider a longer run with more deliberate reading to surface the signals.</em>';
           return;
