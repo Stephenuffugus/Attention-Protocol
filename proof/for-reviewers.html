@@ -104,7 +104,7 @@
     </li>
     <li>
       <a href="docs/yc-defense/11_calibration_methodology.md">11_calibration_methodology.md — for stats-trained reviewers</a> · <a href="https://github.com/Stephenuffugus/Attention-Protocol/blob/main/docs/yc-defense/11_calibration_methodology.md" style="font-size:12px;">(rendered on GitHub)</a>
-      <div class="kicker">~280 lines. Conformal Bayesian P(human) construction defended for a stats-trained reader: class-conditional Gaussian likelihood-ratio with flat prior, the SD-floor 0.05 as a one-sided point prior on σ (the load-bearing skepticism), bootstrap CI per Efron-Tibshirani 1993 with documented limitations, the full calibration set v1 (5 humans + 10 bots, Cohen's d ≈ 1.4), six anticipated reviewer questions with answers, six known limitations, the v2 path. Citations: Vovk-Gammerman-Shafer 2005, Angelopoulos-Bates 2023, Efron-Tibshirani 1993, Gelman 2013, Cohen 1988 — every one verifiable in any university library or Google Scholar.</div>
+      <div class="kicker">~280 lines. Conformal Bayesian P(human) construction defended for a stats-trained reader: class-conditional Gaussian likelihood-ratio with flat prior, the SD-floor 0.05 as a one-sided point prior on σ (the load-bearing skepticism), bootstrap CI per Efron-Tibshirani 1993 with documented limitations, the calibration set (v2 as of 2026-04-27: 5 humans + 28 bots, Cohen's d ≈ 1.45; v1 was 5 humans + 10 bots, expanded with 14 dmtg-bot + 4 stealth-bot real captured runs), six anticipated reviewer questions with answers, six known limitations, the path to N≥30. Citations: Vovk-Gammerman-Shafer 2005, Angelopoulos-Bates 2023, Efron-Tibshirani 1993, Gelman 2013, Cohen 1988 — every one verifiable in any university library or Google Scholar.</div>
       <div class="meta">~12 min · skip if not your domain</div>
     </li>
     <li>
@@ -142,7 +142,7 @@
     <ul style="color:var(--text);">
       <li><strong>Standard four-bot gated gap: 0.273</strong> (preserved from the 2026-04-21 published harness — naive 0.508, jittered 0.475, sophisticated 0.540, LLM-paster 0.569 all gate to 0.30 against engaged-human 0.573). The gap historical buyers have been quoted.</li>
       <li><strong>Sophisticated-bot honest gap: 0.131</strong> (engaged-human 0.658 vs DMTG-class 0.55 on real-hardware infrastructure, behavioral-only). Narrower than 0.273 — the disclosure I'd rather a YC partner hear from me first. The 0.65 CME pass threshold catches both, with little behavioral-only margin.</li>
-      <li><strong>Conformal Bayesian P(human)</strong> on every receipt: class-conditional Gaussian likelihood-ratio with flat prior + bootstrap 95% CI. Calibration set v1: N=5 humans + N=10 bots. Cohen's d ≈ 1.4 (large effect size, but the tails overlap substantially in the 0.55–0.62 region — and the bootstrap CI surfaces this honestly). SD floor 0.05 prevents small-N over-confidence. Disclosed in detail at the calibration methodology link above.</li>
+      <li><strong>Conformal Bayesian P(human)</strong> on every receipt: class-conditional Gaussian likelihood-ratio with flat prior + bootstrap 95% CI. Calibration set v2 (2026-04-27): N=5 humans + N=28 bots, Cohen's d ≈ 1.45. (v1 was N=5 + N=10 with d ≈ 1.57; expanded with 14 dmtg-bot + 4 stealth-bot real captured runs from <code>proof/results/</code> — d narrowed slightly because the new stealth cluster widens the bot-side SD, which is honest.) Tails overlap substantially in the 0.55–0.62 region; the bootstrap CI surfaces this. SD floor 0.05 prevents small-N over-confidence. Disclosed in detail at the calibration methodology link above.</li>
     </ul>
   </div>
 
@@ -155,7 +155,7 @@
       </li>
       <li>
         <strong>Is the conformal Bayesian P(human) honestly disclosed?</strong>
-        The calibration set is N=5 humans + N=10 bots — small. The methodology doc walks through what would and wouldn't survive a stats-class reviewer (SD-floor 0.05 rationale, Gaussian-likelihood-ratio choice, bootstrap CI limitations). Tell me what I missed.
+        The calibration set is N=5 humans + N=28 bots (v2 as of 2026-04-27; v1 was N=5+10) — still small on the human side. The methodology doc walks through what would and wouldn't survive a stats-class reviewer (SD-floor 0.05 rationale, Gaussian-likelihood-ratio choice, bootstrap CI limitations). Tell me what I missed.
       </li>
       <li>
         <strong>Is the structural single-signal motor limit framed correctly?</strong>
@@ -174,7 +174,7 @@
       <li><strong>Two of the 23 signals carry weight 0</strong> (`oneOverFCoherence`, `microsaccades`) — diagnostic-only because their false-positive rates against curve-aware adversaries haven't earned them weight yet. The receipt surfaces all 23 score values plus a `signalActive` map. Disclosed in §2.</li>
       <li><strong>Stealth puppeteer on real-hardware can still slip past the 0.50 env-gate threshold</strong> at suspicion 0.30 (chrome.runtime missing 0.10 + AudioContext audioWorklet missing 0.20). The audio probe is a real new defensive layer (validated 2026-04-26 evening — naive Puppeteer hits 0.75, stealth Puppeteer hits 0.30) but on real hardware it does not single-handedly catch the most-sophisticated adversary. The defense-in-depth story is honest about this.</li>
       <li><strong>Honeypot canary detection rate is unbenchmarked.</strong> The architectural construction (CSS-hidden + zero-width-chars + HTML-comment redundancy) is sound but we have not run a published-dataset benchmark. Next-quarter work. Disclosed in §4.</li>
-      <li><strong>Calibration set is small (N=5 humans + N=10 bots).</strong> SD floor 0.05 prevents over-confident classification at small N; bootstrap CI surfaces sample-size uncertainty. The methodology doc walks through this in detail.</li>
+      <li><strong>Calibration human side is small (N=5).</strong> Bot side expanded to N=28 in v2 (2026-04-27) with 14 dmtg-bot + 4 stealth-bot real captured runs; human-side expansion waits on a Firestore export of recent legitimate sessions. SD floor 0.05 prevents over-confident classification at small N; bootstrap CI surfaces sample-size uncertainty. The methodology doc walks through this in detail.</li>
       <li><strong>Bot population is ours.</strong> A real-world adversary not in our calibration set might score elsewhere. The receipt's `p_human` reflects the calibration we have, not an absolute truth claim.</li>
       <li><strong>Patent is a provisional</strong> filed 2026-03-17, must convert to utility by 2026-09-17 with $3-5K conversion cost. 247 claims drafted but not yet defended in prosecution.</li>
     </ul>

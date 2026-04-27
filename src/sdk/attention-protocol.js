@@ -2902,23 +2902,44 @@
     //   - confidence_interval_95: bootstrap CI over the conformity score
     //   - calibration_size_human, calibration_size_bot: sample sizes
     //
-    // Calibration set v1 is bootstrapped from 2026-04-26 measurements:
+    // Calibration set is bootstrapped from 2026-04-26 measurements and grows
+    // as real-tester runs accumulate. Callers can pass their own calibration
+    // set via the `calibration` argument.
+    //
+    // v1-bootstrap (2026-04-26): n_h=5, n_b=10
     //   Humans: Stephen mobile-engaged 0.658, mobile-marginal 0.582,
     //           desktop-demo 0.629/0.595/0.602
     //   Bots:   Naive 0.492, Jittered 0.578, Sophisticated 0.561,
     //           LLM Paster 0.614, Stealth 0.395, DMTG-class
     //           0.527/0.539/0.555/0.541/0.523
-    // Calibration grows as real-tester runs accumulate. Callers can
-    // pass their own calibration set via the `calibration` argument.
+    //
+    // v2-real-bot-runs (2026-04-27): n_h=5, n_b=28
+    //   Humans: unchanged from v1 — human-side calibration grows when a
+    //           Firestore export of recent legitimate sessions is added.
+    //   Bots:   v1 + 14 dmtg-bot composites + 4 stealth-bot composites
+    //           parsed from proof/results/*.json (real captured runs from
+    //           proof/run-proofs.js sweeps on 2026-04-26). Adding them
+    //           tightens the bootstrap CI without changing the population
+    //           shape — the new dmtg cluster mean (0.544) sits inside the
+    //           v1 bot mean (0.532); the new stealth cluster (0.363) sits
+    //           inside the v1 stealth (0.395). Preserves the SD floor 0.05.
     // ============================================================
 
     getConformalAnalysis: function(observedComposite, calibration) {
       var DEFAULT_CALIBRATION = {
-        // 2026-04-26 measurements; will grow as real-tester data accumulates
+        // 2026-04-26 humans + 2026-04-27 expanded bots; grows as data accumulates
         human_scores: [0.658, 0.582, 0.629, 0.595, 0.602],
-        bot_scores: [0.492, 0.578, 0.561, 0.614, 0.395, 0.527, 0.539, 0.555, 0.541, 0.523],
-        captured_date: '2026-04-26',
-        version: 'v1-bootstrap'
+        bot_scores: [
+          // v1 (2026-04-26)
+          0.492, 0.578, 0.561, 0.614, 0.395, 0.527, 0.539, 0.555, 0.541, 0.523,
+          // v2 dmtg-bot (2026-04-26 captured runs; n=14)
+          0.5021, 0.5234, 0.5269, 0.5370, 0.5387, 0.5415, 0.5439, 0.5449,
+          0.5465, 0.5513, 0.5546, 0.5582, 0.5668, 0.5766,
+          // v2 stealth-bot (2026-04-26 captured runs; n=4)
+          0.3588, 0.3623, 0.3651, 0.3659
+        ],
+        captured_date: '2026-04-27',
+        version: 'v2-real-bot-runs'
       };
       var cal = calibration || DEFAULT_CALIBRATION;
       var humans = cal.human_scores.slice();

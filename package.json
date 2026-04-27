@@ -11,6 +11,7 @@
     "test:ga4": "jest tests/ga4-comparison.test.js --verbose",
     "test:bots": "jest tests/bot-harness.test.js --verbose --forceExit",
     "test:api": "jest tests/api-server.test.js --verbose --forceExit",
+    "test:flow": "node scripts/test-cme-flow-narrative.js --variant=all",
     "server": "node server/index.js",
     "serve": "npx http-server public -p 8080 -c-1",
     "dashboard": "npx http-server src/dashboard -p 3000 -c-1",

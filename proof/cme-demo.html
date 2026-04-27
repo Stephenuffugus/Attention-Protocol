@@ -166,7 +166,7 @@
       </div>
 
       <div class="narr">
-        <h4>Why this score reflects biologically human attention</h4>
+        <h4 id="narr-title">Why this score reflects biologically human attention</h4>
         <div id="narr-content"></div>
       </div>
 
@@ -283,30 +283,54 @@
       SWSAttention.recordElementScroll(window.scrollY);
     }, { passive: true });
 
-    // Hover tracking on quiz options — required for Hover Dwell signal on desktop.
-    // Gated on a real-mouse device check: touch browsers synthesize mouseover/
-    // mouseout events on tap, which would feed fake "hovers" into the SDK and
-    // produce a misleading non-zero Hover Dwell score on mobile (where the
-    // signal is structurally absent — no cursor exists to dwell). The
-    // matchMedia('(hover: hover)') query is the correct CSS-spec way to
-    // detect a primary-pointing mouse-capable device.
+    // Hover tracking — feeds the Hover Dwell biological signal (≥ 5 events
+    // required by SDK). Gated on a real-mouse device check: touch browsers
+    // synthesize mouseover/mouseout on tap and would inject fake hovers.
+    //
+    // Tracks three element classes so a normal reading session naturally
+    // produces enough hover events to score:
+    //   • .opt           — quiz options (cursor parking on each candidate)
+    //   • .section > p   — reading paragraphs (cursor traversal during reading)
+    //   • .q-card > h3   — question prompts (cursor parking while reading Q)
+    //
+    // Implementation note: a single mouseover handler always re-evaluates the
+    // current tracked element. Transitioning from A → B emits Leave(A) then
+    // Enter(B), which is what the SDK expects (recordHoverEnter without a prior
+    // recordHoverLeave silently discards the prior dwell). Earlier code only
+    // listened on .opt and missed Leave/Enter pairs when the cursor crossed
+    // sibling options, which is why short rushed sessions showed Hover Dwell
+    // N/A in the 7-person Apr 26 real-test cohort.
     var IS_HOVER_CAPABLE = window.matchMedia && window.matchMedia('(hover: hover)').matches;
     if (IS_HOVER_CAPABLE) {
-      var _hoveringOpt = null;
+      var HOVER_SEL = '.opt, .section > p, .q-card > h3';
+      var _hoveringEl = null;
+      function _hoverIdFor(el) {
+        if (el.classList.contains('opt')) return 'opt:' + el.dataset.q + ':' + el.dataset.ans;
+        if (el.matches('.section > p')) {
+          var sec = el.closest('.section');
+          return 'p:' + (sec ? sec.id : '?');
+        }
+        if (el.matches('.q-card > h3')) {
+          // Identify question by the data-q on its sibling .opt elements
+          var firstOpt = el.parentElement && el.parentElement.querySelector('.opt');
+          return 'q:' + (firstOpt ? firstOpt.dataset.q : 'reflection');
+        }
+        return (el.tagName || '?').toLowerCase();
+      }
+      function _setHover(el) {
+        if (el === _hoveringEl) return;
+        if (_hoveringEl) SWSAttention.recordHoverLeave();
+        if (el) SWSAttention.recordHoverEnter(_hoverIdFor(el));
+        _hoveringEl = el;
+      }
       document.addEventListener('mouseover', function(e) {
-        var el = e.target.closest('.opt');
-        if (el && el !== _hoveringOpt) {
-          _hoveringOpt = el;
-          SWSAttention.recordHoverEnter(el.dataset.q + ':' + el.dataset.ans);
-        }
+        // closest() returns null when not on a tracked element — _setHover(null)
+        // correctly emits Leave for any prior hover and clears state.
+        _setHover(e.target.closest(HOVER_SEL));
       }, { passive: true });
-      document.addEventListener('mouseout', function(e) {
-        var el = e.target.closest('.opt');
-        if (el && _hoveringOpt === el) {
-          SWSAttention.recordHoverLeave();
-          _hoveringOpt = null;
-        }
-      }, { passive: true });
+      // Cursor leaves the document entirely (e.g. user alt-tabs away) — flush
+      // the in-flight hover so its dwell is logged before the page goes idle.
+      document.addEventListener('mouseleave', function() { _setHover(null); }, true);
     }
 
     function countWordsInSection(n) {
@@ -498,7 +522,7 @@
 
       // Render the visible report immediately so the user sees their score;
       // the receipt hash is computed asynchronously below and stamped in last.
-      renderResults(medComposite, verdict, detail, c, stats, elapsed);
+      renderResults(medComposite, verdict, detail, c, stats, elapsed, gatesTriggered);
       document.getElementById('assessment').style.display = 'none';
       document.getElementById('results').style.display = 'block';
       document.getElementById('progress-label').textContent = 'RECEIPT ISSUED';
@@ -568,7 +592,7 @@
       return Math.max(0, 1 - cv * 2);  // low CV = stable = high fatigue resistance
     }
 
-    function renderResults(comp, verdict, detail, c, stats, elapsed) {
+    function renderResults(comp, verdict, detail, c, stats, elapsed, gatesTriggered) {
       var pill = document.getElementById('tier-pill');
       pill.textContent = verdict === 'pass' ? 'CREDIT AWARDED' : verdict === 'marginal' ? 'MARGINAL — ADDITIONAL REVIEW' : 'NOT COMPLETED TO STANDARD';
       pill.className = 'tier-pill tier-' + verdict;
@@ -612,8 +636,17 @@
       }
       grid.innerHTML = rows;
 
-      // Narrative: pick 3 highest-scoring signals and explain their biology
-      document.getElementById('narr-content').innerHTML = buildNarrative(c);
+      // Narrative: title and body switch by verdict so a MARGINAL/FAIL session
+      // does not get praised as "biologically human" — the original bug. When a
+      // gate fired (paste, mechanical, environmental) the body names it.
+      var titleEl = document.getElementById('narr-title');
+      if (titleEl) {
+        titleEl.textContent =
+          verdict === 'pass' ? 'Why this score reflects biologically human attention' :
+          verdict === 'marginal' ? 'Why this session was flagged for additional review' :
+          'Why this session did not meet completion standards';
+      }
+      document.getElementById('narr-content').innerHTML = buildNarrative(c, verdict, gatesTriggered || []);
 
       // Full 23-signal breakdown (oneOverFCoherence + microsaccades +
       // submovementCount added 2026-04-26; the multi-signal coherence claim
@@ -627,6 +660,7 @@
         ['fractalScaling', 'Fractal Scaling'], ['crossCorrelation', 'Cross-Signal'],
         ['oneOverFCoherence', '1/f Cross-Channel'],
         ['microsaccades', 'Microsaccades'],
+        ['submovementCount', 'Submovement Count'],
         ['curvatureIndex', 'Curvature'], ['cursorJerk', 'Cursor Jerk'],
         ['velocityProfile', 'Velocity'], ['twoThirdsPower', '2/3 Power Law'],
         ['deviceMotion', 'Device Motion']
@@ -649,7 +683,7 @@
       // hash-box is set by finishActivity once generateContentReceipt resolves
     }
 
-    function buildNarrative(c) {
+    function buildNarrative(c, verdict, gatesTriggered) {
       // Library: peer-reviewed-biology stories for each signal, keyed to threshold.
       var STORIES = {
         timing: { thresh: 0.6, text: 'Your <strong>timing entropy</strong> (' + (c.timing || 0).toFixed(2) + ') reflects the log-normal variance in human motor timing — coefficient of variation 0.4–1.5 is the biological signature. A bot\'s timing has near-zero CV; yours does not.' },
@@ -666,11 +700,75 @@
       var eligible = Object.keys(STORIES).filter(function(k) { return (c[k] || 0) >= STORIES[k].thresh; });
       eligible.sort(function(a, b) { return (c[b] || 0) - (c[a] || 0); });
       var top = eligible.slice(0, 3);
-      if (top.length === 0) {
-        return '<p class="lead">Signal-by-signal narrative requires engaged interaction. Your session produced marginal biological-signature scores; consider re-running with more deliberate reading and thoughtful responses.</p>';
+
+      // Honest gate explanations — when a non-behavioral defense layer fires,
+      // the composite is capped at the passive cap (0.30) regardless of signal
+      // scores. The user (and any reviewer reading the receipt) deserves to see
+      // exactly which gate fired and why, not a contradictory "you're human" story.
+      function explainGate(g) {
+        if (!g) return '';
+        if (g.indexOf('compositionIntegrity:pasted') === 0) {
+          return 'a <strong>paste-from-clipboard event</strong> was detected during the written-reflection portion. Pasted text may be machine-generated and is not evidence of sustained human attention, so the composite was capped at the passive-observation maximum (0.30).';
+        }
+        if (g.indexOf('compositionIntegrity:mechanical') === 0) {
+          return '<strong>mechanical typing patterns</strong> were detected — uniform inter-key intervals inconsistent with human keystroke biology. The composite was capped at the passive-observation maximum (0.30).';
+        }
+        if (g.indexOf('environmental:') === 0) {
+          var kind = g.split(':')[1] || 'automated environment';
+          return 'an <strong>automated browser environment</strong> was detected (' + kind + ') — headless flags, WebDriver, or known automation user-agents. The composite was capped at the passive-observation maximum (0.30).';
+        }
+        return '<strong>' + g + '</strong> was triggered. The composite was capped at the passive-observation maximum (0.30).';
       }
-      var html = '<p class="lead">Three signals in your session match peer-reviewed biological signatures that machines cannot reproduce coherently:</p>';
-      top.forEach(function(k) { html += '<p>· ' + STORIES[k].text + '</p>'; });
+
+      // PASS: original biological-signature story.
+      if (verdict === 'pass') {
+        if (top.length === 0) {
+          return '<p class="lead">Composite cleared the credit threshold, but no individual signal exceeded its narrative threshold. Re-run for a richer signal-by-signal explanation.</p>';
+        }
+        var html = '<p class="lead">Three signals in your session match peer-reviewed biological signatures that machines cannot reproduce coherently:</p>';
+        top.forEach(function(k) { html += '<p>· ' + STORIES[k].text + '</p>'; });
+        return html;
+      }
+
+      // MARGINAL: explain what happened. If gates fired, name them. Then show
+      // any signals that DID pass biological thresholds so the picture is honest.
+      if (verdict === 'marginal') {
+        var html = '';
+        if (gatesTriggered && gatesTriggered.length > 0) {
+          html += '<p class="lead">Defense-in-depth gates fired during this session:</p>';
+          gatesTriggered.forEach(function(g) {
+            html += '<p>· ' + explainGate(g) + '</p>';
+          });
+          if (top.length > 0) {
+            html += '<p class="lead" style="margin-top:14px">Independent of the gate triggers, your session did show real biological signatures:</p>';
+            top.forEach(function(k) { html += '<p>· ' + STORIES[k].text + '</p>'; });
+          }
+          html += '<p style="margin-top:14px"><em>Next step:</em> re-run and complete the written reflection by typing — not pasting — to issue a full credit receipt.</p>';
+          return html;
+        }
+        // No gate fired — composite organically below pass threshold.
+        html += '<p class="lead">Your composite sits in the marginal band: behavioral signals are mixed and no single dimension cleared the credit threshold cleanly.</p>';
+        if (top.length > 0) {
+          html += '<p>Signals that did pass biological thresholds:</p>';
+          top.forEach(function(k) { html += '<p>· ' + STORIES[k].text + '</p>'; });
+        } else {
+          html += '<p>No individual signal exceeded its biological threshold. This typically indicates rushed engagement or device-incompatible signals that could not be measured.</p>';
+        }
+        html += '<p style="margin-top:14px"><em>Next step:</em> re-run with more deliberate reading and thoughtful responses to clear the credit threshold.</p>';
+        return html;
+      }
+
+      // FAIL: below marginal threshold.
+      var html = '';
+      if (gatesTriggered && gatesTriggered.length > 0) {
+        html += '<p class="lead">This session is below the completion threshold and one or more defense gates fired:</p>';
+        gatesTriggered.forEach(function(g) {
+          html += '<p>· ' + explainGate(g) + '</p>';
+        });
+      } else {
+        html += '<p class="lead">This session is below the completion threshold. Behavioral signals were insufficient to support credit issuance.</p>';
+      }
+      html += '<p style="margin-top:14px"><em>Next step:</em> re-run and engage with the full activity — read the content, answer thoughtfully, and type the reflection from scratch.</p>';
       return html;
     }
 

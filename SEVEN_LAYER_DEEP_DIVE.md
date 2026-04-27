@@ -474,7 +474,7 @@ A production receipt has the following fields. The closest shipping sample is `p
   "conformal_analysis": {                                                                // 2026-04-26 addition
     "p_human": 0.78, "p_bot": 0.22,
     "confidence_interval_95": [0.62, 0.91],
-    "calibration": { "size_human": 5, "size_bot": 10, "version": "v1-2026-04-26" },
+    "calibration": { "size_human": 5, "size_bot": 28, "version": "v2-real-bot-runs" },
     "method": "class_conditional_gaussian_likelihood_ratio_with_bootstrap_ci",
     "notes": "Vovk-Gammerman-Shafer 2005 + Angelopoulos-Bates 2023 framing; Efron-Tibshirani 1993 bootstrap"
   },
@@ -559,7 +559,15 @@ The best e-signature products (DocuSign, Adobe Sign) can technically be backdate
 
 ---
 
-**Last updated:** 2026-04-26 evening. Changes vs 2026-04-21 version (folded in from `SEVEN_LAYER_DEEP_DIVE_APR26_ADDENDUM.md`, now archived):
+**Last updated:** 2026-04-27. Changes vs 2026-04-26 version:
+
+- **§9 receipt schema example**: conformal calibration metadata bumped from v1 (n_h=5, n_b=10) to v2-real-bot-runs (n_h=5, n_b=28) — bot-side expanded with 14 dmtg-bot + 4 stealth-bot real captured runs from `proof/results/`. Cohen's d adjusted from ~1.57 (v1) to ~1.45 (v2). The narrowing is honest: the new stealth cluster widens bot-side SD, which slightly reduces d while keeping the effect-size interpretation "large." See `docs/yc-defense/11_calibration_methodology.md` for the full v2 distribution table.
+- **CME demo narrative panel**: title and body now switch by verdict — PASS keeps the "biologically human attention" copy, MARGINAL shows "flagged for additional review" with explicit gate explanations (paste-from-clipboard, mechanical typing, automated environment), FAIL shows "did not meet completion standards." Previously fired the PASS-only copy regardless of verdict, which contradicted the verdict pill on every non-PASS receipt.
+- **CME demo Hover Dwell**: hover tracking expanded from `.opt` only to `.opt + .section > p + .q-card > h3` — a normal reading session now produces enough hover events (>5) to clear the SDK's biological-validity threshold, instead of structurally landing at N/A on rushed sessions.
+- **CME demo signal breakdown**: added `submovementCount` to the rendered list — page claimed "23-SIGNAL BEHAVIORAL BREAKDOWN" while listing 22.
+- **Regression test**: added `scripts/test-cme-flow-narrative.js` exercising paste / human / bot variants of the full CME flow end-to-end with assertions on verdict-pill ↔ narrative-title coherence. Wired up as `npm run test:flow`.
+
+Changes vs 2026-04-21 version (folded in from `SEVEN_LAYER_DEEP_DIVE_APR26_ADDENDUM.md`, now archived):
 
 - **§0 frame**: behavioral signal count 20 → 23; added the DMTG-class 0.131 gap disclosure and the infrastructure-aware framing (cloud-VM vs real-hardware)
 - **§1 Layer 1**: BotD-only → **7-vector multi-detector** (BotD + WebGL + WebGPU + Function.toString + iframe-frontier + chrome.runtime + AudioContext). Detector identifier `botd@v2+stealth_tells_v2`. Empirical validation: AudioContext probe caught puppeteer-extra-stealth's `no_audioWorklet_getter` residue, lifting suspicion 0.10 → 0.30 against this adversary

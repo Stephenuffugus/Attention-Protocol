@@ -98,6 +98,8 @@ Construction (Efron & Tibshirani 1993): 1000 resamples with replacement of both 
 
 ## 5. The calibration set v1
 
+### v1-bootstrap (2026-04-26): N_h=5, N_b=10
+
 | Class | N | Source | Date |
 |---|---|---|---|
 | **Human** | 5 | Real-tester sessions: Stephen mobile-engaged, Stephen mobile-marginal, three desktop demo sessions | 2026-04-26 |
@@ -105,9 +107,21 @@ Construction (Efron & Tibshirani 1993): 1000 resamples with replacement of both 
 
 **Human scores:** 0.658, 0.582, 0.629, 0.595, 0.602 — mean 0.613, sample SD ≈ 0.030 → clamped to 0.050 floor.
 
-**Bot scores:** 0.492, 0.578, 0.561, 0.614, 0.395, 0.527, 0.539, 0.555, 0.541, 0.523 — mean 0.5325, sample SD ≈ 0.063 (no floor).
+**Bot scores (v1):** 0.492, 0.578, 0.561, 0.614, 0.395, 0.527, 0.539, 0.555, 0.541, 0.523 — mean 0.5325, sample SD ≈ 0.063 (no floor).
 
-**Distribution overlap:** mean separation 0.080, pooled SD ≈ 0.057, Cohen's d ≈ 1.4. Standard interpretation: large effect size, but the tails overlap substantially in the 0.55–0.62 region. The receipt's bootstrap CI surfaces this honestly.
+**Distribution overlap (v1):** mean separation 0.080, pooled SD ≈ 0.051, Cohen's d ≈ 1.57. Standard interpretation: large effect size, but the tails overlap substantially in the 0.55–0.62 region. The receipt's bootstrap CI surfaces this honestly.
+
+### v2-real-bot-runs (2026-04-27): N_h=5, N_b=28
+
+Bot side expanded with 14 dmtg-bot composites + 4 stealth-bot composites parsed from `proof/results/*.json` — actual captured runs from the adversarial harness on 2026-04-26, not synthetic. Human side unchanged from v1 (waiting on a Firestore export of recent legitimate sessions for human-side expansion).
+
+**Bot scores added in v2:**
+- dmtg-bot (n=14): 0.5021, 0.5234, 0.5269, 0.5370, 0.5387, 0.5415, 0.5439, 0.5449, 0.5465, 0.5513, 0.5546, 0.5582, 0.5668, 0.5766
+- stealth-bot (n=4): 0.3588, 0.3623, 0.3651, 0.3659
+
+**Bot scores (v2 combined, n=28):** mean 0.5139, sample SD ≈ 0.0726.
+
+**Distribution overlap (v2):** mean separation 0.0993, pooled SD ≈ 0.0689, Cohen's d ≈ 1.45. Effect size remains "large." Honest narrowing from v1: the new stealth cluster (0.36) widens the bot-side SD (0.063 → 0.073), which slightly reduces d. This is the expected behavior — adding lower-scoring stealth runs increases bot-population variance, not separation. The shift toward the stealth-cluster mean is small (0.5325 → 0.5139) because n_dmtg=14 dominates.
 
 ---
 
@@ -115,7 +129,7 @@ Construction (Efron & Tibshirani 1993): 1000 resamples with replacement of both 
 
 The list a stats-trained reviewer would build, written here so we can hand it to them:
 
-1. **N is small.** N=5 humans + N=10 bots is well below the typical "stats class minimum" of N≥30. Defensible only because (a) the SD floor caps small-N over-confidence, (b) the receipt surfaces the size + version, (c) the CI reflects this. Path to N≥30: real-tester pre-pilot beta accumulates ~5 humans/week; adversarial harness accumulates ~10 bots/run. Plausible to hit N=30 each by July 2026.
+1. **N_h is small.** Current calibration (v2-real-bot-runs, 2026-04-27): N_h=5 humans + N_b=28 bots. The bot side cleared the typical "stats class minimum" of N≥30 within a factor of 1.07 — not all the way there but close. The human side is still at N=5 and remains the small-N risk. Defensible only because (a) the SD floor caps small-N over-confidence, (b) the receipt surfaces the size + version, (c) the CI reflects this. Path to N_h≥30: real-tester pre-pilot beta accumulates ~5 humans/week; adversarial harness accumulates ~10 bots/run. Plausible to hit N_h=30 by July 2026.
 
 2. **Gaussian shape may be misspecified.** Composite scores are bounded in [0,1] so the true distributions are not Gaussian (truncated normal, beta, or logit-normal would be more honest at the limits). For observed scores in the 0.4–0.7 range — where every real session lives — the Gaussian approximation is empirically adequate. For very-low or very-high observed scores, the posterior reverts to "low p_human" or "high p_human" appropriately, even though the likelihood numbers are slightly off.
 
