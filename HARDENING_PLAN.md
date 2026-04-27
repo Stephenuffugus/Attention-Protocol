@@ -4,7 +4,7 @@
 
 **How this doc is used:** every batch of work picks the next N items in priority order, fixes them, validates with `npm run test:flow` + `npm test`, commits, pushes. After each batch we re-dispatch the skeptic round so each round attacks the *current* state. Iteration continues until a fresh round surfaces no new findings at the current severity tier.
 
-**Last updated:** 2026-04-27 after commit `d43ba3b`.
+**Last updated:** 2026-04-27 after commits `d43ba3b` → `329a5a0` → `fef4c20`. Seven T2 items closed in this session; rest queued.
 
 ---
 
@@ -18,12 +18,33 @@
 
 ---
 
-## Closed (commit d43ba3b)
+## Closed in commit `d43ba3b` (2026-04-27)
 
 - [x] **LEGAL BLOCKER** Strip ACCME/AMA protected marks from `proof/cme-demo.html`. Replaced with "DEMONSTRATION TIER · FICTIONAL ACCREDITOR" + non-affiliation language above the fold.
 - [x] **SECURITY CRITICAL** Path traversal in `scripts/test-cme-flow-narrative.js` static server. Now `path.resolve` + `startsWith(allowedRoot + path.sep)`.
 - [x] **BUG CRITICAL** Conformal CI race in `proof/cme-demo.html`. `getConformalAnalysis` called once, passed through to both display and receipt.
 - [x] **PRIVACY** PII gitignore for `proof/real_tests_apr26/`, `proof/Results-*.zip`, `public/proof/Results*.zip`.
+
+## Closed in commit `329a5a0` (2026-04-27)
+
+- [x] **T2-1** Honest Bayes-classifier framing — dropped "Conformal Bayesian Posterior" misnomer + Vovk-Gammerman citation. On-screen label "Bayesian Posterior P(human)"; receipt method string accurately describes class-conditional Gaussian likelihood ratio; methodology doc §0 explains the rename.
+- [x] **T2-3** "23-SIGNAL RECEIPT" → "23-SIGNAL RECEIPT (21 weighted + 2 diagnostic)" on `proof/cme-demo.html` banner.
+- [x] **T2-4** Soften 21 CFR Part 11 marketing — `proof/part-11.html` now reads "How SWS Supports Your Validation Program," with explicit "NOT a validated system; customer remains responsible for VMP/IQ/OQ/PQ/§11.100(c)(2)" disclaimer above the fold.
+- [x] **T2-5** Hash reflection text in Firestore — saveSession now stores SHA-256 + byte length + word count instead of cleartext. The receipt's `noContentRecorded:true` privacy claim is no longer false in the CME flow.
+- [x] **T2-10** Surface caller-supplied calibration override in `getConformalAnalysis` result. Decision-grade verifiers MUST reject receipts where `calibration_override === true`.
+
+## Closed in commit `fef4c20` (2026-04-27)
+
+- [x] **T2-12** env-gate race — missing/errored env-check now fires `environmental:unresolved` gate. No more silent bypass when BotD ESM is blocked or rate-limited.
+- [x] **T2-6** URL-fragment overflow on Verify link — canonical now stashed in sessionStorage keyed on hash; fragment carries only hash for receipts above the 1.6KB budget. Outlook/Slack/iPad clients no longer truncate the verify path.
+
+## Closed in next commit (T1-3 WCAG quiz buttons, 2026-04-27)
+
+- [x] **T1-3** WCAG 2.1 + Section 508 quiz keyboard accessibility — converted `<div class="opt">` to `<button type="button" class="opt" role="radio" aria-checked>`, wrapped each question's options in `role="radiogroup" aria-labelledby`, added `<label for="reflection">` and `aria-describedby` for word counter, added `role="progressbar"` with valuenow updates, added `<header>` + `<main>` landmarks + visible-on-focus skip-link. Native button elements give keyboard activation (Enter/Space) for free. Screen-reader users now get group/role/state announcements; keyboard-only users can complete the entire flow without a mouse. **Note:** roving-tabindex pattern (W3C ARIA-Practices recommended for radiogroup) is NOT yet implemented — all options are tabbable in DOM order. That's WCAG 2.1.1 (Keyboard) compliant but not the textbook ARIA radiogroup. Queued as T1-3.5 below.
+
+## Newly identified (this session)
+
+- [ ] **T1-3.5** Roving-tabindex on radiogroups — only the selected (or first) radio is tabbable; arrow keys move focus + selection within the group. W3C ARIA-Practices canonical pattern. Estimate 2-3 hours.
 
 ---
 

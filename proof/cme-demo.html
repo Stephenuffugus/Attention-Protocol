@@ -28,11 +28,33 @@
     .btn-primary:disabled { background: #1e293b; color: #475569; cursor: not-allowed; }
     .q-card { background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 20px; margin-bottom: 12px; }
     .q-card h3 { font-size: 15px; margin: 0 0 14px; color: #e2e8f0; }
-    .opt { display: block; padding: 10px 14px; margin-bottom: 8px; background: #1e293b; border: 1px solid #334155; border-radius: 6px; cursor: pointer; color: #cbd5e1; font-size: 14px; transition: all 150ms; }
+    /* .opt is a <button role="radio"> — reset default button chrome and
+       inherit body typography. Padding, border, etc. then style as a clickable
+       quiz-option card. WCAG 2.4.7 visible focus is :focus-visible — only
+       shows for keyboard users, not on mouse click. WCAG 1.4.11 non-text
+       contrast: the cyan focus ring contrasts ≥3:1 against the dark panel. */
+    .opt { display: block; width: 100%; padding: 12px 16px; margin-bottom: 8px;
+           background: #1e293b; border: 1px solid #334155; border-radius: 6px;
+           cursor: pointer; color: #cbd5e1; font-size: 14px; line-height: 1.5;
+           font-family: inherit; text-align: left; transition: all 150ms; }
     .opt:hover { background: #334155; border-color: #475569; }
-    .opt.selected { background: #06b6d4; color: #0a0e17; border-color: #06b6d4; font-weight: 600; }
+    .opt:focus { outline: none; }
+    .opt:focus-visible { outline: 3px solid #67e8f9; outline-offset: 2px;
+                         border-color: #67e8f9; }
+    .opt.selected, .opt[aria-checked="true"] { background: #06b6d4; color: #0a0e17; border-color: #06b6d4; font-weight: 600; }
     .opt.correct-answer { background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #a7f3d0; }
     .opt.wrong-answer { background: rgba(239, 68, 68, 0.15); border-color: #ef4444; color: #fecaca; }
+    /* Visually-hidden text for screen-reader-only labels (WCAG 1.3.1).
+       Off-screen but readable by AT — see WAI-ARIA Authoring Practices. */
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0;
+               margin: -1px; overflow: hidden; clip: rect(0,0,0,0);
+               white-space: nowrap; border: 0; }
+    /* Skip-link: visually hidden until focused (e.g. Tab from URL bar).
+       WCAG 2.4.1 (Bypass Blocks) needs a way to skip repeated nav blocks. */
+    .skip-link { position: absolute; left: -9999px; top: 0; z-index: 100;
+                 background: #06b6d4; color: #0a0e17; padding: 8px 12px;
+                 text-decoration: none; font-weight: 600; }
+    .skip-link:focus { left: 0; }
     textarea { width: 100%; min-height: 120px; padding: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 6px; color: #e2e8f0; font-family: inherit; font-size: 14px; resize: vertical; }
     .wc { font-size: 11px; color: #64748b; margin-top: 4px; }
 
@@ -58,12 +80,13 @@
   </style>
 </head>
 <body>
-  <div class="top">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <header class="top" role="banner">
     <div class="brand">SWS ATTENTION PROTOCOL · CME-style Demonstration</div>
     <div class="acc">DEMONSTRATION TIER · FICTIONAL ACCREDITOR · 23-SIGNAL RECEIPT (21 weighted + 2 diagnostic)</div>
-  </div>
+  </header>
 
-  <div class="wrap">
+  <main id="main-content" class="wrap">
     <div class="illus" style="border:2px solid #f59e0b;background:rgba(245,158,11,0.12);padding:14px 18px;margin-bottom:18px">
       <strong>DEMONSTRATION ONLY — NOT A REAL CME ACTIVITY.</strong> This page is a protocol demonstration of how the SWS receipt would attach to a CME-style flow. It is <strong>not</strong> ACCME-accredited and does not award AMA PRA Category 1 Credit™. SWS Strategic Media LLC is not affiliated with, endorsed by, or sponsored by the Accreditation Council for Continuing Medical Education or the American Medical Association. The clinical-education text below is fabricated for demonstration. All behavioral signal data and the cryptographic receipt are real and verifiable.
     </div>
@@ -73,7 +96,7 @@
     </div>
 
     <div class="progress-label" id="progress-label">SECTION 1 OF 4</div>
-    <div class="progress"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="progress" role="progressbar" aria-labelledby="progress-label" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
 
     <!-- Sections -->
     <div id="section-1" class="section">
@@ -107,48 +130,59 @@
     <!-- Assessment -->
     <div id="assessment" style="display:none">
       <div class="q-card">
-        <h3>Question 1. Which first-line antihypertensive is preferred for a Black patient without compelling comorbidities?</h3>
-        <div class="opt" data-q="0" data-ans="thiazide">Thiazide diuretic or calcium-channel blocker</div>
-        <div class="opt" data-q="0" data-ans="acei">ACE inhibitor</div>
-        <div class="opt" data-q="0" data-ans="arb">Angiotensin receptor blocker</div>
-        <div class="opt" data-q="0" data-ans="beta">Beta-blocker</div>
+        <h3 id="q0-prompt">Question 1. Which first-line antihypertensive is preferred for a Black patient without compelling comorbidities?</h3>
+        <div role="radiogroup" aria-labelledby="q0-prompt">
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="0" data-ans="thiazide">Thiazide diuretic or calcium-channel blocker</button>
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="0" data-ans="acei">ACE inhibitor</button>
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="0" data-ans="arb">Angiotensin receptor blocker</button>
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="0" data-ans="beta">Beta-blocker</button>
+        </div>
       </div>
 
       <div class="q-card">
-        <h3>Question 2. In patients with diabetes and albuminuria, which agent class is first-line?</h3>
-        <div class="opt" data-q="1" data-ans="thiazide">Thiazide diuretic</div>
-        <div class="opt" data-q="1" data-ans="ccb">Calcium-channel blocker</div>
-        <div class="opt" data-q="1" data-ans="acei">ACE inhibitor or ARB</div>
-        <div class="opt" data-q="1" data-ans="beta">Beta-blocker</div>
+        <h3 id="q1-prompt">Question 2. In patients with diabetes and albuminuria, which agent class is first-line?</h3>
+        <div role="radiogroup" aria-labelledby="q1-prompt">
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="1" data-ans="thiazide">Thiazide diuretic</button>
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="1" data-ans="ccb">Calcium-channel blocker</button>
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="1" data-ans="acei">ACE inhibitor or ARB</button>
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="1" data-ans="beta">Beta-blocker</button>
+        </div>
       </div>
 
       <div class="q-card">
-        <h3>Question 3. Approximate medication adherence rate at one year without intervention?</h3>
-        <div class="opt" data-q="2" data-ans="20">~20%</div>
-        <div class="opt" data-q="2" data-ans="50">~50%</div>
-        <div class="opt" data-q="2" data-ans="80">~80%</div>
-        <div class="opt" data-q="2" data-ans="95">~95%</div>
+        <h3 id="q2-prompt">Question 3. Approximate medication adherence rate at one year without intervention?</h3>
+        <div role="radiogroup" aria-labelledby="q2-prompt">
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="2" data-ans="20">~20%</button>
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="2" data-ans="50">~50%</button>
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="2" data-ans="80">~80%</button>
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="2" data-ans="95">~95%</button>
+        </div>
       </div>
 
       <div class="q-card">
-        <h3>Question 4. Out-of-office BP measurement (home or ambulatory monitoring) should be used to confirm the diagnosis before initiating pharmacotherapy for newly elevated readings.</h3>
-        <div class="opt" data-q="3" data-ans="true">True</div>
-        <div class="opt" data-q="3" data-ans="false">False</div>
+        <h3 id="q3-prompt">Question 4. Out-of-office BP measurement (home or ambulatory monitoring) should be used to confirm the diagnosis before initiating pharmacotherapy for newly elevated readings.</h3>
+        <div role="radiogroup" aria-labelledby="q3-prompt">
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="3" data-ans="true">True</button>
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="3" data-ans="false">False</button>
+        </div>
       </div>
 
       <div class="q-card">
-        <h3>Question 5. First-line action for newly diagnosed Stage 1 hypertension in a 45-year-old without comorbidities or end-organ damage:</h3>
-        <div class="opt" data-q="4" data-ans="ace">Initiate ACE inhibitor immediately</div>
-        <div class="opt" data-q="4" data-ans="thiazide">Initiate thiazide diuretic immediately</div>
-        <div class="opt" data-q="4" data-ans="combo">Initiate combination antihypertensive therapy</div>
-        <div class="opt" data-q="4" data-ans="lifestyle">Lifestyle modification trial × 3–6 months, then reassess</div>
-        <div class="opt" data-q="4" data-ans="refer">Refer to cardiology before starting any therapy</div>
+        <h3 id="q4-prompt">Question 5. First-line action for newly diagnosed Stage 1 hypertension in a 45-year-old without comorbidities or end-organ damage:</h3>
+        <div role="radiogroup" aria-labelledby="q4-prompt">
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="4" data-ans="ace">Initiate ACE inhibitor immediately</button>
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="4" data-ans="thiazide">Initiate thiazide diuretic immediately</button>
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="4" data-ans="combo">Initiate combination antihypertensive therapy</button>
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="4" data-ans="lifestyle">Lifestyle modification trial × 3–6 months, then reassess</button>
+          <button type="button" class="opt" role="radio" aria-checked="false" data-q="4" data-ans="refer">Refer to cardiology before starting any therapy</button>
+        </div>
       </div>
 
       <div class="q-card">
-        <h3>Reflection: Describe ONE change you will make in your clinical practice based on this activity.</h3>
-        <textarea id="reflection" placeholder="Minimum 20 words. Write in your own words — this is recorded as evidence of active engagement, not graded for content."></textarea>
-        <div class="wc"><span id="reflection-count">0</span> words · minimum 20</div>
+        <h3 id="reflection-prompt">Reflection</h3>
+        <label for="reflection">Describe ONE change you will make in your clinical practice based on this activity. Minimum 20 words. Write in your own words — this is recorded as evidence of active engagement, not graded for content.</label>
+        <textarea id="reflection" aria-labelledby="reflection-prompt" aria-describedby="reflection-counter"></textarea>
+        <div class="wc" id="reflection-counter" aria-live="polite"><span id="reflection-count">0</span> words · minimum 20</div>
       </div>
 
       <button class="btn btn-primary" id="submit-btn" disabled onclick="finishActivity()">Submit for Credit</button>
@@ -349,6 +383,7 @@
       if (from >= TOTAL_SECTIONS) {
         currentSection = TOTAL_SECTIONS + 1;
         document.getElementById('progress-fill').style.width = '100%';
+        document.getElementById('progress-bar').setAttribute('aria-valuenow', '100');
         document.getElementById('progress-label').textContent = 'ASSESSMENT';
         document.getElementById('assessment').style.display = 'block';
         return;
@@ -357,7 +392,9 @@
       sectionEnteredAt = now;
       SWSAttention.recordSectionEntry('section_' + currentSection, countWordsInSection(currentSection));
       document.getElementById('progress-label').textContent = 'SECTION ' + currentSection + ' OF ' + TOTAL_SECTIONS;
-      document.getElementById('progress-fill').style.width = ((currentSection - 1) / TOTAL_SECTIONS * 100) + '%';
+      var progressPct = Math.round((currentSection - 1) / TOTAL_SECTIONS * 100);
+      document.getElementById('progress-fill').style.width = progressPct + '%';
+      document.getElementById('progress-bar').setAttribute('aria-valuenow', String(progressPct));
       document.getElementById('section-' + currentSection).style.display = 'block';
       window.scrollTo({ top: 0, behavior: 'smooth' });
       SWSAttention.takeTimelineSnapshot('section_' + currentSection);
@@ -365,15 +402,27 @@
     }
 
     // ---- QUESTION HANDLING ----
+    // Quiz options are now <button role="radio"> per WCAG 2.1 + Section 508
+    // (T1-3 closed 2026-04-27). Native button elements activate on Enter and
+    // Space, so keyboard activation comes free. We update both the legacy
+    // `.selected` class (for the existing CSS hooks) and `aria-checked` (for
+    // screen readers) on every selection. Tab navigation follows DOM order
+    // across all options today; a future iteration can adopt the W3C
+    // ARIA-Practices roving-tabindex pattern (one tabbable per group + arrow
+    // keys to move within the group) for full radiogroup conformance.
     document.addEventListener('click', function(e) {
       var opt = e.target.closest('.opt');
       if (!opt) return;
       var q = parseInt(opt.dataset.q, 10);
       var ans = opt.dataset.ans;
-      // Deselect siblings
+      // Deselect siblings — both the visual class and the ARIA state.
       var siblings = document.querySelectorAll('.opt[data-q="' + q + '"]');
-      siblings.forEach(function(s) { s.classList.remove('selected'); });
+      siblings.forEach(function(s) {
+        s.classList.remove('selected');
+        s.setAttribute('aria-checked', 'false');
+      });
       opt.classList.add('selected');
+      opt.setAttribute('aria-checked', 'true');
       answers[q] = ans;
       // Hick's Law: record response time for this decision
       var rt = Date.now() - (lastQuestionRenderAt[q] || sessionEnteredAtAssessment);
