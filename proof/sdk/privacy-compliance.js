@@ -398,36 +398,43 @@
     var dim = theme === 'dark' ? '#94a3b8' : '#64748b';
     var accent = '#06b6d4';
 
+    // Round-7 R3-NEW-11 a11y fixes:
+    //  - role="dialog" + aria-modal + aria-labelledby for the banner
+    //  - aria-label on the inline buttons + min-height 44px (WCAG 2.5.5)
+    //  - "Learn more" link has a real handler (was a dead # anchor that
+    //    jumped to top of page)
+    //  - Heading element id'd for aria-labelledby
     var html = '' +
-      '<div id="sws-consent-banner" style="' +
+      '<div id="sws-consent-banner" role="dialog" aria-modal="true" aria-labelledby="sws-consent-heading" style="' +
         'position:fixed;' + position + ':0;left:0;right:0;z-index:99999;' +
         'background:' + bg + ';border-top:1px solid ' + dim + ';' +
         'padding:20px 24px;font-family:-apple-system,sans-serif;color:' + text + ';' +
         'box-shadow:0 -4px 20px rgba(0,0,0,0.3);">' +
         '<div style="max-width:900px;margin:0 auto;">' +
+          '<h2 id="sws-consent-heading" style="margin:0 0 8px;font-size:15px;font-weight:600;color:' + text + ';">Consent to attention tracking</h2>' +
           '<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:' + dim + ';">' +
             'This site uses the SWS Attention Protocol to measure engagement quality. ' +
             'We track <strong>how long</strong> you engage, not <strong>what</strong> you do. ' +
             'No personal data, URLs, or content is ever recorded. ' +
-            '<a href="#" id="sws-consent-details" style="color:' + accent + ';">Learn more</a>' +
+            '<a href="/privacy.html" id="sws-consent-details" style="color:' + accent + ';" target="_blank" rel="noopener">Learn more about what is collected</a>' +
           '</p>' +
           '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">' +
-            '<label style="font-size:13px;color:' + dim + ';cursor:pointer;">' +
-              '<input type="checkbox" id="sws-consent-tracking" checked> Attention tracking' +
+            '<label style="font-size:13px;color:' + dim + ';cursor:pointer;min-height:44px;display:flex;align-items:center;gap:6px;">' +
+              '<input type="checkbox" id="sws-consent-tracking" checked aria-describedby="sws-consent-heading"> Attention tracking' +
             '</label>' +
-            '<label style="font-size:13px;color:' + dim + ';cursor:pointer;">' +
-              '<input type="checkbox" id="sws-consent-behavioral" checked> Behavioral analysis' +
+            '<label style="font-size:13px;color:' + dim + ';cursor:pointer;min-height:44px;display:flex;align-items:center;gap:6px;">' +
+              '<input type="checkbox" id="sws-consent-behavioral" checked aria-describedby="sws-consent-heading"> Behavioral analysis' +
             '</label>' +
-            '<label style="font-size:13px;color:' + dim + ';cursor:pointer;">' +
-              '<input type="checkbox" id="sws-consent-sync"> Cloud sync' +
+            '<label style="font-size:13px;color:' + dim + ';cursor:pointer;min-height:44px;display:flex;align-items:center;gap:6px;">' +
+              '<input type="checkbox" id="sws-consent-sync" aria-describedby="sws-consent-heading"> Cloud sync' +
             '</label>' +
             '<div style="flex:1;"></div>' +
-            '<button id="sws-consent-accept" style="' +
-              'background:' + accent + ';color:#fff;border:none;padding:8px 20px;' +
-              'border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;">Accept</button>' +
-            '<button id="sws-consent-reject" style="' +
+            '<button id="sws-consent-accept" aria-label="Accept the selected consent options" style="' +
+              'background:' + accent + ';color:#fff;border:none;padding:12px 24px;min-height:44px;' +
+              'border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">Accept</button>' +
+            '<button id="sws-consent-reject" aria-label="Decline all tracking and analysis" style="' +
               'background:transparent;color:' + dim + ';border:1px solid ' + dim + ';' +
-              'padding:8px 20px;border-radius:6px;font-size:13px;cursor:pointer;">Decline All</button>' +
+              'padding:12px 24px;min-height:44px;border-radius:6px;font-size:14px;cursor:pointer;">Decline All</button>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -447,7 +454,18 @@
     container.innerHTML = buildConsentUI(options);
     document.body.appendChild(container);
 
-    document.getElementById('sws-consent-accept').addEventListener('click', function() {
+    // Round-7 R3-NEW-11 a11y: shift focus to the banner's primary
+    // action so SR + keyboard-only users land on the consent decision
+    // immediately. Without this, SR users get no announcement that a
+    // modal demands their attention; keyboard users have to Tab from
+    // body all the way to the banner.
+    var acceptBtn = document.getElementById('sws-consent-accept');
+    var rejectBtn = document.getElementById('sws-consent-reject');
+    if (acceptBtn && acceptBtn.focus) {
+      try { acceptBtn.focus(); } catch (_e) { /* old browsers */ }
+    }
+
+    acceptBtn.addEventListener('click', function() {
       setConsent({
         attention_tracking: document.getElementById('sws-consent-tracking').checked,
         behavioral_analysis: document.getElementById('sws-consent-behavioral').checked,
@@ -456,7 +474,7 @@
       container.remove();
     });
 
-    document.getElementById('sws-consent-reject').addEventListener('click', function() {
+    rejectBtn.addEventListener('click', function() {
       revokeAllConsent();
       container.remove();
     });
