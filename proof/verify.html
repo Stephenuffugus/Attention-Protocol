@@ -199,10 +199,36 @@ async function verifyJwt(jwt, jwks) {
   const jwk = jwks.keys.find(k => k.kid === header.kid);
   if (!jwk) throw new Error('no_matching_key_for_kid_' + header.kid);
 
-  const key = await crypto.subtle.importKey('jwk', jwk, { name: 'Ed25519' }, true, ['verify']);
+  // T2-7 fix: WebCrypto Ed25519 is only in Chrome 113+/Safari 17+/
+  // Firefox 130+. Older / locked-down clinical browsers throw
+  // `Algorithm: Unrecognized name`. Fall back to @noble/ed25519
+  // (23KB pure JS, MIT licensed, vendored at /vendor/noble-ed25519.js)
+  // when WebCrypto's importKey fails. The polyfill is byte-compatible
+  // with the SubtleCrypto path — same JWK 'x' field, same EdDSA
+  // signature, same RFC 8032 verification semantics.
   const signingInput = new TextEncoder().encode(h64 + '.' + p64);
   const sigBytes = b64urlToBytes(s64);
-  const ok = await crypto.subtle.verify({ name: 'Ed25519' }, key, sigBytes, signingInput);
+  let ok = false;
+  let cryptoMethod = 'subtle';
+  try {
+    const key = await crypto.subtle.importKey('jwk', jwk, { name: 'Ed25519' }, true, ['verify']);
+    ok = await crypto.subtle.verify({ name: 'Ed25519' }, key, sigBytes, signingInput);
+  } catch (subtleErr) {
+    // Likely Ed25519 not supported in this browser. Fall back to noble.
+    if (/Unrecognized name|not supported|NotSupportedError/i.test(String(subtleErr.message || subtleErr))) {
+      cryptoMethod = 'noble-fallback';
+      try {
+        const noble = await import('/vendor/noble-ed25519.js');
+        // JWK 'x' is base64url of the 32-byte raw public key.
+        const pubKeyBytes = b64urlToBytes(jwk.x);
+        ok = await noble.verifyAsync(sigBytes, signingInput, pubKeyBytes);
+      } catch (nobleErr) {
+        throw new Error('verify_failed_both_paths: ' + (nobleErr.message || nobleErr));
+      }
+    } else {
+      throw subtleErr;
+    }
+  }
   const payload = JSON.parse(b64urlToString(p64));
 
   // Standard JWT claim enforcement. Round-2 found that signature was
@@ -262,7 +288,8 @@ async function verifyJwt(jwt, jwks) {
     claimErrors,
     header,
     payload,
-    kid: jwk.kid
+    kid: jwk.kid,
+    cryptoMethod  // 'subtle' or 'noble-fallback' — for display + audit
   };
 }
 

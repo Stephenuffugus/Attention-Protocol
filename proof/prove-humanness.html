@@ -247,10 +247,23 @@ async function verifyHumanness(jwt, jwks) {
   const jwk = jwks.keys.find(k => k.kid === header.kid);
   if (!jwk) throw new Error('no_matching_key_for_kid_' + header.kid);
 
-  const key = await crypto.subtle.importKey('jwk', jwk, { name: 'Ed25519' }, true, ['verify']);
+  // T2-7: Ed25519 polyfill fallback for old-Chrome / locked clinical
+  // browsers that lack WebCrypto Ed25519. Same logic as verify.html.
   const msg = new TextEncoder().encode(h64 + '.' + p64);
   const sig = b64urlToBytes(s64);
-  const sigValid = await crypto.subtle.verify({ name: 'Ed25519' }, key, sig, msg);
+  let sigValid = false;
+  try {
+    const key = await crypto.subtle.importKey('jwk', jwk, { name: 'Ed25519' }, true, ['verify']);
+    sigValid = await crypto.subtle.verify({ name: 'Ed25519' }, key, sig, msg);
+  } catch (subtleErr) {
+    if (/Unrecognized name|not supported|NotSupportedError/i.test(String(subtleErr.message || subtleErr))) {
+      const noble = await import('/vendor/noble-ed25519.js');
+      const pubKeyBytes = b64urlToBytes(jwk.x);
+      sigValid = await noble.verifyAsync(sig, msg, pubKeyBytes);
+    } else {
+      throw subtleErr;
+    }
+  }
   const payload = JSON.parse(b64urlToString(p64));
   const nowSec = Math.floor(Date.now() / 1000);
 
