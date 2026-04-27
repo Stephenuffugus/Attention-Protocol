@@ -4,7 +4,7 @@
 
 **How this doc is used:** every batch of work picks the next N items in priority order, fixes them, validates with `npm run test:flow` + `npm test`, commits, pushes. After each batch we re-dispatch the skeptic round so each round attacks the *current* state. Iteration continues until a fresh round surfaces no new findings at the current severity tier.
 
-**Last updated:** 2026-04-27 after commits `d43ba3b` → `329a5a0` → `fef4c20`. Seven T2 items closed in this session; rest queued.
+**Last updated:** 2026-04-28 after round-2 hostile review (9 parallel skeptic agents, including 2 new roles: cryptography deep-audit + adversarial bot designer). Round 2 fixes landed in commits `f9bf3a7` → `5cbf32f` (5 commits). Round-2 closed list and newly-surfaced queue are below the round-1 sections.
 
 ---
 
@@ -46,9 +46,283 @@
 
 - [x] **T2-2** Bootstrap CI honesty at small N — receipts now carry `calibration.small_n_caveat: true` and a `small_n_caveat_note` string when either class has n<20. The on-screen meta line shows "Bootstrap CI (wide, approximate at small N)" instead of "95% bootstrap CI" until both classes reach n=20. Drops automatically when calibration grows. Doesn't replace the n_h≥30 work in T1-4 — this is honest disclosure of what the current CI actually represents.
 
-## Newly identified (this session)
+## Newly identified (round 1, 2026-04-27)
 
 - [ ] **T1-3.5** Roving-tabindex on radiogroups — only the selected (or first) radio is tabbable; arrow keys move focus + selection within the group. W3C ARIA-Practices canonical pattern. Estimate 2-3 hours.
+
+---
+
+## Round 2 closed (2026-04-28, 5 commits)
+
+### Commit `f9bf3a7` — T0 batch 1: Firestore + verify.html JWT hardening
+- [x] **R2-1** Firestore rules world-readable to any anon-auth user — closed.
+      `demos` is now create-only with uid-binding + 50-field / 64KB cap;
+      reads admin-only via Firebase custom claim. `runs` admin-only. `latest`
+      stays public-read (the curated proof-gallery design). Updates / deletes
+      denied across the board. Migration of pre-2026-04-28 docs with
+      cleartext reflection still queued — see R2-NEW-1 below.
+- [x] **R2-2** verify.html JWKS kid-confusion (`|| jwks.keys[0]` fallback) —
+      closed. Strict kid match; rejects unmatched kid.
+- [x] **R2-3** verify.html `exp` / `iss` / `nbf` not enforced — closed.
+      Mirrors Node-side checks (300s clock skew, ACCEPTED_ISSUERS allowlist,
+      vc.issuer.id ↔ jwt.iss cross-check). Sample JWT (no exp claim) still
+      verifies as before; an old or wrong-issuer JWT now renders an explicit
+      "Receipt rejected — expired / unknown_issuer" verdict.
+- [x] **R2-4** `calibration_override` / `small_n_caveat` flags surfaced but
+      not consumed by any verifier — closed. Renders an explicit "do not
+      use for decision-grade verification" banner when present.
+
+### Commit `b8f1ae8` — T0 batch 2: tier-aware narrative on demo.html + signal-count fix
+- [x] **R2-5** demo.html still painted "WHY THIS IS BIOLOGICALLY HUMAN" on
+      PASSIVE / BACKGROUND tiers (round-1 fix landed only on cme-demo.html)
+      — closed. Title now verdict-keyed; bio-narrative copy suppressed for
+      non-human tiers.
+- [x] **R2-6** Stale "23-SIGNAL (21 weighted + 2 diagnostic)" copy across
+      cme-demo banner / breakdown header / composite-sub / demo subtitle /
+      proof/index.html — closed. SDK is 20 weighted (oneOverFCoherence,
+      microsaccades zero-weight; submovementCount 0.05 documented as
+      defeated). Now consistently "20 weighted + 3 diagnostic."
+
+### Commit `28e466f` — T0 batch 3: receipt-composite hardening
+- [x] **R2-7** `src/sdk/receipt-composite.js` env-gate had no 'unresolved'
+      branch — closed. cme-demo.html had a bespoke fix in fef4c20; the SDK
+      module now has the same defense. An attacker monkey-patching
+      SWSEnvironmentalGate.check() to return `{loaded:false, error:...}`
+      no longer evades the cap.
+- [x] **R2-8** `inputs.gates` caller-supplied override silently honored —
+      closed. Result now exposes `gatesOverridden:true` so a verifier can
+      reject (mirrors calibration_override pattern).
+- [x] **R2-9** cme-demo.html inline gating missed `'suspicious'` composition
+      verdict — closed. Now caps at 0.50 (mid-cap, less aggressive than the
+      hard 0.30 paste/mechanical cap because the verdict is softer); new
+      explainGate branch.
+
+### Commit `0c1b4a2` — T1 batch 1: a11y propagation
+- [x] **R2-10** Receipt panel render not announced to screen readers —
+      closed. `role="region" aria-live="polite" tabindex="-1"` on `#results`;
+      finishActivity focuses it. WCAG 4.1.3 (Status Messages) + 2.4.3
+      (Focus Order).
+- [x] **R2-11** No double-submit guard on `Submit for Credit` — closed.
+      Disables + relabels on click; idempotent guard prevents duplicate
+      Firestore sessions on slow Cloud Function calls.
+- [x] **R2-12** MARGINAL / FAIL UX dead-end — closed (stopgap until T2-8
+      review queue). Inline "Disagree with this verdict? request review →"
+      mailto with receipt hash + session id + composite pre-filled.
+- [x] **R2-13** verify.html / index.html / for-reviewers.html /
+      receipt-explorer.html had zero landmarks, no skip-link — closed.
+      Each surface now has `<header role="banner">` + `<main id="main"
+      tabindex="-1">` + visible-on-focus skip-link.
+- [x] **R2-14** verify.html + receipt-explorer.html textareas had only
+      placeholders for labels (WCAG 1.3.1 + 3.3.2 fail) — closed. sr-only
+      `<label for="...">` for each.
+- [x] **R2-15** No `prefers-reduced-motion` honored on verify.html — closed.
+- [x] **R2-16** No print styles — closed. verify.html now renders
+      receipt-binder-friendly black-on-white.
+
+### Commit `5cbf32f` — T1 batch 2: BIPA / consent
+- [x] **R2-17** Internal contradiction: COMPLIANCE_MATRIX said "Biometric:
+      NO" while index.html / part-11.html marketed "behavioral biometrics"
+      — closed. SWS-self-marketing now says "behavioral-signal analysis"
+      / "aggregate behavioral statistics." Competitor references (BioCatch
+      etc) stay as-is. Compliance Matrix row reconciled with explicit BIPA
+      §10 / TX SB 800 / WA HB 1493 statutory citations.
+- [x] **R2-18** No written legal posture for the "we don't collect biometric
+      identifiers" theory — closed (working draft). `docs/legal/bipa-
+      posture.md` documents the §10 enumerated-types theory + residual risks
+      + path-(a) vs path-(b) decision + pre-pilot action items. Pending
+      counsel sign-off.
+- [x] **R2-19** Flagship cme-demo.html had no consent banner (round 1 fixed
+      lots of cme-demo bugs but never wired in consent) — closed.
+      `SWSPrivacy.showConsentBanner()` fires before SDK init; auto-skips on
+      `navigator.webdriver` or `?ap_test=1` so automation isn't blocked.
+
+---
+
+## Round 2 newly-queued (open after round-2 fixes)
+
+### Tier 1 (non-negotiable for paid pilot)
+
+- [ ] **R2-NEW-1** Migrate pre-2026-04-28 `demos/*` Firestore docs that
+      contain cleartext reflection text. The new rules deny non-admin
+      reads, so the data is not exposed via the public dashboards anymore,
+      but the cleartext still sits in Firestore. Author a migration script
+      that hashes the reflection field on existing docs, deletes the
+      cleartext, and logs the old doc count.
+- [ ] **R2-NEW-2** Server-side scoring path (was T1-1; restated). The
+      adversarial bot-builder agent designed a working bypass (composite
+      ≥0.700 from a fully-automated pipeline) at ~$50 / 56 engineer-hours
+      using puppeteer-extra-stealth + recorded-human-trace replay + per-char
+      keyboard.type + a CSS-aware DOM reader (honeypot canary bypassed by
+      filtering computedStyle visibility:hidden + Unicode-tag stripping).
+      No SDK monkey-patching required. Server-side recompute + trace-novelty
+      k-NN rejection is the only meaningful defense. **Critical for any
+      paid pilot.** Estimate 2-3 weeks.
+- [ ] **R2-NEW-3** Bot calibration cluster-correlation fix. The 28 bot
+      composites are 14 dmtg + 4 stealth + 10 prior — i.e., 2-3 harness
+      families with within-family SDs of 0.019 and 0.003 (implausibly low
+      for i.i.d. samples). ICC ≈ 0.81; design-effect ≈ 7; effective n_b ≈ 4.
+      Trip `small_n_caveat` on `min(n_h, n_b_effective) < 20`, not raw n_b.
+      Posterior P(human|0.55) computed honestly is 0.425, not the 0.7+
+      the methodology doc implies. Fit a 2-component Gaussian mixture for
+      the bot likelihood, or use empirical CDF / KDE. Document the math.
+- [ ] **R2-NEW-4** Calibration class-definition leakage (was T1-4).
+      Restated with explicit math: with σ_h floored to 0.05, *any* genuine
+      non-Stephen typist whose composite is ≥0.05 from Stephen's mean
+      lands in the bot likelihood region. Realistic non-Stephen HCPs
+      (esp. age ≥55) score systematically lower; realistic FRR ≥30%.
+      Before any pilot, compute and ship a worst-case FRR bound from
+      published HCP-population age/typing-speed distributions.
+
+### Tier 2 (credibility blockers a careful reviewer catches)
+
+- [ ] **R2-NEW-5** JWKS per-kid validity windows. RFC 7517 doesn't mandate
+      validity windows but the rotation plan keeps the OLD key live for a
+      7-day grace window; an attacker with the leaked old key can mint
+      receipts dated *after* the rotation and the verifier accepts them.
+      Add `sws_validUntil` per JWK; verifier rejects when
+      `payload.iat > jwk.sws_validUntil`.
+- [ ] **R2-NEW-6** OTS Bitcoin block-time vs `iat` cross-check. OTS proves
+      "this hash existed by block N" — not "the receipt was signed at
+      block N." An attacker with a leaked private key can pre-stamp any
+      future hash and back-date the JWT. verify.html should warn when
+      `|parseISO(issuanceDate) - parseISO(bitcoinBlockTime)| > 24h`.
+- [ ] **R2-NEW-7** RFC 3161 cert-chain validation in browser. Currently
+      `attention-tsa.js` says verify is structural-only and `verify.html`
+      shows "signed by FreeTSA" purely from the receipt's self-reported
+      `status`. An attacker can include any well-formed-but-unverified TSA
+      token and the verifier shows it as signed. Use `@peculiar/x509` to
+      verify the signerInfos signature against the embedded TSA cert chain.
+- [ ] **R2-NEW-8** Receipt hash domain excludes `application_id` and
+      `proof.hash_ids`. Same hash satisfies two different originating apps
+      (cross-app replay). Either include them in canonical, or document the
+      exclusion explicitly.
+- [ ] **R2-NEW-9** Pure-JS SHA-256 fallback in `attention-receipts.js:442`
+      silently returns `''` on any byte > 0x7F — cleartext with non-ASCII
+      (UTF-8 multibyte, smart quote, em-dash, accented user name) on a
+      legacy-Safari iframe yields empty-string hash → trivial collision.
+      TextEncoder the input first.
+- [ ] **R2-NEW-10** Canonical JSON not RFC 8785: no Unicode NFC
+      normalization, ad-hoc number serialization. Two NFC-vs-NFD inputs
+      with same logical content yield different hashes ("naïve" typed via
+      NFC vs NFD). Either adopt the npm `canonicalize` (~1KB) or document
+      that canonical assumes NFC and integer/short-decimal numerics + NFC-
+      reject at `generateReceipt`.
+- [ ] **R2-NEW-11** `onSessionWritten` Cloud Function trusts client-supplied
+      `composite` / `environmental` / `composition_integrity` and signs
+      the JWT directly. A client passing `{signals.composite:0.99,
+      environmental:{loaded:true,bot:false}, composition_integrity:{
+      verdict:'authored'}}` gets a real Ed25519-signed receipt that
+      verifies green. Subsumed by R2-NEW-2 server-side scoring; until that
+      lands, add bounds checking — `composite > 0.85 requires
+      environmental.loaded + ci.verdict==='authored' + duration_ms > 60s
+      + interaction_count > 10` — and tag the JWT `tier:client_attested`
+      vs `tier:server_recomputed`.
+- [ ] **R2-NEW-12** Drop the `toJwt()` (unsigned `alg:none`) export from
+      `verifiable-credentials.js`. Verify.html correctly rejects it but a
+      third-party integrator using jose/PyJWT with `verify=False` could
+      treat it as authentic.
+- [ ] **R2-NEW-13** `_generateSubjectDid` 32-bit Java-style hash for
+      "anonymizing" userId — no salt, deterministic, exhaustive enumeration
+      recovers userId in seconds for any small org. Replace with HMAC-
+      SHA-256(server-secret, userId) truncated to 128 bits.
+- [ ] **R2-NEW-14** `attention-merkle.js` — leaves are raw 32-byte SHA-256
+      with no `0x00`/`0x01` domain-separation prefix (RFC 6962 standard).
+      Second-preimage flexibility on internal-node hashes.
+- [ ] **R2-NEW-15** verify.html error tokens (`jwt_malformed_expected_3_parts`
+      etc) leak as raw to non-technical reviewers. Map to plain-language
+      strings; keep raw token in `<details>` for engineers.
+- [ ] **R2-NEW-16** Mobile signal-degradation not surfaced in cme-demo
+      receipt UI. Touch-device users get 4 mouse signals reading 0; the
+      composite is reweighted but the receipt panel doesn't say so.
+      Banner: "Touch device detected — 4 mouse-based signals not
+      applicable."
+- [ ] **R2-NEW-17** verify.html dates rendered as raw ISO strings, not
+      user locale. Wrap with `toLocaleString({ dateStyle:'medium',
+      timeStyle:'short' })`.
+
+### Tier SRE (production-readiness gaps; round-2 confirms round-1's
+"5–6 weeks hardening" estimate stands; no infra cost on the trio below)
+
+- [ ] **R2-NEW-18** `docs/slo.md` — commit to 99.0% verify-path
+      availability over 30-day windows, RTO ≤ 4h, RPO ≤ 24h, with
+      explicit out-of-scope for OTS / TSA SPOFs. (1 hour of writing.)
+- [ ] **R2-NEW-19** `docs/runbooks/{signing-key-rotation,jwks-outage,
+      firestore-failover,billing-overrun,verify-html-5xx}.md` — even one
+      page each. (Half day.)
+- [ ] **R2-NEW-20** `docs/observability.md` — bookmark Cloud Monitoring
+      URLs for the four golden signals on `signReceipt` + `onSessionWritten`
+      + Hosting; turn on Log-based Metrics for `signing_failed` count.
+- [ ] **R2-NEW-21** Firebase App Check on `demos` writes + `signReceipt`
+      invocation. Round-1 named it; still off. With anonymous-auth +
+      auto-signing trigger, an attacker can write 10k bogus demos
+      overnight and burn Cloud Functions / Secret Manager quota.
+- [ ] **R2-NEW-22** GCP Budget at $50/mo with kill-switch Cloud Function
+      at 100% (Google's documented pattern).
+- [ ] **R2-NEW-23** Cloud Monitoring Uptime Check on
+      `https://sws-attention-proofs.web.app/verify.html` and
+      `/.well-known/attention-pubkey.json` every 60s from 3 regions.
+- [ ] **R2-NEW-24** Pin GitHub Actions to commit SHAs (currently floating
+      `@v4` — vulnerable to tag-rewrite supply-chain attack per the
+      tj-actions/changed-files March 2025 incident). Add Dependabot
+      config for `package-ecosystem: github-actions`.
+
+### Tier Legal (Stephen-driven + counsel)
+
+- [ ] **R2-NEW-25** EU geo-block on cme-demo until GDPR Art. 22(2)(c)
+      consent flow + Art. 13(2)(f) per-signal explanation panel + DPIA on
+      file. Or alternatively, embed the Art. 22 consent step in the
+      banner.
+- [ ] **R2-NEW-26** Schrems II: Firestore `sws-attention-proofs` is
+      us-central1; EU-tagged users transferring to US needs SCCs + Transfer
+      Impact Assessment OR move to `eur3` for EU sessions.
+- [ ] **R2-NEW-27** CPRA "Limit the Use of My Sensitive Personal
+      Information" link + Sec-GPC handler.
+- [ ] **R2-NEW-28** FTO opinion against BioCatch + Plurilock + BehavioSec
+      patent estates ($5-8K legal). Without it, "we have a provisional"
+      reads as either negligence or willful infringement under §284.
+- [ ] **R2-NEW-29** BAA template authored, since first pharma/HCP pilot
+      will trigger BA status the moment cleartext touches Cloud Function
+      memory (currently it doesn't, but the tail-risk is real).
+- [ ] **R2-NEW-30** Counsel review of `docs/legal/bipa-posture.md`.
+      Decision: path-(a) "we don't collect biometric identifiers" theory
+      vs path-(b) §15(a)/(b)-style consent flow + 3-year retention/
+      destruction schedule.
+
+### Tier YC (Stephen-driven; same as round 1 but NONE fixed)
+
+- [ ] **R2-NEW-31** YC application: 0 of 5 T3 items fixed at round-2 time.
+      Specifically: T3-1 LOI (none), T3-2 vertical narrowing leak (line
+      194 still pitches "20+ vertical audits completed"), T3-3 bottoms-up
+      TAM (still says "$600M / 1% of digital analytics"), T3-4 co-founder
+      commitment (line 94 still "open to right match"), T3-5 runway
+      `[FILL]` (still empty). Hostile YC partner v2 verdict was "NO,
+      same as Round 1, with one less excuse — founder spent 24h
+      hardening a product that already passes its own tests instead of
+      fixing the application that funds the next 12 months."
+- [ ] **R2-NEW-32** Strategic moat reframing per competitive v2: the
+      defensible long-term asset is the **calibration corpus**, not the
+      receipt format. Receipt becomes commoditized in 24-36 months once
+      Cloudflare / Credly / Cornerstone ship the same primitive. Pivot
+      narrative: "we have the only validated calibration corpus."
+- [ ] **R2-NEW-33** Pre-YC Credly mutual-NDA before any product-team demo
+      (Credly is BOTH the channel AND the most-likely substitute builder
+      — a 6-engineer-week ship for them with their issuer relationships
+      intact).
+
+---
+
+## Round 2 verdict snapshot (each agent's one-line verdict)
+
+- **Security v2** — HIGH: kid-confusion + verify.html accepts wrong-iss / no-exp + Firestore world-readable + onSessionWritten trusts client. Three closed in T0 batch 1; onSessionWritten trust queued as R2-NEW-11.
+- **Statistics v2** — HIGH: n_b=28 is effectively n=4; trimodal bot fit is mis-specified; P(human|0.55) is 0.425 not 0.7+. Closed: calibration_override now consumed. Queued: cluster-correlated effective-n + Gaussian mixture + bootstrap coverage simulation.
+- **Code-quality v2** — HIGH: stale "23-SIGNAL" + receipt-composite gate-override silent + suspicious-verdict bypass + env error-blob persisted unbounded. Closed: stale labels + gate-override surfacing + suspicious gate. Queued: env error-blob narrowing.
+- **UX/a11y v2** — HIGH: receipt-render not SR-announced + JWT exp not enforced + demo.html still paints "biologically human" on FAIL + 4 sibling surfaces have no landmarks. ALL closed in T1 batch 1.
+- **SRE v2** — HIGH: zero ops doctrine. SLO/runbooks/dashboards/synthetic/budget/App Check all MISSING. Round-1 estimate of 5-6 weeks hardening stands.
+- **Legal v2** — CRITICAL: BIPA exposure; consent banner missing; GDPR Art 22 ungated; Firestore world-readable. Marketing/Compliance contradiction closed in T1 batch 2 + bipa-posture.md authored. Consent banner closed. Firestore closed in T0 batch 1. Art 22 + Schrems II + FERPA + FTO queued.
+- **Hostile YC partner v2** — NO. Same answer as Round 1 with one less excuse. 0 of 5 T3 items fixed. Stephen-typed, blocked on outreach + writing.
+- **Cryptography deep audit (NEW)** — MEDIUM-HIGH: kid-confusion (closed) + verify.html exp (closed) + JWKS validity-window + OTS cross-check + RFC 3161 cert-chain + canonical-not-RFC-8785 + SHA-256 fallback empty-string + receipt-hash domain excludes app_id. Three closed in T0 batch 1; rest queued.
+- **Adversarial bot builder (NEW)** — CRITICAL: composite ≥0.700 bypass at $50 / 56h with off-the-shelf libraries. No SDK monkey-patching. Three integrity gates individually defeatable, multiplicatively independent. **Server-side scoring (T1-1 / R2-NEW-2) is the only meaningful defense.**
+- **Competitive v2** — HIGH: BioCatch is NOT the existential threat — Cornerstone / Credly / Articulate are. Receipt-as-product is commoditized in 24-36 months; defensible asset is the calibration corpus. Patent FTO is genuinely shaky vs BehavioSec + Plurilock. Strategic, not engineering.
 
 ---
 
