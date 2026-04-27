@@ -2,8 +2,67 @@
 ## Your single source of truth when you sit down
 
 **Goal (the one that matters):** Working, marketable product + first paid pilot signed.
-**Deadline:** YC S26 submission 2026-05-04 (**10 days** from tomorrow).
+**Deadline:** YC S26 submission 2026-05-04 (**7 days** from tomorrow).
 **How to use:** When you sit down and say **"let's get started"** or **"what should we do?"**, I open this file and walk you through it.
+
+---
+
+## ☀️ START HERE — 2026-04-28 morning resume (after the 04-27 session)
+
+### Status check before you do anything
+- Last commit: **`9dfefee`** — PPP outreach draft. Pushed origin/main.
+- Total today: **6 commits, 13 hostile-review findings closed, 2 new playbooks shipped**:
+  - `OUTREACH_PLAY.md` (top-10 prospects, ROI math, integration playbook, pitch drill)
+  - `outreach-drafts/01-ppp.md` (your first email, ready to personalize)
+  - `HARDENING_PLAN.md` (the engineering improvement queue)
+- All tests green: 810/810 jest, 100/100 tampers caught, 3/3 flow regressions.
+
+### The one thing that matters this morning
+**Send the email to PPP.** Not "draft it more." Not "polish the architecture doc first." Send it. Everything else is downstream of having a real reply to react to.
+
+The plan is in `outreach-drafts/01-ppp.md`. Seven steps. Execute in order:
+
+1. **LinkedIn search PPP** (10 min) — find Director of Accreditation / CME / Outcomes. Verify a real human, not a placeholder. If LinkedIn is empty, J Clinical Psychiatry masthead page often lists the accreditation contact. **Do not send to a placeholder.**
+2. **Pick subject line** — recommended: *"Customer development — psychiatry-CME measurement question"*.
+3. **Personalize body** (the 140-word recommended version in `outreach-drafts/01-ppp.md` §3) — fill in [first name]. Optional 1-line specificity hook if you found a recent post.
+4. **Read it aloud once.** Cut any sentence that feels like marketing.
+5. **Send** — Tue/Wed/Thu, 9-11am ET.
+6. **Mark calendar for day-7 bump** (`2026-05-05`).
+7. **Walk away.** Do not refresh the inbox.
+
+### Then today's parallel work — the four artifacts every reply will demand
+After sending, switch to writing. These exist as Tasks #35-#37 in the system:
+
+- **Architecture 1-pager** (Task #35, ~4h) — derive from `docs/SECURITY_ARCHITECTURE.md`. ≤2 pages. Diagram + 7 layers + JWKS + verifier flow + sub-processors.
+- **Privacy DPIA + sub-processor list** (Task #37, ~4h combined) — derive from `docs/technical-faq.md §B`. Zero-PII, no webcam/mic, no IP logging, no content stored, Firestore US-region.
+- **Security questionnaire pre-fill** (Task #36, ~1 day) — CAIQ-Lite-style ~100 Qs. Source from SECURITY_ARCHITECTURE + COMPLIANCE_MATRIX + technical-faq.
+
+Total: ~8 hours. Zero external spend. **Done by Friday and you can handle anything PPP throws back.**
+
+### What NOT to do this morning
+- ❌ Don't dispatch a fresh skeptic round yet. The 13 closed findings are durable; we'll re-dispatch when there's enough delta. **Send the email first.**
+- ❌ Don't open cme-demo.html and start tweaking. The product is in good shape after yesterday's hardening commits. Let it be.
+- ❌ Don't send emails to CEC or Prova until PPP goes out and you've watched how it lands. PPP is the practice round. Practice means one at a time.
+- ❌ Don't write to Pfizer / Merck / Genentech / Credly. They're explicitly DEFERRED in `OUTREACH_PLAY.md §1` for the same reasons that haven't changed overnight.
+
+### The honest reminder you needed yesterday
+You patented something real. The product works. The hostile review made the system harder, not the founder weaker. **The block on outreach was you treating it as one monolithic gate when it's actually four separate gates, three of which are years away.** Insurance, MSA, SOC 2, entity formalization — those gate **paid F500 contracts**. Not learning conversations. Not free pilots. Not cold emails. PPP is a learning conversation. Send the email.
+
+### Where to look if you need to reorient
+- `OUTREACH_PLAY.md` — the master playbook (top-10, ROI math, pitch drill)
+- `HARDENING_PLAN.md` — the engineering improvement queue (T1/T2/T3 ranked, what's closed, what's open)
+- `outreach-drafts/01-ppp.md` — today's email
+- `SEVEN_LAYER_DEEP_DIVE.md` — the technical reviewer doc, if a buyer asks for depth
+- `docs/yc-defense/11_calibration_methodology.md` — if a stats-trained buyer asks about the Bayesian P(human)
+- This file — if you forget where to start
+
+### After PPP goes out, in priority order this week
+1. The four artifacts above (Mon-Fri).
+2. Drafts 02 (CEC) and 03 (Prova) into `outreach-drafts/` — say "draft CEC" / "draft Prova" and they appear in the same shape as PPP.
+3. Re-fire the skeptic round on Friday or Saturday once you've put a week of fresh state on top of yesterday's hardening — see `HARDENING_PLAN.md` "How to run a fresh skeptic round."
+4. Tier-3 fundability gaps (LOI, kill 7-vertical YC framing, bottoms-up TAM under $100M) — these are 1-2 hour edits to the YC application; do them before the 2026-05-04 deadline.
+
+---
 
 ---
 
