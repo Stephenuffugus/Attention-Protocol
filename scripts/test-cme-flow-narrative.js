@@ -57,24 +57,40 @@ const BASE_URL = 'http://localhost:' + PORT;
 const sleep = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
 
 // ---------- minimal static server ----------
+// Path-traversal hardened: every resolved file path must lie inside one of the
+// two allowed roots. Without this guard a request like GET /../../etc/passwd
+// would resolve outside the proof tree. Even in a test-only context this
+// matters because (a) tests run on shared CI runners and (b) the snippet is
+// the kind of thing that gets copy-pasted into a quick demo server later.
 function startStatic() {
   const types = {
     '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css',
     '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png'
   };
+  const PROOF_ROOT = path.resolve(PROOF_DIR);
+  const PUBLIC_ROOT = path.resolve(PUBLIC_DIR);
   return new Promise(function(resolve) {
     const server = http.createServer(function(req, res) {
       var url = req.url.split('?')[0];
       if (url === '/' || url === '') url = '/index.html';
-      var filePath;
+      var unsafeFilePath;
+      var allowedRoot;
       if (url.indexOf('/.well-known/') === 0) {
-        filePath = path.join(PUBLIC_DIR, url);
+        unsafeFilePath = path.join(PUBLIC_DIR, url);
+        allowedRoot = PUBLIC_ROOT;
       } else {
-        filePath = path.join(PROOF_DIR, url);
+        unsafeFilePath = path.join(PROOF_DIR, url);
+        allowedRoot = PROOF_ROOT;
       }
-      fs.readFile(filePath, function(err, data) {
+      // Resolve symlinks + ".." segments + redundant separators, then verify
+      // the result is contained by the allowed root. Reject everything else.
+      const resolved = path.resolve(unsafeFilePath);
+      if (resolved !== allowedRoot && !resolved.startsWith(allowedRoot + path.sep)) {
+        res.writeHead(403); res.end('403 forbidden'); return;
+      }
+      fs.readFile(resolved, function(err, data) {
         if (err) { res.writeHead(404); res.end('404 ' + url); return; }
-        const ext = path.extname(filePath).toLowerCase();
+        const ext = path.extname(resolved).toLowerCase();
         res.writeHead(200, { 'Content-Type': types[ext] || 'text/plain' });
         res.end(data);
       });

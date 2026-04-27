@@ -59,17 +59,17 @@
 </head>
 <body>
   <div class="top">
-    <div class="brand">SWS ATTENTION PROTOCOL · CME Activity</div>
-    <div class="acc">ACCME ACCREDITED · 0.5 AMA PRA CATEGORY 1 CREDIT™ · 23-SIGNAL RECEIPT</div>
+    <div class="brand">SWS ATTENTION PROTOCOL · CME-style Demonstration</div>
+    <div class="acc">DEMONSTRATION TIER · FICTIONAL ACCREDITOR · 23-SIGNAL RECEIPT</div>
   </div>
 
   <div class="wrap">
-    <h1 id="activity-title">Hypertension Management Update (2026)</h1>
-    <div class="meta">
-      Activity ID: <strong id="activity-id">HTN-UPD-2026-0001</strong> · Faculty: <strong>Example, MD</strong> · Expires: <strong>2027-04-24</strong>
+    <div class="illus" style="border:2px solid #f59e0b;background:rgba(245,158,11,0.12);padding:14px 18px;margin-bottom:18px">
+      <strong>DEMONSTRATION ONLY — NOT A REAL CME ACTIVITY.</strong> This page is a protocol demonstration of how the SWS receipt would attach to a CME-style flow. It is <strong>not</strong> ACCME-accredited and does not award AMA PRA Category 1 Credit™. SWS Strategic Media LLC is not affiliated with, endorsed by, or sponsored by the Accreditation Council for Continuing Medical Education or the American Medical Association. The clinical-education text below is fabricated for demonstration. All behavioral signal data and the cryptographic receipt are real and verifiable.
     </div>
-    <div class="illus">
-      <strong>ILLUSTRATIVE CONTENT ONLY.</strong> This module uses fabricated clinical-education text for protocol demonstration. Not medical advice. Not a real CME activity. All signal data is real.
+    <h1 id="activity-title">Hypertension Management Update (2026) — Demonstration</h1>
+    <div class="meta">
+      Demo Activity ID: <strong id="activity-id">DEMO-HTN-UPD-2026-0001</strong> · Faculty: <strong>Fictional Example, MD</strong> · Demo Expires: <strong>2027-04-24</strong>
     </div>
 
     <div class="progress-label" id="progress-label">SECTION 1 OF 4</div>
@@ -520,9 +520,21 @@
       else if (medComposite >= MEDICAL_PROFILE.thresholds.marginal) verdict = 'marginal';
       else verdict = 'fail';
 
+      // Compute the conformal posterior ONCE here so the same CI/p_human
+      // values land in both the displayed pill (renderResults reads it) and
+      // the signed receipt's canonical JSON (receiptExtras below carries it).
+      // Calling getConformalAnalysis twice would run an independent 1000-step
+      // Math.random() bootstrap each time, producing different 95% CIs — the
+      // user would see one CI and the receipt would commit to another, which
+      // a careful reviewer would notice and (correctly) flag as suspicious.
+      var conformal = null;
+      try {
+        conformal = SWSAttention.getConformalAnalysis(medComposite);
+      } catch (e) { conformal = { error: e.message }; }
+
       // Render the visible report immediately so the user sees their score;
       // the receipt hash is computed asynchronously below and stamped in last.
-      renderResults(medComposite, verdict, detail, c, stats, elapsed, gatesTriggered);
+      renderResults(medComposite, verdict, detail, c, stats, elapsed, gatesTriggered, conformal);
       document.getElementById('assessment').style.display = 'none';
       document.getElementById('results').style.display = 'block';
       document.getElementById('progress-label').textContent = 'RECEIPT ISSUED';
@@ -532,14 +544,6 @@
       // Build content-bound receipt payload — every value displayed on this page
       // is included in the hash, so any tampering invalidates verification.
       var wordsTyped = reflectionEl.value.trim().split(/\s+/).filter(function(w) { return w.length > 0; }).length;
-      // Conformal-prediction analysis on the medical composite. Vovk-
-      // Gammerman-Shafer 2005 + Angelopoulos & Bates 2023 framing; produces
-      // a calibrated Bayesian posterior P(human) with bootstrap 95% CI.
-      // Calibration set v1 from 2026-04-26 measurements; grows over time.
-      var conformal = null;
-      try {
-        conformal = SWSAttention.getConformalAnalysis(medComposite);
-      } catch (e) { conformal = { error: e.message }; }
 
       var receiptExtras = {
         source: 'cme_demo',
@@ -592,7 +596,7 @@
       return Math.max(0, 1 - cv * 2);  // low CV = stable = high fatigue resistance
     }
 
-    function renderResults(comp, verdict, detail, c, stats, elapsed, gatesTriggered) {
+    function renderResults(comp, verdict, detail, c, stats, elapsed, gatesTriggered, conformal) {
       var pill = document.getElementById('tier-pill');
       pill.textContent = verdict === 'pass' ? 'CREDIT AWARDED' : verdict === 'marginal' ? 'MARGINAL — ADDITIONAL REVIEW' : 'NOT COMPLETED TO STANDARD';
       pill.className = 'tier-pill tier-' + verdict;
@@ -602,8 +606,9 @@
       // P(human) is the calibrated probability under the Gaussian likelihood-
       // ratio classifier with flat prior. The 95% bootstrap CI surfaces honest
       // uncertainty driven by current calibration size.
+      // The `conformal` argument was computed ONCE in the caller so the values
+      // shown here are exactly the values committed to the signed receipt.
       try {
-        var conformal = SWSAttention.getConformalAnalysis(comp);
         if (conformal && !conformal.error) {
           var pHuman = conformal.p_human;
           var ci = conformal.confidence_interval_95;

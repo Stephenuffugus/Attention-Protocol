@@ -11,3 +11,11 @@ firebase-debug.log
 .firebase/
 dist/
 proof/results/
+
+# Real-tester data — contains tester names + typed reflections (PII).
+# Calibration values from these runs are integrated into DEFAULT_CALIBRATION
+# in src/sdk/attention-protocol.js as anonymized scalars; the raw artifacts
+# stay local. Do not commit these archives.
+proof/real_tests_apr26/
+proof/Results-*.zip
+public/proof/Results*.zip
