@@ -323,6 +323,53 @@ async function verifyJwt(jwt, publicKey, opts) {
       return { valid: false, error: 'payload_not_json', header: header };
     }
 
+    // Round-3 cryptography review fix: the Node-side verifier was
+    // materially weaker than verify.html — only `exp` was checked, no
+    // `iss`, no `nbf`, no `iat` against per-kid validity windows, no
+    // `vc.issuer.id` cross-check. An attacker who routes verification
+    // through any Node-side path (CI receipts, bot harness, server-side
+    // scoring once it ships) silently bypassed the round-2 hardening.
+    // Mirror the verify.html block here. Caller can suppress these
+    // checks with opts.ignoreClaims=true for replay/audit contexts
+    // where the receipt is being inspected long after issuance.
+    if (!opts.ignoreClaims) {
+      const nowSec = Math.floor(Date.now() / 1000);
+      const claimErrors = [];
+      if (typeof payload.nbf === 'number' && nowSec + 300 < payload.nbf) {
+        claimErrors.push('not_yet_valid');
+      }
+      if (opts.acceptedIssuers && payload.iss && !opts.acceptedIssuers.has(payload.iss)) {
+        claimErrors.push('unknown_issuer:' + payload.iss);
+      }
+      const vcIssuerId = payload.vc && payload.vc.issuer && payload.vc.issuer.id;
+      if (vcIssuerId && payload.iss && vcIssuerId !== payload.iss) {
+        claimErrors.push('iss_vc_issuer_mismatch');
+      }
+      // Per-kid validity-window check. Caller passes the JWK that was
+      // used to verify (since publicKey may be a raw 32-byte buffer the
+      // signer doesn't know the kid for). If opts.jwk is the JWK with
+      // sws_validFrom/sws_validUntil set, enforce the window.
+      if (opts.jwk && typeof payload.iat === 'number') {
+        const iatMs = payload.iat * 1000;
+        if (opts.jwk.sws_validFrom) {
+          const vfMs = Date.parse(opts.jwk.sws_validFrom);
+          if (Number.isFinite(vfMs) && iatMs + 300 * 1000 < vfMs) {
+            claimErrors.push('iat_before_kid_validFrom');
+          }
+        }
+        if (opts.jwk.sws_validUntil) {
+          const vuMs = Date.parse(opts.jwk.sws_validUntil);
+          if (Number.isFinite(vuMs) && iatMs > vuMs + 300 * 1000) {
+            claimErrors.push('iat_after_kid_validUntil');
+          }
+        }
+      }
+      if (claimErrors.length > 0) {
+        return { valid: false, error: 'claim_errors:' + claimErrors.join(','),
+                 claimErrors: claimErrors, header: header, payload: payload };
+      }
+    }
+
     return { valid: true, header: header, payload: payload };
   } catch (e) {
     return { valid: false, error: 'exception: ' + (e.message || String(e)) };

@@ -21,6 +21,12 @@
     .section strong { color: #f1f5f9; }
     .progress { height: 6px; background: #1e293b; border-radius: 3px; overflow: hidden; margin-bottom: 20px; }
     .progress-fill { height: 100%; background: linear-gradient(90deg, #06b6d4 0%, #10b981 100%); transition: width 300ms; }
+    /* Round-3 a11y fix (was added to verify.html in T1 batch but missed
+       on cme-demo): respect prefers-reduced-motion for vestibular-
+       disorder users. WCAG 2.3.3 Animation from Interactions. */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0.001ms !important; animation-duration: 0.001ms !important; }
+    }
     .progress-label { font-size: 11px; color: #64748b; margin-bottom: 6px; letter-spacing: 0.05em; text-transform: uppercase; }
     .btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 8px; }
     .btn-primary { background: #06b6d4; color: #0a0e17; }
@@ -687,13 +693,19 @@
           'Session ID: ' + sessionId + ' · Receipt: ' + receipt.hash + ' · Duration: ' + elapsed + 's';
         // Stamp the hash into the MARGINAL/FAIL mailto so support gets
         // the exact receipt under dispute, not a vague "I think it
-        // failed" message.
+        // failed" message. Round-3 fix: validate hash is 64-hex before
+        // interpolation. The hash is always crypto-derived in normal
+        // flow; this guard defends against a hostile path that planted
+        // a hash with embedded CRLF (which encodeURIComponent would
+        // percent-encode but mail clients then decode back into raw
+        // header injection — classic Bcc smuggling).
         var marginalMail = document.getElementById('marginal-mailto');
-        if (marginalMail && receipt.hash) {
+        var safeHash = (receipt && /^[0-9a-f]{64}$/.test(receipt.hash)) ? receipt.hash : null;
+        if (marginalMail && safeHash) {
           marginalMail.href = 'mailto:stephenfurpahs@gmail.com'
-            + '?subject=' + encodeURIComponent('SWS receipt review — ' + receipt.hash.slice(0, 12))
+            + '?subject=' + encodeURIComponent('SWS receipt review — ' + safeHash.slice(0, 12))
             + '&body=' + encodeURIComponent(
-                'Receipt hash: ' + receipt.hash + '\n'
+                'Receipt hash: ' + safeHash + '\n'
               + 'Session ID: ' + sessionId + '\n'
               + 'Verdict: ' + verdict + '\n'
               + 'Composite: ' + medComposite.toFixed(3) + '\n'

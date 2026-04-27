@@ -226,6 +226,43 @@
 
   // Minimal JS SHA-256 fallback
   function _jsSha256(str) {
+    // Round-3 R2-NEW-9 fix propagation: the round-2 / T2 batch fixed this
+    // function in src/sdk/attention-receipts.js but left the parallel
+    // implementation in proof/sdk/attention-protocol.js (which cme-demo.html
+    // actually loads) unchanged. Round-3 cryptography review surfaced this
+    // as a CRITICAL: any non-ASCII character (smart quote, em-dash,
+    // accented user name, CJK, emoji) in the hashed input tripped
+    // `if (j >> 8) return ''` and silently produced an empty hash that
+    // would collide with every other empty-hash receipt. Now: input is
+    // UTF-8 encoded via TextEncoder before processing; bytes are then
+    // packed into 32-bit words by the standard SHA-256 schedule.
+    var bytes;
+    if (typeof TextEncoder !== 'undefined') {
+      bytes = new TextEncoder().encode(str);
+    } else {
+      // Legacy fallback (very old environments). Joins surrogate pairs
+      // to their full code point, then UTF-8 encodes — matches WHATWG
+      // TextEncoder behavior for valid input. Lone surrogates are
+      // emitted as U+FFFD (3-byte replacement) per the spec.
+      var out = [];
+      for (var ci = 0; ci < str.length; ci++) {
+        var c = str.charCodeAt(ci);
+        if (c >= 0xD800 && c <= 0xDBFF && ci + 1 < str.length) {
+          var c2 = str.charCodeAt(ci + 1);
+          if (c2 >= 0xDC00 && c2 <= 0xDFFF) {
+            c = 0x10000 + ((c - 0xD800) << 10) + (c2 - 0xDC00);
+            ci++;
+          } else { c = 0xFFFD; }
+        } else if (c >= 0xDC00 && c <= 0xDFFF) {
+          c = 0xFFFD;
+        }
+        if (c < 0x80) out.push(c);
+        else if (c < 0x800) { out.push(0xC0 | (c >> 6)); out.push(0x80 | (c & 0x3F)); }
+        else if (c < 0x10000) { out.push(0xE0 | (c >> 12)); out.push(0x80 | ((c >> 6) & 0x3F)); out.push(0x80 | (c & 0x3F)); }
+        else { out.push(0xF0 | (c >> 18)); out.push(0x80 | ((c >> 12) & 0x3F)); out.push(0x80 | ((c >> 6) & 0x3F)); out.push(0x80 | (c & 0x3F)); }
+      }
+      bytes = out;
+    }
     function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
     var mathPow = Math.pow;
     var maxWord = mathPow(2, 32);
@@ -233,7 +270,8 @@
     var i, j;
     var result = '';
     var words = [];
-    var asciiBitLength = str[lengthProperty] * 8;
+    var byteLen = bytes[lengthProperty];
+    var asciiBitLength = byteLen * 8;
     var hash = [];
     var k = [];
     var primeCounter = 0;
@@ -247,11 +285,13 @@
       }
     }
 
-    str += '\x80';
-    while (str[lengthProperty] % 64 - 56) str += '\x00';
-    for (i = 0; i < str[lengthProperty]; i++) {
-      j = str.charCodeAt(i);
-      if (j >> 8) return '';
+    // Padding: append 0x80, then 0x00 bytes until length % 64 === 56.
+    var padded = [];
+    for (i = 0; i < byteLen; i++) padded.push(bytes[i]);
+    padded.push(0x80);
+    while (padded[lengthProperty] % 64 !== 56) padded.push(0x00);
+    for (i = 0; i < padded[lengthProperty]; i++) {
+      j = padded[i];
       words[i >> 2] |= j << ((3 - i) % 4) * 8;
     }
     words[words[lengthProperty]] = ((asciiBitLength / maxWord) | 0);

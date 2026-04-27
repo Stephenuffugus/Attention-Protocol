@@ -10,6 +10,15 @@
       "firebase-config.js",
       "firestore.rules",
       "functions/**"
+    ],
+    "headers": [
+      {
+        "_doc": "Round-3 R2-NEW-5/6 fix: JWKS must not be CDN/edge-cached during a key-rotation grace window. Without this, browser tabs loaded before rotation continue verifying against the OLD key for up to the default Firebase Hosting cache TTL (~1h) even after a new JWKS publishes — defeating the per-kid validity-window enforcement. no-store + must-revalidate forces every verifier to fetch fresh.",
+        "source": "/.well-known/attention-pubkey.json",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-store, max-age=0, must-revalidate" }
+        ]
+      }
     ]
   },
   "firestore": {

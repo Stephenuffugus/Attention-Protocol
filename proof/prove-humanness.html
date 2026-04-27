@@ -218,14 +218,28 @@ async function fetchJwk() {
   return await res.json();
 }
 
+// Round-3 cryptography review: this verifier shipped the EXACT
+// `|| jwks.keys[0]` fallback the round-2 fix removed from verify.html,
+// plus had no iss/nbf/iat/validity-window enforcement. Mirror the
+// hardened verify.html block here so the humanness page is not weaker
+// than the receipt-verification page.
+const ACCEPTED_ISSUERS_HUMANNESS = new Set([
+  'did:web:sws-attention-proofs.web.app',
+  'did:web:localhost'
+]);
+const CLOCK_SKEW_SEC_HUMANNESS = 300;
+
 async function verifyHumanness(jwt, jwks) {
   const parts = jwt.split('.');
   if (parts.length !== 3) throw new Error('not_a_valid_jwt');
   const [h64, p64, s64] = parts;
   const header = JSON.parse(b64urlToString(h64));
   if (header.alg !== 'EdDSA') throw new Error('unexpected_algorithm_' + header.alg);
-  const jwk = jwks.keys.find(k => k.kid === header.kid) || jwks.keys[0];
-  if (!jwk) throw new Error('no_key_in_jwks');
+
+  // Strict kid match — no `|| jwks.keys[0]` fallback.
+  if (!header.kid) throw new Error('jwt_header_missing_kid');
+  const jwk = jwks.keys.find(k => k.kid === header.kid);
+  if (!jwk) throw new Error('no_matching_key_for_kid_' + header.kid);
 
   const key = await crypto.subtle.importKey('jwk', jwk, { name: 'Ed25519' }, true, ['verify']);
   const msg = new TextEncoder().encode(h64 + '.' + p64);
@@ -233,8 +247,38 @@ async function verifyHumanness(jwt, jwks) {
   const sigValid = await crypto.subtle.verify({ name: 'Ed25519' }, key, sig, msg);
   const payload = JSON.parse(b64urlToString(p64));
   const nowSec = Math.floor(Date.now() / 1000);
-  const expired = typeof payload.exp === 'number' && nowSec > payload.exp + 300;
-  return { sigValid, expired, header, payload, nowSec, jwk };
+
+  const claimErrors = [];
+  const expired = typeof payload.exp === 'number' && nowSec > payload.exp + CLOCK_SKEW_SEC_HUMANNESS;
+  if (expired) claimErrors.push('expired');
+  if (typeof payload.nbf === 'number' && nowSec + CLOCK_SKEW_SEC_HUMANNESS < payload.nbf) {
+    claimErrors.push('not_yet_valid');
+  }
+  if (payload.iss && !ACCEPTED_ISSUERS_HUMANNESS.has(payload.iss)) {
+    claimErrors.push('unknown_issuer');
+  }
+  const vcIssuerId = payload.vc && payload.vc.issuer && payload.vc.issuer.id;
+  if (vcIssuerId && payload.iss && vcIssuerId !== payload.iss) {
+    claimErrors.push('iss_vc_issuer_mismatch');
+  }
+  // Per-kid validity-window check (matches verify.html).
+  if (typeof payload.iat === 'number') {
+    const iatMs = payload.iat * 1000;
+    if (jwk.sws_validFrom) {
+      const vfMs = Date.parse(jwk.sws_validFrom);
+      if (Number.isFinite(vfMs) && iatMs + CLOCK_SKEW_SEC_HUMANNESS * 1000 < vfMs) {
+        claimErrors.push('iat_before_kid_validFrom');
+      }
+    }
+    if (jwk.sws_validUntil) {
+      const vuMs = Date.parse(jwk.sws_validUntil);
+      if (Number.isFinite(vuMs) && iatMs > vuMs + CLOCK_SKEW_SEC_HUMANNESS * 1000) {
+        claimErrors.push('iat_after_kid_validUntil');
+      }
+    }
+  }
+
+  return { sigValid, expired, claimErrors, header, payload, nowSec, jwk };
 }
 
 // Render the humanness verdict (not the full 6-layer breakdown)
@@ -248,10 +292,17 @@ function renderHumannessVerdict(result) {
     vSlot.innerHTML = '<div class="verdict bad"><div class="big">✗ Signature invalid</div><div class="detail">This credential was tampered with or signed by a different issuer.</div></div>';
     return;
   }
-  if (result.expired) {
-    const expDate = new Date(result.payload.exp * 1000);
-    const hoursAgo = Math.floor((Date.now() - expDate.getTime()) / 3600000);
-    vSlot.innerHTML = '<div class="verdict warn"><div class="big">⏱ Credential expired</div><div class="detail">Expired ' + hoursAgo + ' hours ago. Ask the holder to renew by running a fresh session.</div></div>';
+  // Round-3 fix: check claim errors BEFORE the legacy expired-only path,
+  // because expired is now one of several claim errors and we want all
+  // of them surfaced.
+  if (result.claimErrors && result.claimErrors.length > 0) {
+    if (result.claimErrors.includes('expired')) {
+      const expDate = new Date(result.payload.exp * 1000);
+      const hoursAgo = Math.floor((Date.now() - expDate.getTime()) / 3600000);
+      vSlot.innerHTML = '<div class="verdict warn"><div class="big">⏱ Credential expired</div><div class="detail">Expired ' + hoursAgo + ' hours ago. Ask the holder to renew by running a fresh session.</div></div>';
+    } else {
+      vSlot.innerHTML = '<div class="verdict bad"><div class="big">✗ Credential rejected — ' + result.claimErrors[0] + '</div><div class="detail">' + result.claimErrors.join('; ') + '. Signature is mathematically valid but the credential fails a standard JWT claim check.</div></div>';
+    }
     return;
   }
 

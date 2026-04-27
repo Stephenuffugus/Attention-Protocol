@@ -451,13 +451,30 @@
     if (typeof TextEncoder !== 'undefined') {
       bytes = new TextEncoder().encode(str);
     } else {
-      // Legacy fallback (very old environments): manual UTF-8 encoder.
+      // Legacy fallback (very old environments). Round-3 cryptography
+      // review found the original 3-byte-only path mishandled BMP-plane
+      // surrogate pairs (emoji, mathematical italic, CJK extension B used
+      // in real names) — emitted 6 invalid UTF-8 bytes instead of the
+      // correct 4-byte sequence, diverging from the WebCrypto path. Now:
+      // join surrogate pairs into the full code point, replace lone
+      // surrogates with U+FFFD per WHATWG spec, then UTF-8 encode (1-4
+      // bytes depending on code point).
       var out = [];
       for (var ci = 0; ci < str.length; ci++) {
         var c = str.charCodeAt(ci);
+        if (c >= 0xD800 && c <= 0xDBFF && ci + 1 < str.length) {
+          var c2 = str.charCodeAt(ci + 1);
+          if (c2 >= 0xDC00 && c2 <= 0xDFFF) {
+            c = 0x10000 + ((c - 0xD800) << 10) + (c2 - 0xDC00);
+            ci++;
+          } else { c = 0xFFFD; }
+        } else if (c >= 0xDC00 && c <= 0xDFFF) {
+          c = 0xFFFD;
+        }
         if (c < 0x80) out.push(c);
         else if (c < 0x800) { out.push(0xC0 | (c >> 6)); out.push(0x80 | (c & 0x3F)); }
-        else { out.push(0xE0 | (c >> 12)); out.push(0x80 | ((c >> 6) & 0x3F)); out.push(0x80 | (c & 0x3F)); }
+        else if (c < 0x10000) { out.push(0xE0 | (c >> 12)); out.push(0x80 | ((c >> 6) & 0x3F)); out.push(0x80 | (c & 0x3F)); }
+        else { out.push(0xF0 | (c >> 18)); out.push(0x80 | ((c >> 12) & 0x3F)); out.push(0x80 | ((c >> 6) & 0x3F)); out.push(0x80 | (c & 0x3F)); }
       }
       bytes = out;
     }

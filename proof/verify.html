@@ -68,7 +68,6 @@
   <h1>Verify an SWS Attention Receipt</h1>
 </header>
 <main id="main" class="wrap" style="padding-top:0" tabindex="-1">
-  <div style="display:none"><h1 class="sr-only">Verify an SWS Attention Receipt</h1></div>
   <p class="sub">
     Paste any signed SWS attention receipt below. Your browser will verify the Ed25519 (EdDSA)
     signature against the public key at
@@ -165,12 +164,18 @@ async function fetchJwk() {
   return await res.json();
 }
 
-// Issuers the verifier accepts. `did:web:sws-attention-proofs.web.app` is
-// the production issuer; allow the localhost demo origin for dev fixtures.
-const ACCEPTED_ISSUERS = new Set([
-  'did:web:sws-attention-proofs.web.app',
-  'did:web:localhost'
-]);
+// Issuers the verifier accepts. `did:web:sws-attention-proofs.web.app`
+// is the production issuer. Round-3 review: `did:web:localhost` was
+// previously hardcoded; gate it behind a hostname check so production
+// only accepts the production issuer.
+const ACCEPTED_ISSUERS = (function() {
+  const set = new Set(['did:web:sws-attention-proofs.web.app']);
+  const host = (typeof location !== 'undefined' && location.hostname) || '';
+  if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) {
+    set.add('did:web:localhost');
+  }
+  return set;
+})();
 // Clock-skew tolerance (seconds) for `exp` / `iat` / `nbf`.
 const CLOCK_SKEW_SEC = 300;
 
@@ -492,20 +497,31 @@ async function doVerify() {
 
     // Calibration-override / small-N caveat surfacing. Round-2 statistics
     // review pointed out: the receipt carries `calibration_override:true`
-    // and `small_n_caveat:true` flags but no verifier consumed them, so
-    // surfacing was theatre. Make them user-visible.
+    // and `small_n_caveat:true` flags but no verifier consumed them.
+    // Round-3 follow-up: render them, but ALSO mark the receipt as
+    // failed-verdict in user-visible position so a casual reviewer
+    // doesn't see a green check next to a calibration warning. The
+    // underlying signature is still cryptographically valid — we
+    // surface that separately — but the *receipt's declarations*
+    // are not decision-grade.
     const conf = subj && subj.conformalAnalysis;
     const cal = conf && conf.calibration;
     if (cal && (cal.calibration_override === true || cal.small_n_caveat === true)) {
-      const banner = el('div', 'verdict bad');
-      banner.appendChild(el('div', 'big',
-        '⚠ Calibration warning — do not use for decision-grade verification'));
+      // Replace the green verdict block with a warn-tier verdict so the
+      // top-of-page summary matches the calibration concern.
+      vSlot.innerHTML = '';
       const reasons = [];
       if (cal.calibration_override === true) reasons.push('caller-supplied calibration override');
       if (cal.small_n_caveat === true) reasons.push('bootstrap CI computed at small N (wide, approximate)');
-      banner.appendChild(el('div', null, 'This receipt declared: ' + reasons.join('; ') + '. '
-        + 'A decision-grade verifier should reject these receipts.'));
-      vSlot.appendChild(banner);
+      const warnBlock = el('div', 'verdict bad');
+      warnBlock.appendChild(el('div', 'big',
+        '⚠ Receipt verified BUT calibration is not decision-grade'));
+      warnBlock.appendChild(el('div', null,
+        'Ed25519 signature verified cleanly (issuer: ' + (issuer && issuer.name ? issuer.name : '—')
+        + ', kid: ' + result.kid + '). However the receipt declares: ' + reasons.join('; ') + '. '
+        + 'A decision-grade verifier (CME credit, regulated training, fraud gate) should reject. '
+        + 'OK for forensic / audit / informational use.'));
+      vSlot.appendChild(warnBlock);
     }
 
     if (subj) {
