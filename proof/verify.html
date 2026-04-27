@@ -222,6 +222,30 @@ async function verifyJwt(jwt, jwks) {
     claimErrors.push('iss_vc_issuer_mismatch');
   }
 
+  // Round-2 R2-NEW-5: per-kid validity window. The JWKS now publishes
+  // sws_validFrom / sws_validUntil per key. During a rotation grace
+  // window the OLD key remains in the JWKS for backward-compat — but
+  // an attacker holding the leaked old key could mint receipts dated
+  // *after* rotation and have them verify, because the public key is
+  // still published. Reject when payload.iat is outside this kid's
+  // window. Receipts with no `iat` are accepted (legacy fixtures);
+  // future receipts are required to carry it.
+  if (typeof payload.iat === 'number') {
+    const iatMs = payload.iat * 1000;
+    if (jwk.sws_validFrom) {
+      const vfMs = Date.parse(jwk.sws_validFrom);
+      if (Number.isFinite(vfMs) && iatMs + CLOCK_SKEW_SEC * 1000 < vfMs) {
+        claimErrors.push('iat_before_kid_validFrom (kid=' + jwk.kid + ' validFrom=' + jwk.sws_validFrom + ')');
+      }
+    }
+    if (jwk.sws_validUntil) {
+      const vuMs = Date.parse(jwk.sws_validUntil);
+      if (Number.isFinite(vuMs) && iatMs > vuMs + CLOCK_SKEW_SEC * 1000) {
+        claimErrors.push('iat_after_kid_validUntil (kid=' + jwk.kid + ' validUntil=' + jwk.sws_validUntil + ')');
+      }
+    }
+  }
+
   return {
     ok: !!ok && claimErrors.length === 0,
     sigOk: !!ok,
@@ -375,15 +399,37 @@ function renderLayers(cs) {
   // 6a. OpenTimestamps Bitcoin anchor
   if (cs.bitcoinAnchor) {
     const b = cs.bitcoinAnchor;
-    const status = b.status === 'bitcoin_confirmed'
+    // Round-2 R2-NEW-6: cross-check OTS block-time against the receipt's
+    // claimed issuance time. OTS proves "this hash existed by block N" —
+    // it does NOT prove "the receipt was signed at block N." An attacker
+    // with a leaked private key can pre-stamp a hash and back-date the
+    // JWT iat. If |issuanceDate - bitcoinBlockTime| > 24h, the anchor is
+    // suspicious; surface a warn rather than a clean ok.
+    const issuanceMs = cs.proof && cs.proof.created ? Date.parse(cs.proof.created)
+                    : (cs.signing_metadata && cs.signing_metadata.signed_at) ? Date.parse(cs.signing_metadata.signed_at)
+                    : null;
+    const blockMs = b.bitcoinBlockTime ? Date.parse(b.bitcoinBlockTime) : null;
+    const skewHours = (issuanceMs && blockMs)
+      ? Math.abs(issuanceMs - blockMs) / (1000 * 60 * 60)
+      : null;
+    const skewSuspicious = skewHours !== null && skewHours > 24;
+    const status = b.status === 'bitcoin_confirmed' && skewSuspicious
+                    ? { cls: 'warn', label: 'BTC block #' + b.bitcoinBlockHeight + ' — TIME SKEW' }
+                    : b.status === 'bitcoin_confirmed'
                     ? { cls: 'ok', label: 'BTC block #' + b.bitcoinBlockHeight }
                     : b.status === 'pending' ? { cls: 'warn', label: 'pending Bitcoin confirm' }
                     : { cls: 'dim', label: b.status || 'unknown' };
-    grid.appendChild(layerCard('6a. Bitcoin anchor (OTS)', status, [
+    const rows = [
       ['Stamped at', b.stampedAt || '—'],
       ['Block time', b.bitcoinBlockTime || 'pending'],
       ['Proof size', b.proofB64 ? Math.round(b.proofB64.length * 0.75) + ' bytes' : '—']
-    ]));
+    ];
+    if (skewSuspicious) {
+      rows.push(['Skew vs issuance', skewHours.toFixed(1) + 'h — suspicious (>24h means receipt may have been pre-stamped or back-dated)']);
+    } else if (skewHours !== null) {
+      rows.push(['Skew vs issuance', skewHours.toFixed(1) + 'h (within tolerance)']);
+    }
+    grid.appendChild(layerCard('6a. Bitcoin anchor (OTS)', status, rows));
   }
 
   // 6b. RFC 3161 TSA timestamp (regulator-familiar timestamp format)

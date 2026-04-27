@@ -6,7 +6,10 @@
       "x": "YspKEQXSJeaWXrkwDgVT-TEChPJgT76Sw3lQbS3xNQ4",
       "kid": "sws-attention-2026-04",
       "use": "sig",
-      "alg": "EdDSA"
+      "alg": "EdDSA",
+      "sws_validFrom": "2026-04-01T00:00:00Z",
+      "sws_validUntil": "2027-04-01T00:00:00Z"
     }
-  ]
+  ],
+  "_doc": "sws_validFrom and sws_validUntil are non-RFC-7517 SWS-namespaced fields enforcing per-kid issuance windows. Verifiers MUST reject when payload.iat is outside [validFrom, validUntil]. Round-2 cryptography review (2026-04-28): a leaked old key during a rotation grace window could otherwise mint receipts dated after the rotation."
 }

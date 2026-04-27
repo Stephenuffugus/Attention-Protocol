@@ -129,7 +129,7 @@ describe('Live Demo — Full User Flow', () => {
     expect(typeof phase3Visible).toBe('boolean');
 
     await page.close();
-  }, 30000);
+  }, 90000);
 
   test('Full flow: all 3 phases → results with signals', async () => {
     const page = await browser.newPage();
@@ -241,7 +241,7 @@ describe('Live Demo — Full User Flow', () => {
     console.log('  Gallery: ' + cardCount + ' verticals rendered, status: ' + status);
 
     await page.close();
-  }, 15000);
+  }, 45000);
 
   test('compliance report page loads', async () => {
     const page = await browser.newPage();

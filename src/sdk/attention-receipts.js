@@ -440,6 +440,27 @@
 
   // Pure-JS synchronous SHA-256 implementation
   function _sha256Pure(str) {
+    // Round-2 R2-NEW-9 fix: UTF-8-encode the input first so non-ASCII
+    // characters (UTF-8 multi-byte, smart quote, em-dash, accented user
+    // name) hash correctly. The previous implementation read JS string
+    // characters directly via charCodeAt — these are UTF-16 code units,
+    // and any code unit > 0xFF triggered `return ''`, silently producing
+    // an empty hash that would collide with every other empty-hash
+    // receipt. Now: encode to UTF-8 bytes, then process those bytes.
+    var bytes;
+    if (typeof TextEncoder !== 'undefined') {
+      bytes = new TextEncoder().encode(str);
+    } else {
+      // Legacy fallback (very old environments): manual UTF-8 encoder.
+      var out = [];
+      for (var ci = 0; ci < str.length; ci++) {
+        var c = str.charCodeAt(ci);
+        if (c < 0x80) out.push(c);
+        else if (c < 0x800) { out.push(0xC0 | (c >> 6)); out.push(0x80 | (c & 0x3F)); }
+        else { out.push(0xE0 | (c >> 12)); out.push(0x80 | ((c >> 6) & 0x3F)); out.push(0x80 | (c & 0x3F)); }
+      }
+      bytes = out;
+    }
     function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
     var mathPow = Math.pow;
     var maxWord = mathPow(2, 32);
@@ -447,7 +468,13 @@
     var i, j;
     var result = '';
     var words = [];
-    var asciiBitLength = str[lengthProperty] * 8;
+    var byteLen = bytes[lengthProperty];
+    var asciiBitLength = byteLen * 8;
+    // Padding: append 0x80, then 0x00 bytes until length % 64 === 56.
+    var padded = [];
+    for (i = 0; i < byteLen; i++) padded.push(bytes[i]);
+    padded.push(0x80);
+    while (padded[lengthProperty] % 64 !== 56) padded.push(0x00);
     var hash = [];
     var k = [];
     var primeCounter = 0;
@@ -459,11 +486,8 @@
         k[primeCounter++] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
       }
     }
-    str += '\x80';
-    while (str[lengthProperty] % 64 - 56) str += '\x00';
-    for (i = 0; i < str[lengthProperty]; i++) {
-      j = str.charCodeAt(i);
-      if (j >> 8) return '';
+    for (i = 0; i < padded[lengthProperty]; i++) {
+      j = padded[i];
       words[i >> 2] |= j << ((3 - i) % 4) * 8;
     }
     words[words[lengthProperty]] = ((asciiBitLength / maxWord) | 0);
