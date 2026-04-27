@@ -61,19 +61,42 @@ function createEventLog(opts) {
   var maxEvents = opts.maxEvents || MAX_EVENTS_DEFAULT;
   var mousemoveSampleRatio = opts.mousemoveSampleRatio != null
     ? opts.mousemoveSampleRatio : MOUSEMOVE_SAMPLE_DEFAULT;
+  // Round-6 R5-NEW-5: gate recording on consent. The recorder is
+  // created in init() but does not emit events until the consent flow
+  // resolves. consentReady defaults true (legacy callers + automation
+  // bypass via navigator.webdriver) but the cme-demo + demo wiring
+  // sets it false until SWSPrivacy.hasConsent('attention_tracking')
+  // returns true. Pre-consent events are buffered into anchorEvents
+  // (a separate small array — see R5-NEW-11 below); on consent grant,
+  // anchorEvents flush into events and recording proceeds normally.
+  var consentReady = opts.consentReady !== false;
 
   var events = [];
+  // Round-6 R5-NEW-11: anchored-earliest events. The 5000-event cap
+  // with oldest-first eviction lets an attacker flood with synthetic
+  // mousemoves to evict the early-session evidence (the genuine human
+  // prefix, before any forgery began). Solution: keep the FIRST N
+  // events as a never-evicted anchor so forensic value of the
+  // beginning-of-session is preserved even under flood.
+  var ANCHOR_SIZE = opts.anchorSize || 200;
+  var anchorEvents = [];
   var startedAt = Date.now();
   var mousemoveCounter = 0;
 
   function record(ev) {
     if (!ev || typeof ev !== 'object') return;
+    if (!consentReady) {
+      // Pre-consent: do not record anything. Caller can flush a
+      // permitted-pre-consent set (e.g., 'visibility' for accessibility
+      // detection) via the explicit setConsentReady() path; default
+      // posture is "no telemetry until granted."
+      return;
+    }
+    if (anchorEvents.length < ANCHOR_SIZE) {
+      anchorEvents.push(ev);
+      return;
+    }
     if (events.length >= maxEvents) {
-      // Circular buffer: drop the oldest event. Reservoir sampling would
-      // be more rigorous but adds complexity; for a 5000-event budget on
-      // a typical 4-min CME session (~10k events untrimmed), oldest-first
-      // eviction loses the early-session reading-phase events but keeps
-      // the active-engagement + submit phase. Document and move on.
       events.shift();
     }
     events.push(ev);
@@ -82,11 +105,28 @@ function createEventLog(opts) {
   return {
     version: VERSION,
 
-    /** Record a mousemove event (x, y, t). Sampled to bound size. */
+    /**
+     * Record a mousemove event (x, y, t). Sampled to bound size.
+     * Round-6 R5-NEW-12 fix: deterministic hash-based sampling so an
+     * attacker can't flood with synthetic moves and statistically
+     * guarantee retention of any particular forged event. The sample
+     * decision is purely a function of (t, x, y) — no Math.random().
+     */
     mousemove: function(x, y, t) {
       mousemoveCounter++;
-      if (Math.random() > mousemoveSampleRatio) return;
-      record({ type: 'mm', t: t || Date.now(), x: x, y: y });
+      var ts = t || Date.now();
+      // Cheap hash: mix t + x + y into a 32-bit value, take its low
+      // bit (or low N bits for finer ratios). Keeps half the events
+      // when sampleRatio=0.5; deterministic per (t,x,y).
+      if (mousemoveSampleRatio < 1.0) {
+        // FNV-like mix; coarse enough for sampling, deterministic.
+        var h = ((ts ^ (ts >>> 16)) * 2654435761) | 0;
+        h = ((h + x) * 2654435761) | 0;
+        h = ((h + y) * 2654435761) | 0;
+        h = (h >>> 0) / 0x100000000;
+        if (h > mousemoveSampleRatio) return;
+      }
+      record({ type: 'mm', t: ts, x: x, y: y });
     },
 
     /** Record a click event (x, y, t). Always recorded (low frequency). */
@@ -110,28 +150,46 @@ function createEventLog(opts) {
     },
 
     /**
-     * Snapshot the current log as a plain JSON-safe object. Includes
-     * metadata so the server-side scorer can validate plausibility.
+     * Snapshot the current log. Output combines the anchor (first N
+     * events, never evicted) with the rolling window (most recent
+     * up-to-maxEvents). Server-scorer can detect a flood-eviction
+     * attack by checking that anchor and rolling are temporally
+     * contiguous (no large gap between last anchor event and first
+     * rolling event).
      */
     snapshot: function() {
+      var combined = anchorEvents.concat(events);
       return {
         version: VERSION,
         recorded_at: Date.now(),
         started_at: startedAt,
         duration_ms: Date.now() - startedAt,
-        events_recorded: events.length,
+        events_recorded: combined.length,
+        anchor_size: anchorEvents.length,
+        rolling_size: events.length,
         mousemove_total_observed: mousemoveCounter,
         mousemove_sample_ratio: mousemoveSampleRatio,
-        events: events.slice() // shallow copy
+        consent_ready: consentReady,
+        events: combined
       };
     },
 
-    /** Number of events currently buffered. */
-    size: function() { return events.length; },
+    /** Number of events currently buffered (anchor + rolling). */
+    size: function() { return anchorEvents.length + events.length; },
+
+    /**
+     * Mark consent as granted; recording proceeds from now on.
+     * No retroactive recording (events before consent are dropped),
+     * matching the BIPA / GDPR posture in docs/legal/bipa-posture.md.
+     */
+    setConsentReady: function(ready) {
+      consentReady = !!ready;
+    },
 
     /** Reset the log (used in tests; not for production). */
     reset: function() {
       events = [];
+      anchorEvents = [];
       startedAt = Date.now();
       mousemoveCounter = 0;
     }

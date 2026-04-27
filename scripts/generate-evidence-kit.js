@@ -539,7 +539,15 @@ async function main() {
     },
     human_verification: {
       composite_score: hv.compositeScore || 0,
-      verdict: hv.verdict || 'verified_human_active_engagement'
+      verdict: hv.verdict || 'verified_human_active_engagement',
+      // Round-6 R5-NEW-6 fan-out: surface THE WALL outcome in the
+      // audit bundle handed to lawyers / procurement counsel. Without
+      // this, a divergent receipt would render ✓ in the openbadge
+      // bundle with no record of WHY the issuer's server flagged it.
+      trust_tier: hv.trustTier || null,
+      server_recompute: hv.serverRecompute || null,
+      bounds_violations: hv.boundsViolations || null,
+      trace_novelty: hv.traceNovelty || null
     },
     proof: {
       receipt_hash: (vc.proof && vc.proof.receiptHash) || 'sample'

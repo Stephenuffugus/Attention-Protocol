@@ -2667,11 +2667,41 @@
     // SWSEventLog from the global scope (exposed by event-log.js, loaded
     // before this SDK in cme-demo.html). If unavailable, fall back to a
     // no-op so legacy pages don't break.
+    // Round-6 R5-NEW-5 fix: gate on consent. The recorder is created
+    // with consentReady=false; if SWSPrivacy.hasConsent('attention_tracking')
+    // returns true OR navigator.webdriver is true (automation), flip
+    // it to ready immediately. Otherwise wire onConsentGranted to
+    // setConsentReady(true) so the recorder starts AFTER user accepts.
     if (typeof window !== 'undefined' && window.SWSEventLog && window.SWSEventLog.createEventLog) {
+      var consentAlreadyGranted = false;
+      try {
+        consentAlreadyGranted = (window.SWSPrivacy
+          && window.SWSPrivacy.hasConsent
+          && window.SWSPrivacy.hasConsent('attention_tracking'))
+          || navigator.webdriver === true;
+      } catch (_consentCheckErr) { /* SWSPrivacy may not be loaded yet */ }
       _eventLog = window.SWSEventLog.createEventLog({
         maxEvents: 5000,
-        mousemoveSampleRatio: 0.5
+        mousemoveSampleRatio: 0.5,
+        consentReady: consentAlreadyGranted
       });
+      // Wire a one-shot consent listener so consentReady flips when
+      // the user clicks Accept. SWSPrivacy doesn't expose an event
+      // emitter, so poll briefly in the consent-banner's typical
+      // resolve window (a click triggers DOM removal, which we can
+      // observe). Cheap + non-blocking.
+      if (!consentAlreadyGranted && window.SWSPrivacy && window.SWSPrivacy.hasConsent) {
+        var consentPoll = setInterval(function() {
+          try {
+            if (window.SWSPrivacy.hasConsent('attention_tracking')) {
+              if (_eventLog && _eventLog.setConsentReady) _eventLog.setConsentReady(true);
+              clearInterval(consentPoll);
+            }
+          } catch (_e) { /* ignore */ }
+        }, 200);
+        // Auto-stop poll after 15min so it doesn't leak forever.
+        setTimeout(function() { clearInterval(consentPoll); }, 15 * 60 * 1000);
+      }
     }
 
     // Event listeners for interaction tracking

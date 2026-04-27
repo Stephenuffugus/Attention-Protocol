@@ -79,7 +79,15 @@ function receiptFromVcPayload(vc, iat) {
     },
     human_verification: {
       composite_score: typeof hv.compositeScore === 'number' ? hv.compositeScore : null,
-      verdict: hv.verdict || null
+      verdict: hv.verdict || null,
+      // Round-6 fan-out: surface wall outcome in the OpenBadge
+      // projection so any consumer of the open-badge credential
+      // (LinkedIn, Credly, etc.) can see the trust tier alongside
+      // the composite score.
+      trust_tier: hv.trustTier || null,
+      server_recompute: hv.serverRecompute || null,
+      bounds_violations: hv.boundsViolations || null,
+      trace_novelty: hv.traceNovelty || null
     },
     proof: {
       receipt_hash: (vc.proof && vc.proof.receiptHash) ||
