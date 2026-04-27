@@ -27,7 +27,7 @@
 |---|-------|-------------|
 | 1 | **City now / post-YC (if accepted)** | **Uniontown, OH** / **Mountain View, CA** *(YC post-acceptance default — change if you'd pick SF or would stay remote)* |
 | 2 | **Legal operating entity** (state of formation) | **SWS Strategic Media LLC** — state: `[CONFIRM — likely Ohio per your Uniontown, OH registered address, but check the LLC formation certificate]` |
-| 3 | **One pre-existing accomplishment** | *Draft below, rewrite freely:* **"I have operated Stevie Weed Seed, an affiliate/content site, for several years — built the traffic, handled the content ops, and ran the monetization side myself. I also designed and am shipping Lucid Wins, a consumer game with a planned Pi Network (47M user base) deployment. I've worked direct-line in the food-service industry long enough to know where the real compliance-training pain lives, which is why restaurants/franchise training is one of our wedge verticals."** `[REWRITE so this sounds like you talking, and add anything else — work you led, creative projects with real traction, etc.]` |
+| 3 | **One pre-existing accomplishment** | *Draft below, rewrite freely:* **"I have operated Stevie Weed Seed, an affiliate/content site, for several years — built the traffic, handled the content ops, and ran the monetization side myself. I also designed and am shipping Lucid Wins, a consumer game with a planned Pi Network (47M user base) deployment. I've worked direct-line in food service long enough to know where the real training-compliance pain lives — that domain knowledge informs how I think about every vertical we look at, even though CME is the wedge we lead with."** `[REWRITE so this sounds like you talking, and add anything else — work you led, creative projects with real traction, etc.]` |
 | 4 | **Honest burn rate + runway** | `[FILL — private / your call]` Format: `Bank: $X. Burn: $Y/mo. Runway: Z months.` Desperation reads as commitment when paired with a working patent-filed artifact. |
 | 5 | **Patent provisional serial number** | `[FILL — log into https://patentcenter.uspto.gov and find your 2026-03-17 filing, copy the 63/XXX,XXX serial]` |
 | 6 | **Date project started** | *Context I found:* First git commit was **2026-03-27**. Patent drafting likely began earlier. Provisional filed **2026-03-17**. Suggest: `"Patent drafting early 2026; provisional filed 2026-03-17; production SDK first commit 2026-03-27"` — **confirm or replace with whenever you personally consider the project to have begun.** |
@@ -60,7 +60,7 @@ The receipts are tamper-evident, privacy-preserving (no PII — just behavioral 
 
 We ship the protocol three ways:
 
-1. **B2B verification service** — Enterprises drop a single JavaScript tag and get scored attention receipts via API. Target verticals: restaurant training compliance (founder's domain), market research panels, nursing home monitoring, corporate training/LMS, advertising, healthcare/digital therapeutics.
+1. **B2B verification service** — Enterprises drop a single JavaScript tag and get scored attention receipts via API. Primary wedge: CME / continuing-medical-education credentialing (largest fraud, sharpest pain, regulators watching, no entrenched competitor). Adjacent verticals: market research panels, corporate training/LMS, nursing home monitoring, healthcare/digital therapeutics, advertising. Restaurant training compliance is a founder-domain wedge held in reserve (Stephen override 2026-04-24 — different sales cycle, revisited post-CME pilot).
 2. **Developer SDK** — Any app developer embeds the protocol and gets engagement analytics + verifiable receipts. Revenue split: 70% user, 29% developer, 1% protocol.
 3. **Consumer game (Lucid Wins)** — Players earn receipts as they play, redeemable inside the game ecosystem. This is the consumer-facing flywheel and the source of our behavioral calibration dataset. *(Currently in development — no game code shipped yet.)*
 
@@ -271,22 +271,23 @@ Record this LAST, after the written application is locked. Unlisted YouTube uplo
 
 **Setting:** Quiet room, decent lighting (face a window), phone or laptop camera at eye level, single take is fine — YC doesn't grade production quality.
 
-**Script (~165 words, ~60-65 seconds at conversational pace):**
+**Script (~135 words, ~55-60 seconds at conversational pace):**
 
 > "Hi, I'm Stephen Furpahs, solo founder of SWS Strategic Media. I'm building cryptographic proof of human attention — a tamper-evident receipt every regulated transaction can attach as evidence that a real human did the work, not an AI agent or bot.
 >
 > Everybody in analytics measures what *happened*. Nobody measures whether a human was actually *there*. That gap is where ad fraud lives, where compliance fails, where CME credentialing can be defeated by a script, and where the agentic web has no audit layer.
 >
-> We measure 23 behavioral signals — timing entropy, Fitts' Law, Hick's Law, scroll saccade, micro-pause, touch variance, keystroke dynamics, reading-speed coherence, two-thirds power law, prewhitened 1-over-f scaling, submovement count, and twelve more — every one grounded in fifty to seventy years of peer-reviewed motor-control and cognitive research. The receipt is a SHA-256 hash over a deeply key-sorted canonical JSON of the entire session. We tested it against a hundred random tamper attacks — every one detected. Every receipt also includes a calibrated Bayesian probability that the session was human, with a bootstrap 95-percent confidence interval.
+> We measure 23 behavioral signals — Fitts' Law, Hick's Law, prewhitened 1-over-f scaling, submovement count, and 19 more — every one grounded in fifty to seventy years of peer-reviewed motor-control and cognitive research. The receipt is a SHA-256 hash of the entire session. We tested it against a hundred random tamper attacks — every one detected. Every receipt includes a calibrated Bayesian probability the session was human, with a 95-percent confidence interval.
 >
-> The patent was filed at the USPTO March 17, 2026. The protocol is live, deployed on Firebase, generating real receipts right now. Anyone can verify a receipt in their browser using only WebCrypto — no SWS server involved.
+> Patent filed at the USPTO March 17, 2026. The protocol is live right now, deployed on Firebase. Anyone can verify a receipt in their browser using only WebCrypto — no SWS server involved.
 >
-> I'm applying to YC because I want this to be the audit layer for every vertical that has a screen, starting with CME credentialing where the fraud is largest and the regulators are watching. Thanks for reading."
+> I'm applying to YC because I want this to be the audit layer for every vertical that has a screen, starting with CME credentialing where the fraud is largest and the regulators are watching. Thanks for watching."
 
 **Pre-record checklist:**
 - [ ] Water at hand
 - [ ] Phone on Do Not Disturb
-- [ ] Do one full read-through out loud before recording
+- [ ] Do one timed read-through out loud — aim for 55-60 seconds. If you're hitting 70+, you're reading too tight; slow down or trim
+- [ ] Don't read the script word-for-word — internalize the 5 beats (who I am → the gap → what we measure + tamper-test → patent + live → the ask) and tell it
 - [ ] Shoot 3 takes, pick the best, don't over-edit
 - [ ] Upload to YouTube as **Unlisted** (not Private, not Public)
 - [ ] Paste the URL in the founder video field of the application
@@ -295,13 +296,29 @@ Record this LAST, after the written application is locked. Unlisted YouTube uplo
 
 ## FINAL PRE-SUBMIT CHECKLIST
 
-- [ ] All 6 inputs above are filled in
-- [ ] All `[STEPHEN: REVIEW]` blocks rewritten in your voice
-- [ ] Live user count updated from Firestore after deploy
-- [ ] Founder video recorded, uploaded unlisted, URL pasted
-- [ ] Read every answer out loud once — if any sentence sounds like AI-speak, rewrite it
-- [ ] Double-check the 50-character company description under the character limit
-- [ ] Re-run `npm test` and verify test count matches what's in the draft
+### Stephen-only inputs (these can ONLY come from you)
+- [ ] Input #2: confirm LLC state of formation (likely Ohio)
+- [ ] Input #3: rewrite the pre-existing-accomplishment in your voice
+- [ ] Input #4: bank balance, monthly burn, runway months
+- [ ] Input #5: USPTO patent provisional serial number (63/XXX,XXX) from patentcenter.uspto.gov
+- [ ] Input #6: confirm or replace the project-start date framing
+- [ ] Live user count: pull last-7-days count from Firestore once data accumulates; replace `N` placeholder at line ~144
+- [ ] [STEPHEN: REVIEW] blocks: code-writing answer (~line 90), Anything-else (~line 171), Why-this-idea (~line 179), how-heard-about-YC (~line 264) — each rewritten in your voice
+
+### Founder video
+- [ ] Founder video recorded (~55-60 seconds — see script + pre-record checklist above)
+- [ ] Uploaded as Unlisted (NOT Private, NOT Public) to YouTube
+- [ ] URL pasted in the founder-video field at line ~79
+
+### Verification before submit
+- [ ] Read every answer out loud once — if any sentence sounds like AI-speak, rewrite it. (Already swept; one more read-through is the safety net.)
+- [ ] Confirm 50-character company description (`Cryptographic receipts of real human attention.`) is under YC's character limit
+- [ ] `git push origin main` — gets the 14+ unpushed commits to GitHub so the for-reviewers page's "(rendered on GitHub)" links resolve nicely
+- [ ] Re-run all live-site validation: `node scripts/test-tampering-attack.js`, `node scripts/test-canonical-edge-inputs.js`, `BASE_URL=https://sws-attention-proofs.web.app node scripts/test-live-roundtrip.js`, `BASE_URL=https://sws-attention-proofs.web.app node scripts/test-paste-canonical-verify.js`, `BASE_URL=https://sws-attention-proofs.web.app node scripts/test-receipt-explorer-sample.js`, `BASE_URL=https://sws-attention-proofs.web.app node scripts/test-cross-browser-env-gate.js`, `BASE_URL=https://sws-attention-proofs.web.app node scripts/run-naive-puppeteer.js` — all should report ✓ PASS
+- [ ] Confirm https://sws-attention-proofs.web.app/for-reviewers.html serves HTTP 200 and the deep-dive + calibration-doc links resolve
+
+### Share
+- [ ] (Optional) Send the URL `https://sws-attention-proofs.web.app/for-reviewers.html` to one or more intellectually-honest friends for pushback before May 3
 - [ ] Submit at https://www.ycombinator.com/apply before **May 4, 2026 8:00pm PT**
 
 ---
