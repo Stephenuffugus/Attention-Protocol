@@ -1,0 +1,22 @@
+{
+  "_doc": "Firestore composite indexes. Round-7 fix: required for the trace-novelty (R2-NEW-2b) query in proof/functions/index.js#onSessionWritten and HTTP signReceipt. Without this index, the query throws FAILED_PRECONDITION on first invocation and trace-novelty silently degrades to traceNovelty.checked:false. Apply with: firebase deploy --only firestore:indexes",
+  "indexes": [
+    {
+      "collectionGroup": "session_fingerprints",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "fingerprint", "order": "ASCENDING" },
+        { "fieldPath": "signed_at", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "_doc": "Round-7 fix: 24-hour TTL on session_fingerprints. Replay-detection window is 1 hour; 24h retention is sufficient and bounds storage cost. Without TTL, ~365k docs/year at 1k sessions/day balloons under attack. Storage: $0.18/GB/mo. Apply by enabling Firestore TTL feature on the collection (see DEPLOY.md).",
+      "collectionGroup": "session_fingerprints",
+      "fieldPath": "signed_at",
+      "ttl": true,
+      "indexes": []
+    }
+  ]
+}

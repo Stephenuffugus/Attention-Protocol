@@ -1,0 +1,44 @@
+# Round-7 R2-NEW-24 closure: Dependabot tracks GitHub Actions upgrades.
+#
+# Round-4 SRE review flagged that .github/workflows/ci.yml uses floating
+# major-version tags (actions/checkout@v4, actions/setup-node@v4) which
+# are vulnerable to tag-rewrite supply-chain attacks (cf. tj-actions/
+# changed-files compromise, March 2025). Two defenses:
+#
+#  (a) Pin every action to a commit SHA. Robust but requires manual
+#      bump on every release.
+#  (b) Use Dependabot to auto-PR upgrades. Lightweight; PR carries the
+#      new SHA in the review.
+#
+# This config does (b). Stephen can layer (a) on top by accepting
+# Dependabot's PRs (they include SHAs).
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci(deps)"
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+    labels:
+      - "dependencies"
+      - "npm"
+    # Group security patches into a single PR; major bumps separate.
+    groups:
+      security:
+        applies-to: security-updates
+        patterns:
+          - "*"
