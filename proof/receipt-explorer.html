@@ -61,14 +61,16 @@
 </style>
 </head>
 <body>
-<div class="top">
+<a href="#main" style="position:absolute;top:-40px;left:8px;background:#06b6d4;color:#001016;padding:8px 14px;border-radius:6px;font-weight:600;z-index:1000;text-decoration:none;transition:top 0.15s" onfocus="this.style.top='8px'" onblur="this.style.top='-40px'">Skip to content</a>
+<header class="top" role="banner">
   <div class="brand">SWS ATTENTION PROTOCOL · Receipt Explorer</div>
   <div class="hdr">PASTE A RECEIPT · SEE THE EVIDENCE · RE-VERIFY THE BINDING</div>
-</div>
-<div class="wrap">
+</header>
+<main id="main" class="wrap" tabindex="-1">
   <h1>What's inside an attention receipt?</h1>
   <p class="sub">Paste any SWS Proof-of-Attention receipt JSON below. This page renders every layer of evidence — the signals, the gates, the cryptographic binding, the calibrated p-value — and re-verifies the SHA-256 hash in your browser using only WebCrypto. No SWS server is involved. Receipt data never leaves your device.</p>
 
+  <label for="input" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0">Paste receipt JSON</label>
   <textarea id="input" placeholder='Paste a receipt JSON object (the receipt_payload field from the demos collection in Firestore). For a quick demo, click "Load sample receipt".'></textarea>
   <div class="row">
     <button id="render-btn">Render & verify</button>
@@ -83,7 +85,7 @@
     <p><strong>What it doesn't do:</strong> Talk to any SWS server. The math runs locally in WebCrypto. You can disconnect from the internet and this page still works.</p>
     <p>Companion pages: <a href="cme-demo.html">/cme-demo.html</a> (CME activity that produces receipts) · <a href="verify.html">/verify.html</a> (paste canonical + hash to verify) · <a href="https://github.com/stephenfurpahs/Attention-Protocol/blob/main/SEVEN_LAYER_DEEP_DIVE.md">SEVEN_LAYER_DEEP_DIVE.md</a> (technical reviewer doc).</p>
   </div>
-</div>
+</main>
 
 <script>
 const SAMPLE = {

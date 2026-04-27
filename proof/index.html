@@ -79,17 +79,19 @@
   </style>
 </head>
 <body>
-  <div class="topbar">
+  <a href="#main" style="position:absolute;top:-40px;left:8px;background:#06b6d4;color:#001016;padding:8px 14px;border-radius:6px;font-weight:600;z-index:1000;text-decoration:none;transition:top 0.15s" onfocus="this.style.top='8px'" onblur="this.style.top='-40px'">Skip to content</a>
+  <header class="topbar" role="banner">
     <div class="brand">SWS Proof of Attention Protocol</div>
-    <nav>
+    <nav role="navigation">
       <a href="/demo.html">Demo</a>
       <a href="/verify.html">Verify</a>
       <a href="/prove-humanness.html">Proof of Humanness</a>
       <a href="/part-11.html">21 CFR Part 11</a>
       <a href="/.well-known/attention-pubkey.json">Public Key</a>
     </nav>
-  </div>
+  </header>
 
+  <main id="main" tabindex="-1">
   <div class="hero">
     <div class="eyebrow">Cryptographic attention attestation</div>
     <h1>Proof a human <em>actually</em> completed the training.<br>Not a bot. Not a click-through. Not a GPT.</h1>
@@ -245,5 +247,6 @@
     <a href="/demo.html">Demo</a> ·
     <a href="https://stevieweedseed.com">stevieweedseed.com</a>
   </div>
+  </main>
 </body>
 </html>

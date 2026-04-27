@@ -39,11 +39,36 @@
   .footer { margin-top:48px; color:var(--dim); font-size:13px; border-top:1px solid var(--line); padding-top:20px; }
   code { font-family:ui-monospace,Menlo,monospace; background:var(--panel2); padding:1px 6px; border-radius:3px; font-size:12px; }
   a { color:var(--accent); }
+  /* Round-2 a11y fix: visible-on-focus skip-link + visually-hidden labels.
+     Mirrors the cme-demo.html landmark + skip-link block (commit acc9769)
+     so SR + keyboard-only users get the same Bypass-Blocks (WCAG 2.4.1)
+     and Labels (1.3.1, 3.3.2) treatment on the verifier surface. */
+  .skip-link { position:absolute; top:-40px; left:8px; background:var(--accent); color:#001016;
+               padding:8px 14px; border-radius:6px; font-weight:600; z-index:1000;
+               text-decoration:none; transition: top 0.15s; }
+  .skip-link:focus { top:8px; outline:2px solid var(--text); outline-offset:2px; }
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+             overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+  /* Round-2 reduced-motion: respect user preference. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: 0.001ms !important; animation-duration: 0.001ms !important; }
+  }
+  /* Round-2 print styles: receipt-binder context. Without these, dark
+     theme strips → white-on-white. */
+  @media print {
+    body, .wrap, .verdict, .layer { background:#fff !important; color:#000 !important; }
+    .skip-link, button { display:none !important; }
+    a { color:#000 !important; text-decoration:underline; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
+<a href="#main" class="skip-link">Skip to verifier</a>
+<header class="wrap" style="padding-bottom:0">
   <h1>Verify an SWS Attention Receipt</h1>
+</header>
+<main id="main" class="wrap" style="padding-top:0" tabindex="-1">
+  <div style="display:none"><h1 class="sr-only">Verify an SWS Attention Receipt</h1></div>
   <p class="sub">
     Paste any signed SWS attention receipt below. Your browser will verify the Ed25519 (EdDSA)
     signature against the public key at
@@ -71,8 +96,10 @@
     Your browser re-canonicalises and re-hashes locally; if the recomputed hash matches the
     claimed hash the displayed values are intact.
   </p>
+  <label for="content-input" class="sr-only">Paste canonical JSON or receipt_payload</label>
   <textarea id="content-input" spellcheck="false" rows="8"
     placeholder='Paste canonical JSON OR the receipt_payload object. Example: {"protocol":"SWS-AP-v2","session_id":"...","signals":{...},...}'></textarea>
+  <label for="content-hash-input" class="sr-only">Paste claimed hash (64 hex chars)</label>
   <textarea id="content-hash-input" spellcheck="false" style="min-height:54px;margin-top:8px;font-size:12px"
     placeholder="Paste claimed hash (64 hex chars). Example: a99294674691ca53c59e0e93fd57651c07bf5c06c88f06e0a983d2af7d89a310"></textarea>
   <div class="row">
@@ -82,6 +109,7 @@
   <div id="content-verdict-slot"></div>
 
   <h2>B. Issuer-attested receipt (Ed25519 JWT)</h2>
+  <label for="jwt-input" class="sr-only">Paste signed JWT receipt</label>
   <textarea id="jwt-input" spellcheck="false"
     placeholder="eyJhbGci…"></textarea>
   <div class="row">
@@ -112,7 +140,7 @@
     <p>Public keyID: <code id="kid-slot">fetching…</code></p>
     <p><strong>For pharma / GxP / CME compliance teams:</strong> see the <a href="/part-11.html">21 CFR Part 11 mapping</a> — a clause-by-clause walkthrough of how each receipt layer satisfies the FDA regulation.</p>
   </div>
-</div>
+</main>
 
 <script>
 const SAMPLE_JWT = 'eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCIsImtpZCI6InN3cy1hdHRlbnRpb24tMjAyNi0wNCJ9.eyJpc3MiOiJkaWQ6d2ViOnN3cy1hdHRlbnRpb24tcHJvb2ZzLndlYi5hcHAiLCJzdWIiOiJkaWQ6c3dzOnVzZXI6eWF6cDdjIiwiaWF0IjoxNzc2NzA0OTY1LCJ2YyI6eyJAY29udGV4dCI6WyJodHRwczovL3d3dy53My5vcmcvbnMvY3JlZGVudGlhbHMvdjIiLCJodHRwczovL3N3cy1hdHRlbnRpb24tcHJvb2ZzLndlYi5hcHAvc2NoZW1hcy9hdHRlbnRpb24vdjEiXSwidHlwZSI6WyJWZXJpZmlhYmxlQ3JlZGVudGlhbCIsIkF0dGVudGlvblZlcmlmaWNhdGlvbkNyZWRlbnRpYWwiXSwiaWQiOiJ1cm46c3dzOnJlY2VpcHQ6cmNwdF92ZXJpZnlfc2FtcGxlX3NpeF9sYXllciIsImlzc3VlciI6eyJpZCI6ImRpZDp3ZWI6c3dzLWF0dGVudGlvbi1wcm9vZnMud2ViLmFwcCIsIm5hbWUiOiJTV1MgU3RyYXRlZ2ljIE1lZGlhIExMQyIsInBhdGVudCI6IlNXUy1QUk9WLTAwMSJ9LCJpc3N1YW5jZURhdGUiOiIyMDI2LTA0LTIwVDE3OjA5OjI1LjQ0NloiLCJ2YWxpZEZyb20iOiIyMDI2LTA0LTIwVDE3OjA5OjI1LjQ0NloiLCJjcmVkZW50aWFsU3ViamVjdCI6eyJpZCI6ImRpZDpzd3M6dXNlcjp5YXpwN2MiLCJ0eXBlIjoiQXR0ZW50aW9uU2Vzc2lvbiIsImVuZ2FnZW1lbnQiOnsiY29udGVudElkIjoidmVyaWZ5X3BhZ2Vfc2FtcGxlIiwiY29udGVudE5hbWUiOiJTV1MgU2l4LUxheWVyIERlbW8gUmVjZWlwdCIsImR1cmF0aW9uTXMiOjI0NzAwMCwiZHVyYXRpb25Gb3JtYXR0ZWQiOiI0IG1pbiA3IHNlYyIsImZvY3VzU2NvcmUiOjc4LCJxdWFsaXR5VGllciI6ImRlZXAiLCJpbnRlcmFjdGlvbkNvdW50Ijo2M30sImh1bWFuVmVyaWZpY2F0aW9uIjp7InZlcmRpY3QiOiJ2ZXJpZmllZF9odW1hbl9kZWVwX2VuZ2FnZW1lbnQiLCJjb21wb3NpdGVTY29yZSI6MC43OCwic2lnbmFscyI6eyJ0aW1pbmdFbnRyb3B5IjowLjgxLCJmaXR0c0NvbXBsaWFuY2UiOjAuNzQsImhpY2tzQ29tcGxpYW5jZSI6MC44LCJzY3JvbGxTYWNjYWRlIjowLjcyLCJtaWNyb1BhdXNlIjowLjY5LCJ0b3VjaFZhcmlhbmNlIjowLjc3fX0sImF0dGVudGlvblByb29mIjp7ImFsZ29yaXRobSI6IlNIQS0yNTYiLCJoYXNoQ291bnQiOjgsInJlY2VpcHRIYXNoIjoiODVmZjYzMTMwNjBlMWE5YWQxMDI0NTY5MDVjMmU3NmE2MTA5NDZjNmZmNGQ5MTAzMWE1NWJjYWNlODhlZDRiZCJ9LCJjb25zZW50QXR0ZXN0YXRpb24iOnsiZ3JhbnRlZCI6dHJ1ZSwiY2F0ZWdvcmllcyI6WyJhdHRlbnRpb25fdHJhY2tpbmciLCJiZWhhdmlvcmFsX2FuYWx5c2lzIiwiY2xvdWRfc3luYyJdLCJncmFudGVkQXQiOiIyMDI2LTA0LTIwVDE3OjA4OjI1LjQ0NloiLCJ2ZXJzaW9uIjoiMS4wIiwicG9saWN5VXJsIjoiaHR0cHM6Ly9zd3MtYXR0ZW50aW9uLXByb29mcy53ZWIuYXBwL3ByaXZhY3kiLCJub3RlIjoiVXNlciBhY3RpdmVseSBjb25zZW50ZWQgdG8gdGhlIGxpc3RlZCBkYXRhLWNvbGxlY3Rpb24gY2F0ZWdvcmllcyBhdCBncmFudGVkQXQuIFJldm9jYWJsZSBhdCBhbnkgdGltZS4gTGVnYWwgYmFzaXMgcGVyIEdEUFIgQXJ0LiA3IGFuZCBDQ1BBIMKnMTc5OC4xMjAuIn0sImJpdGNvaW5BbmNob3IiOnsiZGV0ZWN0b3IiOiJvcGVudGltZXN0YW1wcy12MSIsInN0YXR1cyI6InBlbmRpbmciLCJwcm9vZkI2NCI6IkFFOXdaVzVVYVcxbGMzUmhiWEJ6QUFCUWNtOXZaZ0MvaWVMb2hPaVNsQUVJcU1yVDlZSGo4YUNqVDdHbjQ4L2hUZkJ4TG9vN2RUSkYxQlBzV0doVjU4N3dFSHJpU25ZUVlkLy9JWG1HdUw2Mnlzd0kvL0FJelpTYk1Ra3ZwR3dJOEJBUXE5akhXMlhRWXNsemJOYlZOY0syQ1BFZ3NRSHpPSVRhaUJkU0xZNytuMEdoamhkOU5Xb29CTHhWbkJ1MllzWFRzamtJOENDTVJpSTV6cjBnM3R0VGFENW5wZjBVTFEva1RiakFCRjdLZUszVG5PdWpzZ2p4QkdubVhjYndDSEhoNnI1Z1hHL2VBSVBmNHcwdStReU9MaTFvZEhSd2N6b3ZMMkZzYVdObExtSjBZeTVqWVd4bGJtUmhjaTV2Y0dWdWRHbHRaWE4wWVcxd2N5NXZjbWYvOEFoN3B6c3E0am13Z2dqd0VML0NjT1YzcE4vU3BqUWN0L0M4bmNBSThRUnA1bDNHOEFqNE0zUjN6eUpqZ1FDRDMrTU5MdmtNaml3cmFIUjBjSE02THk5aWIySXVZblJqTG1OaGJHVnVaR0Z5TG05d1pXNTBhVzFsYzNSaGJYQnpMbTl5Wi8vd0VEczZ6MG9pNDZEenU2QTh5Uk1SREYwSThDQks2OTM1QWV5bkVha1NoekRsNTJEa0wrWUs0ZjZ3UkpkZ3NXUWJLdlZHVkFqeEJHbm1YY2J3Q0hDSDJUMkZTemRQQUlQZjR3MHUrUXlPS1Nob2RIUndjem92TDJacGJtNWxlUzVqWVd4bGJtUmhjaTVsZEdWeWJtbDBlWGRoYkd3dVkyOXQ4QkJjWU8rTXZaL003S1BiNkJVcGZxbjRDUEVFYWVaZHh2QUlYeWtuY3dJR2Nha0FnOS9qRFM3NURJNGpJbWgwZEhCek9pOHZZblJqTG1OaGJHVnVaR0Z5TG1OaGRHRnNiR0Y0ZVM1amIyMD0iLCJzdGFtcGVkQXQiOiIyMDI2LTA0LTIwVDE3OjA5OjI2LjkyOVoiLCJiaXRjb2luQmxvY2tIZWlnaHQiOm51bGwsImJpdGNvaW5CbG9ja1RpbWUiOm51bGwsImxhc3RVcGdyYWRlQ2hlY2siOm51bGwsIm5vdGUiOiJPcGVuVGltZXN0YW1wcyBhbmNob3JzIHRoZSByZWNlaXB0IGhhc2ggdG8gdGhlIEJpdGNvaW4gYmxvY2tjaGFpbi4gT25jZSBzdGF0dXM9Yml0Y29pbl9jb25maXJtZWQsIHRoZSByZWNlaXB0IGlzIHByb3ZhYmx5IGFzLW9sZC1hcyB0aGUgcmVmZXJlbmNlZCBCaXRjb2luIGJsb2NrLiBWZXJpZnkgd2l0aCBzcmMvc2RrL2F0dGVudGlvbi1hbmNob3IudmVyaWZ5KHJlY2VpcHRIYXNoLCBwcm9vZkI2NCkuIn0sImNvbXBvc2l0aW9uSW50ZWdyaXR5Ijp7ImRldGVjdG9yIjoic3dzLWNvbXBvc2l0aW9uLXYxIiwidmVyZGljdCI6ImF1dGhvcmVkIiwic2NvcmUiOjAuOTIsImNoYXJzT2JzZXJ2ZWQiOjE0NiwicGFzdGVCdXJzdERldGVjdGVkIjpmYWxzZSwicGFzdGVCdXJzdENvdW50IjowLCJsb25nZXN0UGFzdGVDaGFycyI6MCwiYmFja3NwYWNlUmF0aW8iOjAuMDgyLCJiYWNrc3BhY2VTdXNwaWNpb3VzIjpmYWxzZSwiZGlncmFwaEN2IjowLjQ3OCwiZGlncmFwaFRvdGFsSW50ZXJ2YWxzIjoxMzMsInN1Ymh1bWFuSW50ZXJ2YWxDb3VudCI6MCwiY2hlY2tlZEF0IjoiMjAyNi0wNC0yMFQxNzowOToyNS40NDZaIiwibm90ZSI6IkNvbXBvc2l0aW9uIEludGVncml0eSBpcyBzZXBhcmF0ZSBmcm9tIGJlaGF2aW9yYWwgY29tcG9zaXRlIGFuZCBlbnZpcm9ubWVudGFsIGdhdGUuIERldGVjdHMgTExNLWFzc2lzdGVkIGNoZWF0aW5nIHZpYSBwYXN0ZS9rZXlzdHJva2UgcGF0dGVybnMuIn0sImVudmlyb25tZW50YWwiOnsibG9hZGVkIjp0cnVlLCJib3QiOmZhbHNlLCJib3RLaW5kIjpudWxsLCJkZXRlY3RvciI6ImJvdGRAdjIiLCJjaGVja2VkQXQiOiIyMDI2LTA0LTIwVDE3OjA5OjI1LjQ0NloiLCJsYXRlbmN5TXMiOjczLCJlcnJvciI6bnVsbCwibm90ZSI6IkVudmlyb25tZW50YWwgZ2F0ZSBpcyBzZXBhcmF0ZSBmcm9tIGJlaGF2aW9yYWwgY29tcG9zaXRlLiBDb21iaW5lIGFzIHlvdXIgcG9saWN5IHJlcXVpcmVzLiJ9fSwiZXZpZGVuY2UiOlt7InR5cGUiOiJQcml2YWN5QXR0ZXN0YXRpb24iLCJub0NvbnRlbnRSZWNvcmRlZCI6dHJ1ZSwibm9QaWlDb2xsZWN0ZWQiOnRydWUsIm5vVXJsc1RyYWNrZWQiOnRydWUsImNvcHBhQ29tcGxpYW50Ijp0cnVlfV0sInByb29mIjp7InR5cGUiOiJTaGEyNTZSZWNlaXB0SW50ZWdyaXR5MjAyNiIsImNyZWF0ZWQiOiIyMDI2LTA0LTIwVDE3OjA5OjI1LjQ0NloiLCJ2ZXJpZmljYXRpb25NZXRob2QiOiJkaWQ6d2ViOnN3cy1hdHRlbnRpb24tcHJvb2ZzLndlYi5hcHAjcmVjZWlwdC1zaWduaW5nLWtleSIsInByb29mUHVycG9zZSI6ImFzc2VydGlvbk1ldGhvZCIsInJlY2VpcHRIYXNoIjoiODVmZjYzMTMwNjBlMWE5YWQxMDI0NTY5MDVjMmU3NmE2MTA5NDZjNmZmNGQ5MTAzMWE1NWJjYWNlODhlZDRiZCJ9fX0.AW4_oNUgJ65rKrF39d7Mv4shNbT7436N2t5VmrCzql7jwUFe4Bi0LncyxlO5N3orkxLZeLna8g9rMmyw77mmBA';

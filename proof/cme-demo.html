@@ -188,8 +188,11 @@
       <button class="btn btn-primary" id="submit-btn" disabled onclick="finishActivity()">Submit for Credit</button>
     </div>
 
-    <!-- Results -->
-    <div id="results" class="receipt" style="display:none">
+    <!-- Results — aria-live announces the receipt render to screen readers
+         the moment the panel reveals; focus shift in finishActivity moves
+         keyboard focus to the verdict pill so the user lands on actionable
+         content instead of having to tab from the start of the page. -->
+    <div id="results" class="receipt" style="display:none" role="region" aria-live="polite" aria-labelledby="tier-pill" tabindex="-1">
       <div id="tier-pill-wrap"><span class="tier-pill" id="tier-pill">—</span></div>
       <div class="composite-big" id="composite-big">—</div>
       <div class="composite-sub">Medical-profile weighted composite (20 weighted + 3 diagnostic signals → 6 CME-relevant metrics)</div>
@@ -451,6 +454,19 @@
 
     // ---- FINISH ----
     function finishActivity() {
+      // Round-2 a11y/UX fix: guard against double-submit. Without this,
+      // a user clicking twice during a slow Cloud Function call (3-8s on
+      // cold start) would create two Firestore sessions for one quiz —
+      // and on a slow signing path, race the two renderResults calls.
+      // Disable + relabel; the page reload after submit clears state.
+      var submitBtn = document.getElementById('submit-btn');
+      if (submitBtn) {
+        if (submitBtn.disabled && submitBtn.dataset.submitted === '1') return;
+        submitBtn.disabled = true;
+        submitBtn.dataset.submitted = '1';
+        submitBtn.textContent = 'Issuing receipt…';
+      }
+
       // Lock quiz answer visualization (reveal correct answers)
       document.querySelectorAll('.opt').forEach(function(o) {
         var q = parseInt(o.dataset.q, 10);
@@ -611,7 +627,13 @@
       // the receipt hash is computed asynchronously below and stamped in last.
       renderResults(medComposite, verdict, detail, c, stats, elapsed, gatesTriggered, conformal);
       document.getElementById('assessment').style.display = 'none';
-      document.getElementById('results').style.display = 'block';
+      var resultsEl = document.getElementById('results');
+      resultsEl.style.display = 'block';
+      // Round-2 a11y fix: aria-live announces the new content; focus shift
+      // moves the keyboard caret to the receipt panel so SR + keyboard-only
+      // users land on the result immediately rather than tabbing from the
+      // top of the page. WCAG 4.1.3 (Status Messages) + 2.4.3 (Focus Order).
+      try { resultsEl.focus(); } catch (e) { /* tabindex=-1 makes this safe */ }
       document.getElementById('progress-label').textContent = 'RECEIPT ISSUED';
       document.getElementById('progress-fill').style.width = '100%';
       document.getElementById('hash-box').textContent = 'Computing tamper-evident receipt…';
@@ -643,6 +665,21 @@
       SWSAttention.generateContentReceipt(receiptExtras, function(receipt) {
         document.getElementById('hash-box').textContent =
           'Session ID: ' + sessionId + ' · Receipt: ' + receipt.hash + ' · Duration: ' + elapsed + 's';
+        // Stamp the hash into the MARGINAL/FAIL mailto so support gets
+        // the exact receipt under dispute, not a vague "I think it
+        // failed" message.
+        var marginalMail = document.getElementById('marginal-mailto');
+        if (marginalMail && receipt.hash) {
+          marginalMail.href = 'mailto:stephenfurpahs@gmail.com'
+            + '?subject=' + encodeURIComponent('SWS receipt review — ' + receipt.hash.slice(0, 12))
+            + '&body=' + encodeURIComponent(
+                'Receipt hash: ' + receipt.hash + '\n'
+              + 'Session ID: ' + sessionId + '\n'
+              + 'Verdict: ' + verdict + '\n'
+              + 'Composite: ' + medComposite.toFixed(3) + '\n'
+              + 'Reason for review: '
+            );
+        }
         // Wire the "Verify This Receipt" button to auto-prefill verify.html.
         // Earlier versions base64-encoded the canonical (4-5 KB for a real
         // CME session) into the URL fragment. That works in most browsers
@@ -696,6 +733,30 @@
       pill.textContent = verdict === 'pass' ? 'CREDIT AWARDED' : verdict === 'marginal' ? 'MARGINAL — ADDITIONAL REVIEW' : 'NOT COMPLETED TO STANDARD';
       pill.className = 'tier-pill tier-' + verdict;
       document.getElementById('composite-big').textContent = comp.toFixed(3);
+
+      // Round-2 UX fix: MARGINAL verdict was a UX dead-end — pill said
+      // "ADDITIONAL REVIEW" but the page had no link, no contact, no
+      // form, no instructions. The user literally had no next step. The
+      // long-term fix (T2-8) is a review-queue page; until then, give a
+      // pre-filled mailto so a confused doctor on a real demo can reach
+      // a human. Receipt hash gets stamped in via setHash callback once
+      // it's computed.
+      if (verdict === 'marginal' || verdict === 'fail') {
+        var existing = document.getElementById('marginal-contact');
+        if (existing) existing.remove();
+        var contact = document.createElement('div');
+        contact.id = 'marginal-contact';
+        contact.style.cssText = 'margin-top:14px;padding:12px 14px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:8px;font-size:13px;color:#cbd5e1';
+        var verb = verdict === 'marginal' ? 'flagged for additional review' : 'did not meet the completion threshold';
+        contact.innerHTML =
+          '<strong style="color:#fbbf24">Disagree with this verdict?</strong> ' +
+          'Your session was ' + verb + '. ' +
+          'In a production deployment, this would route to a human reviewer queue. ' +
+          'For this demo, you can reach the SWS team to discuss the receipt: ' +
+          '<a id="marginal-mailto" href="mailto:stephenfurpahs@gmail.com?subject=SWS%20receipt%20review" ' +
+          'style="color:#67e8f9;text-decoration:underline">request review →</a>';
+        document.getElementById('tier-pill-wrap').after(contact);
+      }
 
       // Render the conformal Bayesian posterior alongside the composite score.
       // P(human) is the calibrated probability under the Gaussian likelihood-
