@@ -481,14 +481,28 @@ function autoPrefillFromFragment() {
   const params = new URLSearchParams(location.hash.slice(1));
   if (params.get('auto') !== '1') return false;
   const hash = (params.get('hash') || '').toLowerCase();
-  const canonicalB64 = params.get('canonical') || '';
-  if (!hash || !canonicalB64) return false;
+  if (!hash) return false;
+  // Two paths to recover the canonical, in order of preference:
+  //   1. sessionStorage (preferred — set by the cme-demo verify-link handler;
+  //      survives a same-tab navigation, immune to URL truncation by email
+  //      clients, corporate proxies, Outlook/Slack/WeChat).
+  //   2. URL fragment `canonical=<base64>` (legacy fallback — works on a
+  //      cold tab from a different origin, but breaks if any client in the
+  //      chain truncates the URL past ~2KB).
+  let canonical = '';
   try {
-    const canonical = decodeURIComponent(escape(atob(canonicalB64)));
-    document.getElementById('content-input').value = canonical;
-    document.getElementById('content-hash-input').value = hash;
-    return true;
-  } catch (e) { return false; }
+    canonical = sessionStorage.getItem('sws_receipt_' + hash) || '';
+  } catch (storageErr) { /* private mode — fall through */ }
+  if (!canonical) {
+    const canonicalB64 = params.get('canonical') || '';
+    if (!canonicalB64) return false;
+    try {
+      canonical = decodeURIComponent(escape(atob(canonicalB64)));
+    } catch (e) { return false; }
+  }
+  document.getElementById('content-input').value = canonical;
+  document.getElementById('content-hash-input').value = hash;
+  return true;
 }
 
 // On load: pre-fetch the JWKS to show the kid, prefill the JWT sample,

@@ -204,8 +204,10 @@ async function walkFlow(page, variant) {
   // Stash on the page so the capture phase can read it back to the runner
   await page.evaluate(function(ms) { window.__swsSubmitToReceiptMs = ms; }, submitToReceiptMs);
 
-  // Capture rendered values + the receipt hash + the canonical (decoded from
-  // the verify-link fragment, which is base64(canonical) per cme-demo.html:553).
+  // Capture rendered values + the receipt hash + the canonical. The verify
+  // link now stores the canonical in sessionStorage when it exceeds the
+  // fragment budget (T2-6, 2026-04-27), so we read sessionStorage first and
+  // only fall back to fragment-decode if needed.
   return await page.evaluate(function() {
     function txt(id) {
       var el = document.getElementById(id);
@@ -217,11 +219,19 @@ async function walkFlow(page, variant) {
       var a = document.getElementById('verify-link');
       return a ? a.getAttribute('href') : '';
     })();
-    var canonicalMatch = verifyHref.match(/canonical=([^&]+)/);
     var hashFragMatch = verifyHref.match(/[#&]hash=([0-9a-f]{64})/);
     var canonical = '';
-    if (canonicalMatch) {
-      try { canonical = decodeURIComponent(escape(atob(canonicalMatch[1]))); } catch (e) {}
+    var receiptHash = hashMatch ? hashMatch[1] : '';
+    // sessionStorage is the new primary path
+    if (receiptHash) {
+      try { canonical = sessionStorage.getItem('sws_receipt_' + receiptHash) || ''; } catch (e) {}
+    }
+    // Legacy fragment fallback (still supported for old verify-links)
+    if (!canonical) {
+      var canonicalMatch = verifyHref.match(/canonical=([^&]+)/);
+      if (canonicalMatch) {
+        try { canonical = decodeURIComponent(escape(atob(canonicalMatch[1]))); } catch (e) {}
+      }
     }
     return {
       verdictPill: txt('tier-pill'),
@@ -230,9 +240,10 @@ async function walkFlow(page, variant) {
       composite: txt('composite-big'),
       pHuman: txt('conformal-phuman'),
       hashBox: hashBox,
-      receiptHash: hashMatch ? hashMatch[1] : '',
+      receiptHash: receiptHash,
       verifyLinkHash: hashFragMatch ? hashFragMatch[1] : '',
       canonical: canonical,
+      verifyHrefLength: verifyHref.length,
       submitToReceiptMs: window.__swsSubmitToReceiptMs || 0
     };
   });

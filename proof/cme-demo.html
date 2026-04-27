@@ -508,7 +508,19 @@
         ? SWSCompositionIntegrity.readSnapshot({ scopeId: 'cme' })
         : {};
       var gatesTriggered = [];
-      if (env && env.bot === true) gatesTriggered.push('environmental:' + (env.bot_kind || 'bot_detected'));
+      if (env && env.bot === true) {
+        gatesTriggered.push('environmental:' + (env.bot_kind || 'bot_detected'));
+      } else if (!env || env.loaded === false || env.error) {
+        // Race-fix: a hostile client can DNS-block or rate-limit the BotD ESM
+        // at vendor/botd.esm.js so the env-gate never resolves. The original
+        // code only fired the gate on env.bot===true, so a missing or errored
+        // env-check silently let the composite stay uncapped. Treat
+        // unresolved/errored env-gate as gate-equivalent: a session that
+        // could not be environmentally verified does not get the full
+        // composite. The receipt records the env state honestly so a verifier
+        // sees WHY the cap was applied.
+        gatesTriggered.push('environmental:unresolved');
+      }
       if (ci && (ci.verdict === 'mechanical' || ci.verdict === 'pasted')) gatesTriggered.push('compositionIntegrity:' + ci.verdict);
       var PASSIVE_CAP = 0.30;
       var medComposite = (gatesTriggered.length > 0)
@@ -568,17 +580,37 @@
       SWSAttention.generateContentReceipt(receiptExtras, function(receipt) {
         document.getElementById('hash-box').textContent =
           'Session ID: ' + sessionId + ' · Receipt: ' + receipt.hash + ' · Duration: ' + elapsed + 's';
-        // Wire the "Verify This Receipt" button to auto-prefill verify.html
-        // with this receipt's canonical + hash via URL fragment. The fragment
-        // (after #) is never sent to the server — receipt data stays local.
-        // verify.html reads the fragment on load, fills the textareas, and
-        // runs the verification automatically. Click and see the result.
+        // Wire the "Verify This Receipt" button to auto-prefill verify.html.
+        // Earlier versions base64-encoded the canonical (4-5 KB for a real
+        // CME session) into the URL fragment. That works in most browsers
+        // but Outlook, Slack, WeChat, and many corporate proxies truncate
+        // URLs at 2 KB — the first auditor clicking the verify-link from
+        // their email client got a blank page. Now: stash the canonical in
+        // sessionStorage keyed on the hash, and pass only the 64-char hash
+        // in the fragment. verify.html reads sessionStorage first; on miss
+        // (different tab, fragment-only path from email) it falls back to a
+        // legacy `canonical=` fragment if present. Receipt data still never
+        // leaves the user's browser — sessionStorage is per-origin local.
         try {
           var verifyLink = document.getElementById('verify-link');
           if (verifyLink) {
-            // Compress the canonical for URL: base64(canonical) + #hash
+            try {
+              sessionStorage.setItem('sws_receipt_' + receipt.hash, receipt.canonical);
+            } catch (storageErr) { /* private mode etc — fall through to fragment */ }
+            // Always include the hash in the fragment (short, never truncated).
+            // For backward compat with old verify.html builds + email clients
+            // that have sessionStorage but the user clicks-through to a fresh
+            // tab, also include canonical IF it fits comfortably under a
+            // conservative 1.6 KB total fragment budget. Otherwise omit and
+            // rely on sessionStorage / paste-flow on verify.html.
             var b64canonical = btoa(unescape(encodeURIComponent(receipt.canonical)));
-            verifyLink.href = 'verify.html#auto=1&hash=' + receipt.hash + '&canonical=' + b64canonical;
+            var FRAGMENT_BUDGET = 1600;
+            var baseFragment = '#auto=1&hash=' + receipt.hash;
+            if (baseFragment.length + '&canonical='.length + b64canonical.length <= FRAGMENT_BUDGET) {
+              verifyLink.href = 'verify.html' + baseFragment + '&canonical=' + b64canonical;
+            } else {
+              verifyLink.href = 'verify.html' + baseFragment;
+            }
           }
         } catch (e) { /* non-critical — link still works without auto-prefill */ }
         saveSession(medComposite, verdict, detail, c, stats, elapsed, timeline, receipt);
@@ -717,6 +749,9 @@
         }
         if (g.indexOf('compositionIntegrity:mechanical') === 0) {
           return '<strong>mechanical typing patterns</strong> were detected — uniform inter-key intervals inconsistent with human keystroke biology. The composite was capped at the passive-observation maximum (0.30).';
+        }
+        if (g === 'environmental:unresolved') {
+          return 'the <strong>environmental check did not resolve</strong> in time — the BotD module may have been blocked, rate-limited, or unreachable. Out of caution, sessions that cannot be environmentally verified are capped at the passive-observation maximum (0.30) rather than getting the benefit of the doubt. Re-run on a stable connection.';
         }
         if (g.indexOf('environmental:') === 0) {
           var kind = g.split(':')[1] || 'automated environment';
