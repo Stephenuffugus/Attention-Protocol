@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>21 CFR Part 11 — SWS Attention Protocol</title>
+<title>21 CFR Part 11 Mapping — SWS Attention Protocol</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Clause-by-clause mapping of 21 CFR Part 11 electronic records and electronic signatures requirements to the SWS attention-receipt technical controls.">
+<meta name="description" content="Clause-by-clause mapping showing how SWS attention-receipt technical controls can support a customer's 21 CFR Part 11 validation program. SWS is not a validated system on its own; the customer remains responsible for IQ/OQ/PQ and the §11.100(c)(2) certification letter.">
 <style>
   :root { --bg:#0f172a; --panel:#1e293b; --panel2:#0b1425; --text:#e2e8f0; --dim:#94a3b8;
           --accent:#06b6d4; --ok:#10b981; --warn:#eab308; --line:#334155; }
@@ -52,11 +52,15 @@
     <a href="/.well-known/attention-pubkey.json">Public Key (JWKS)</a>
   </nav>
 
-  <h1>21 CFR Part 11 — How SWS Satisfies the Regulation</h1>
-  <p class="tagline">Clause-by-clause mapping of FDA's Electronic Records and Electronic Signatures regulation to the technical controls in a SWS attention receipt. For pharma compliance, medical education, and GxP training records.</p>
+  <h1>21 CFR Part 11 — How SWS Supports Your Validation Program</h1>
+  <p class="tagline">Clause-by-clause mapping of FDA's Electronic Records and Electronic Signatures regulation to the technical controls a SWS attention receipt provides. For pharma compliance, medical education, and GxP training records — designed to plug into your existing validated system, not replace it.</p>
+
+  <div class="callout" style="border-left-color:var(--warn);">
+    <strong>Read this before you read the table.</strong> SWS is <strong>not itself a validated computerized system under 21 CFR Part 11</strong>. We do not deliver an IQ/OQ/PQ package, we have not filed a §11.100(c)(2) certification letter to FDA on your behalf, and we are not the system of record. What we provide is a tamper-evident artifact (the receipt) plus a clause-by-clause technical-controls mapping (this page) that <strong>your validated LMS or training system can incorporate</strong> as part of its own Part 11 validation. Your organization remains responsible for: (a) the Validation Master Plan, (b) IQ/OQ/PQ protocols and executed test scripts, (c) procedural SOPs, (d) access-policy administration, (e) the §11.100(c)(2) FDA certification, and (f) audit-trail review and retention. This page is a technical reference, not a legal opinion.
+  </div>
 
   <div class="callout">
-    <strong>Summary in one sentence:</strong> SWS provides the <em>technical controls</em> that 21 CFR Part 11 requires — tamper-evident records, secure audit trails, cryptographic signatures, and device checks. Your organization provides the <em>procedural controls</em> (SOPs, access policies, training). Together they satisfy Part 11 for the "did the trainee actually do the training" class of electronic records.
+    <strong>Summary in one sentence:</strong> SWS provides the <em>technical controls</em> that satisfy several specific 21 CFR Part 11 clauses — tamper-evident records, secure audit trails, cryptographic signatures, device checks. Your validated LMS or training system provides everything else (the IQ/OQ/PQ package, SOPs, access policies, training, and the procedural framework). Together they form a Part 11-compliant electronic-record pipeline for the "did the trainee actually do the training" class of records.
   </div>
 
   <div class="callout">

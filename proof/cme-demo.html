@@ -60,7 +60,7 @@
 <body>
   <div class="top">
     <div class="brand">SWS ATTENTION PROTOCOL · CME-style Demonstration</div>
-    <div class="acc">DEMONSTRATION TIER · FICTIONAL ACCREDITOR · 23-SIGNAL RECEIPT</div>
+    <div class="acc">DEMONSTRATION TIER · FICTIONAL ACCREDITOR · 23-SIGNAL RECEIPT (21 weighted + 2 diagnostic)</div>
   </div>
 
   <div class="wrap">
@@ -160,7 +160,7 @@
       <div class="composite-big" id="composite-big">—</div>
       <div class="composite-sub">Medical-profile weighted composite (23 behavioral signals → 6 CME-relevant metrics)</div>
       <div id="conformal-pill" style="display:none;margin-top:14px;padding:12px 16px;background:linear-gradient(120deg,rgba(6,182,212,0.06),rgba(16,185,129,0.06));border:1px solid rgba(6,182,212,0.3);border-radius:8px">
-        <div style="font-size:11px;color:#64748b;letter-spacing:0.05em;text-transform:uppercase">Conformal Bayesian Posterior</div>
+        <div style="font-size:11px;color:#64748b;letter-spacing:0.05em;text-transform:uppercase">Bayesian Posterior P(human)</div>
         <div style="font-size:22px;color:#67e8f9;font-weight:600;margin-top:4px"><span id="conformal-phuman">—</span></div>
         <div id="conformal-meta" style="font-size:11.5px;color:#94a3b8;margin-top:4px"></div>
       </div>
@@ -617,10 +617,10 @@
           document.getElementById('conformal-phuman').textContent =
             'P(human) = ' + pHuman.toFixed(3);
           document.getElementById('conformal-meta').textContent =
-            '95% CI: [' + ci[0].toFixed(3) + ' – ' + ci[1].toFixed(3) + ']  ·  calibration n=' +
+            '95% bootstrap CI: [' + ci[0].toFixed(3) + ' – ' + ci[1].toFixed(3) + ']  ·  calibration n=' +
             conformal.calibration.size_human + ' humans + ' + conformal.calibration.size_bot +
             ' bots (' + (conformal.calibration.version || 'v1') + ')  ·  ' +
-            'Vovk-Gammerman-Shafer 2005';
+            'Class-conditional Gaussian likelihood ratio with flat prior';
         }
       } catch (e) { /* non-critical */ }
 
@@ -777,8 +777,29 @@
       return html;
     }
 
-    function saveSession(medComposite, verdict, detail, c, stats, elapsed, timeline, receipt) {
+    async function saveSession(medComposite, verdict, detail, c, stats, elapsed, timeline, receipt) {
       if (!db) return;
+      // The reflection text is the user's own writing — content. The receipt
+      // claims `noContentRecorded: true` in the privacy-attestation evidence.
+      // Persisting the cleartext to Firestore would make that claim false.
+      // Instead store: SHA-256 of the cleartext (preserves integrity binding
+      // for any future "did this user actually type this?" check), the byte
+      // length, and the word count. The cleartext stays on the user's
+      // device. Decision-grade flows that need text content for AI-assist
+      // detection should run that detection client-side and persist only the
+      // verdict, not the text.
+      var reflectionText = reflectionEl.value;
+      var reflectionSha256 = '';
+      try {
+        var rEnc = new TextEncoder().encode(reflectionText);
+        var rBuf = await crypto.subtle.digest('SHA-256', rEnc);
+        reflectionSha256 = Array.from(new Uint8Array(rBuf))
+          .map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+      } catch (e) {
+        // WebCrypto unavailable (very old browser) — record the failure
+        // explicitly rather than silently falling back to cleartext storage.
+        reflectionSha256 = 'sha256_unavailable';
+      }
       var data = {
         session_id: sessionId,
         activity_id: activityId,
@@ -794,8 +815,11 @@
         quiz_answers: answers,
         quiz_correct: correctAnswers,
         quiz_score: answers.filter(function(a, i) { return a === correctAnswers[i]; }).length,
-        reflection: reflectionEl.value.slice(0, 2000),
-        reflection_words: reflectionEl.value.trim().split(/\s+/).filter(function(w) { return w.length > 0; }).length,
+        // Reflection: hash + length + word count only. Cleartext is NOT
+        // persisted. See comment block above for the rationale.
+        reflection_sha256: reflectionSha256,
+        reflection_byte_length: rEnc ? rEnc.length : reflectionText.length,
+        reflection_words: reflectionText.trim().split(/\s+/).filter(function(w) { return w.length > 0; }).length,
         section_times: sectionTimes,
         signals: (function() {
           var s = {};

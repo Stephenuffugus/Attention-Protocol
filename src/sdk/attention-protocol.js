@@ -2941,6 +2941,16 @@
         captured_date: '2026-04-27',
         version: 'v2-real-bot-runs'
       };
+      // Caller-supplied calibration is accepted for testing/research, but its
+      // presence is recorded in the result so any receipt downstream of a
+      // non-default calibration is auditable. A hostile caller can pass
+      // {human_scores:[0.55], bot_scores:[0.0]} and trivially get p_human≈1.0;
+      // we cannot prevent that for client-side scoring (the trust root is the
+      // SDK itself, see HARDENING_PLAN T1-1) but we DO surface the override
+      // so a receipt verifier sees that the calibration wasn't the default
+      // SWS-shipped set. Decision-grade flows MUST use default calibration
+      // and MUST validate `calibration_override === false` server-side.
+      var calibrationOverride = !!calibration;
       var cal = calibration || DEFAULT_CALIBRATION;
       var humans = cal.human_scores.slice();
       var bots = cal.bot_scores.slice();
@@ -2948,6 +2958,9 @@
       var nB = bots.length;
       if (nH < 1 || nB < 1) {
         return { error: 'calibration set requires at least 1 human + 1 bot sample' };
+      }
+      if (calibrationOverride && typeof console !== 'undefined' && console.warn) {
+        console.warn('[SWSAttention] getConformalAnalysis called with a non-default calibration. Decision-grade verifiers MUST reject receipts where calibration_override === true.');
       }
 
       function meanOf(arr) {
@@ -3019,9 +3032,10 @@
           size_human: nH,
           size_bot: nB,
           captured_date: cal.captured_date || null,
-          version: cal.version || 'v1-bootstrap'
+          version: cal.version || 'v1-bootstrap',
+          calibration_override: calibrationOverride
         },
-        method: 'Gaussian-likelihood-ratio class-conditional posterior (flat prior); Vovk-Gammerman-Shafer 2005 + Angelopoulos & Bates 2023 framing; bootstrap CI per Efron & Tibshirani 1993; SD floor 0.05 prevents small-N over-confidence',
+        method: 'Class-conditional Gaussian likelihood ratio with flat prior (textbook two-class Bayes classifier). Bootstrap 95% CI per Efron & Tibshirani 1993; SD floor 0.05 prevents small-N over-confidence. NOT Vovk-Gammerman split-conformal prediction — see methodology doc for the distinction.',
         notes: 'Calibration set will grow as real-tester runs accumulate. Wide CIs reflect small calibration size; downstream apps can pass their own calibration via the calibration argument. The SD floor is a deliberate skepticism: small samples cannot estimate distribution width tighter than expected device/effort noise.'
       };
     },

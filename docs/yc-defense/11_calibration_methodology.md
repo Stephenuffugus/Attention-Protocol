@@ -1,10 +1,24 @@
-# Calibration Methodology for Conformal Bayesian P(human)
+# Calibration Methodology for Bayesian P(human)
 
-**Audience:** stats-trained reviewer (PhD biostatistician, ML researcher, regulator's quant) probing the conformal Bayesian posterior surfaced on every receipt.
+**Audience:** stats-trained reviewer (PhD biostatistician, ML researcher, regulator's quant) probing the Bayesian posterior surfaced on every receipt.
 
-**Goal of this doc:** defensibility under "your N is too small" or "Gaussian assumption is unjustified" critique. Answer is honest: we know N is small; we know the Gaussian assumption is a simplification; we made specific defensive choices and we can name each one.
+**Goal of this doc:** defensibility under "your N is too small," "Gaussian assumption is unjustified," and "this isn't actually conformal prediction" critiques. Answer is honest: we know N is small; we know the Gaussian assumption is a simplification; we made specific defensive choices and we can name each one. **And — disclosed up front — what we ship is not Vovk-Gammerman split-conformal prediction; it is a class-conditional Gaussian likelihood-ratio Bayes classifier with bootstrap CI on the posterior. See §0 below for the rename + the honest framing.**
 
-**Last updated:** 2026-04-26 evening.
+**Last updated:** 2026-04-27.
+
+---
+
+## 0. Naming honesty (read this first)
+
+Earlier versions of this doc, the SDK's `method` string, and the on-screen "Conformal Bayesian Posterior" label cited Vovk-Gammerman-Shafer 2005 and Angelopoulos-Bates 2023 as if SWS shipped conformal prediction. We do not. A hostile statistics reviewer flagged this on 2026-04-27 as jargon laundering and they were right.
+
+**What we actually ship:** a textbook two-class Bayes classifier — class-conditional Gaussian likelihood divided by the sum of class-conditional Gaussian likelihoods, under a flat prior. Plus a bootstrap CI on the resulting posterior. SD floor 0.05 to prevent small-N over-confidence. That's it.
+
+**What conformal prediction actually is** (Vovk-Gammerman-Shafer 2005, Angelopoulos-Bates 2023): a *distribution-free* method that produces prediction *sets* with rigorous marginal-coverage guarantees, via nonconformity scores on a held-out calibration set and quantile thresholding. It has none of the parametric assumptions our method has and gives a coverage guarantee we do not give.
+
+**Why the rename matters:** an academic reviewer or regulator's quant reads "conformal" and expects coverage guarantees we cannot deliver. The rename is in the receipt's `method` string, the on-screen label ("Bayesian Posterior P(human)"), and this doc. The function name `getConformalAnalysis` and the receipt field `conformal_analysis` are kept temporarily for backward compatibility with already-issued receipts; both will rename to `getBayesAnalysis` / `bayes_analysis` in the next major SDK version with a deprecation alias.
+
+**Either we ship actual conformal prediction (split-conformal with nonconformity α_i = -log L̂(x_i | y_i) and a quantile threshold for the prediction set) or we never call this conformal again. Today's choice is the second.**
 
 ---
 
@@ -26,7 +40,7 @@ Every receipt's `conformal_analysis` field carries the following on a single obs
     "captured_date": "2026-04-26",
     "version": "v1-bootstrap"
   },
-  "method": "Gaussian-likelihood-ratio class-conditional posterior (flat prior); Vovk-Gammerman-Shafer 2005 + Angelopoulos & Bates 2023 framing; bootstrap CI per Efron & Tibshirani 1993; SD floor 0.05 prevents small-N over-confidence",
+  "method": "Class-conditional Gaussian likelihood ratio with flat prior (textbook two-class Bayes classifier). Bootstrap 95% CI per Efron & Tibshirani 1993; SD floor 0.05 prevents small-N over-confidence. NOT Vovk-Gammerman split-conformal prediction — see §0 of this doc for the distinction.",
   "notes": "Calibration set will grow as real-tester runs accumulate. Wide CIs reflect small calibration size; downstream apps can pass their own calibration via the calibration argument."
 }
 ```
