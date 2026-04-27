@@ -236,92 +236,39 @@ exports.signReceipt = onRequest(
       return;
     }
 
-    // Round-5 R5-NEW-1 CRITICAL fix: the HTTP endpoint must run THE
-    // WALL too. Round-5 hostile review caught that this endpoint was
-    // signing receipts without ever calling signSessionReceipt's
-    // walledOutcome arg — so receipts issued via HTTP carried no
-    // trust_tier, no serverRecompute, no boundsViolations, and an
-    // attacker who POSTed {composite:0.95} got a fully-signed JWT that
-    // verifiers rendered as ✓ verified with no banner. Now: same wall
-    // logic as onSessionWritten (plausibility bounds + server scorer +
-    // trace-novelty if a fingerprint collection is reachable).
-    let serverRecomputeResult = { ok: false, reason: 'event_log_absent' };
-    let traceNovelty = { checked: false };
-    const boundsViolations = [];
-    const composite = session.composite;
-    const durationSec = session.duration_ms ? session.duration_ms / 1000 : 0;
-    const ciVerdict = session.composition_integrity && session.composition_integrity.verdict;
-    const envClean = session.environmental && session.environmental.loaded === true && session.environmental.bot !== true;
-    const ciAuthored = ciVerdict === 'authored';
-    const interactions = session.interaction_count || 0;
-    if (composite > 0.85) {
-      if (!envClean) boundsViolations.push('high_composite_without_clean_env');
-      if (!ciAuthored) boundsViolations.push('high_composite_without_authored_ci');
-      if (durationSec < 60) boundsViolations.push('high_composite_short_session_' + durationSec + 's');
-      if (interactions < 5) boundsViolations.push('high_composite_low_interaction_' + interactions);
-    } else if (composite > 0.50) {
-      if (durationSec < 30) boundsViolations.push('mid_composite_short_session_' + durationSec + 's');
-    }
+    // Round-6 R6-NEW-1+5 fix: shared runWall helper. Replaces the
+    // duplicated HTTP-path implementation that had drifted from the
+    // Firestore-trigger path (different field names, parallel
+    // if-else trustTier trees, off-by-one bounds). One source of
+    // truth in server-scorer.runWall. Trace-novelty is now wired in
+    // via the admin context — HTTP path no longer skips it.
+    const scorer = require('./server-scorer');
+    let walled;
     try {
-      const scorer = require('./server-scorer');
-      if (session.event_log) {
-        serverRecomputeResult = scorer.serverRecompute(
-          session.event_log, composite, durationSec, ciVerdict);
-        if (!serverRecomputeResult.ok) {
-          boundsViolations.push('server_recompute_failed:' + serverRecomputeResult.reason);
-        } else if (serverRecomputeResult.divergent) {
-          boundsViolations.push('server_recompute_divergent:client=' +
-            serverRecomputeResult.client_composite + ',server=' +
-            serverRecomputeResult.server_composite);
-        }
-        // Trace-novelty: skip on HTTP path (no Firestore admin context
-        // here unless we wire it in — keep MVP scope tight). Fingerprint
-        // is still computed and embedded; future iteration can wire the
-        // collection query.
-        const fingerprint = scorer.featureFingerprint(session.event_log, durationSec);
-        if (fingerprint) {
-          traceNovelty = {
-            checked: false,
-            reason: 'http_endpoint_no_collection_query',
-            fingerprint: fingerprint
-          };
-        }
-      } else {
-        boundsViolations.push('event_log_absent');
-      }
+      const sessionMeta = scorer.extractSessionMetrics(clean);
+      walled = await scorer.runWall(sessionMeta, { admin: admin });
     } catch (e) {
-      console.error('HTTP wall recompute error:', e && e.message ? e.message : 'unknown');
-      boundsViolations.push('server_recompute_error');
-    }
-    let trustTier;
-    if (serverRecomputeResult.ok && !serverRecomputeResult.divergent && boundsViolations.length === 0) {
-      trustTier = 'server_attested';
-    } else if (boundsViolations.length === 0) {
-      trustTier = 'client_attested_bounds_clean';
-    } else if (boundsViolations.length === 1 && boundsViolations[0] === 'event_log_absent') {
-      trustTier = 'client_attested_no_event_log';
-    } else {
-      trustTier = 'client_attested_bounds_violated';
+      console.error('HTTP wall error:', e && e.message ? e.message : 'unknown');
+      walled = {
+        trustTier: 'client_attested_bounds_violated',
+        boundsViolations: ['runwall_error'],
+        serverRecomputeResult: { ok: false, reason: 'runwall_threw' },
+        traceNovelty: { checked: false, reason: 'runwall_threw' },
+        walledOutcome: {
+          trust_tier: 'client_attested_bounds_violated',
+          bounds_violations: ['runwall_error'],
+          server_recompute: { ok: false, reason: 'runwall_threw' },
+          trace_novelty: { checked: false, reason: 'runwall_threw' }
+        }
+      };
     }
 
     try {
-      const walledOutcomeForJwt = {
-        trust_tier: trustTier,
-        bounds_violations: boundsViolations,
-        server_recompute: serverRecomputeResult.ok ? {
-          server_composite: serverRecomputeResult.server_composite,
-          divergence: serverRecomputeResult.divergence,
-          divergent: serverRecomputeResult.divergent,
-          threshold: serverRecomputeResult.threshold,
-          version: serverRecomputeResult.version
-        } : { ok: false, reason: serverRecomputeResult.reason },
-        trace_novelty: traceNovelty
-      };
       const { jwt, credential } = await signSessionReceipt(
         clean,
         SIGNING_KEY.value(),
         SIGNING_KID.value() || 'sws-attention-2026-04',
-        walledOutcomeForJwt
+        walled.walledOutcome
       );
       const credUrl = 'https://sws-attention-proofs.web.app/prove-humanness.html#c=' + jwt;
       res.status(200).json({
@@ -329,9 +276,10 @@ exports.signReceipt = onRequest(
         credential_url: credUrl,
         valid_until: credential.validUntil,
         kid: SIGNING_KID.value() || 'sws-attention-2026-04',
-        trust_tier: trustTier,
-        server_recompute: walledOutcomeForJwt.server_recompute,
-        bounds_violations: boundsViolations
+        trust_tier: walled.trustTier,
+        server_recompute: walled.walledOutcome.server_recompute,
+        bounds_violations: walled.boundsViolations,
+        trace_novelty: walled.traceNovelty
       });
     } catch (e) {
       // NEVER leak key material into logs
@@ -365,137 +313,47 @@ exports.onSessionWritten = onDocumentCreated(
     if (typeof session.signals?.composite !== 'number') return;
     if (session.signed_jwt) return; // already signed
 
-    // Round-4 R4-NEW-1: per-session minimum-duration + plausibility
-    // bounds. Cheap 1-2h defense; catches lazy "post composite=0.95
-    // with duration=2s" bypasses.
-    const composite = session.signals.composite;
-    const durationSec = session.duration_sec || 0;
-    const envLoaded = session.environmental && session.environmental.loaded === true;
-    const envClean = envLoaded && session.environmental.bot !== true;
-    const ciVerdict = session.composition_integrity && session.composition_integrity.verdict;
-    const ciAuthored = ciVerdict === 'authored';
-    const interactions = session.hashes_earned || 0;
-    const boundsViolations = [];
-    if (composite > 0.85) {
-      if (!envClean) boundsViolations.push('high_composite_without_clean_env');
-      if (!ciAuthored) boundsViolations.push('high_composite_without_authored_ci');
-      if (durationSec < 60) boundsViolations.push('high_composite_short_session_' + durationSec + 's');
-      if (interactions < 5) boundsViolations.push('high_composite_low_interaction_' + interactions);
-    } else if (composite > 0.50) {
-      if (durationSec < 30) boundsViolations.push('mid_composite_short_session_' + durationSec + 's');
-    }
-
-    // R2-NEW-2 / "THE WALL" — server-side recompute from raw event log.
-    // The canonical defense the bot-builder agent has named through
-    // 4 hostile rounds. Without it, an attacker forges signals.composite
-    // directly to Firestore and the trigger signs it. With it, the
-    // server recomputes a subset of high-weight signals from the raw
-    // events and rejects receipts where client-claimed composite
-    // diverges from server-recomputed by more than DIVERGENCE_THRESHOLD
-    // (currently 0.20). Forces the attacker to ALSO ship a coherent
-    // event log — round-4 estimate said this raises bypass cost from
-    // $50/mo + 56h to $5-20k/mo + 200-400h.
-    let serverRecomputeResult = { ok: false, reason: 'event_log_absent' };
-    let traceNovelty = { checked: false };
+    // Round-6 R6-NEW-1+5: shared runWall helper replaces the previously-
+    // duplicated plausibility-bounds + recompute + trace-novelty +
+    // trustTier resolution. Now the HTTP signReceipt endpoint and this
+    // Firestore-trigger path use ONE source of truth — eliminates the
+    // field-name drift (duration_ms vs duration_sec etc.) and the
+    // parallel if-else trustTier trees that round-6 caught as drift bait.
+    const scorer = require('./server-scorer');
+    let walled;
     try {
-      const scorer = require('./server-scorer');
-      if (session.event_log) {
-        serverRecomputeResult = scorer.serverRecompute(
-          session.event_log,
-          composite,
-          durationSec,
-          ciVerdict
-        );
-        if (!serverRecomputeResult.ok) {
-          boundsViolations.push('server_recompute_failed:' + serverRecomputeResult.reason);
-        } else if (serverRecomputeResult.divergent) {
-          boundsViolations.push('server_recompute_divergent:client=' +
-            serverRecomputeResult.client_composite + ',server=' +
-            serverRecomputeResult.server_composite);
-        }
-
-        // R2-NEW-2b / TRACE-NOVELTY MVP: feature-fingerprint the event
-        // log, query Firestore for matching fingerprints from DIFFERENT
-        // uids in the last 1 hour. If found, this session is suspiciously
-        // close to a recently-seen one — likely a replay attack. Catches
-        // the "record N human traces, replay with jitter" bypass that
-        // round-4 bot-builder agent named as the next-stage attack.
-        const fingerprint = scorer.featureFingerprint(session.event_log, durationSec);
-        if (fingerprint) {
-          try {
-            const oneHourAgo = admin.firestore.Timestamp.fromMillis(Date.now() - 60 * 60 * 1000);
-            const matchSnap = await admin.firestore()
-              .collection('session_fingerprints')
-              .where('fingerprint', '==', fingerprint)
-              .where('signed_at', '>=', oneHourAgo)
-              .limit(10)
-              .get();
-            const matches = matchSnap.docs.filter(function(d) {
-              return d.data().uid !== session.uid;
-            });
-            traceNovelty = {
-              checked: true,
-              fingerprint: fingerprint,
-              recent_matches_other_uid: matches.length,
-              suspicious: matches.length >= 1
-            };
-            if (matches.length >= 1) {
-              boundsViolations.push('trace_novelty_low:' + matches.length +
-                '_other_uid_in_last_hour');
-            }
-            // Always store the new session's fingerprint for future
-            // novelty checks. TTL via a separate cleanup function or
-            // Firestore TTL policy on `signed_at`.
-            await admin.firestore()
-              .collection('session_fingerprints')
-              .add({
-                fingerprint: fingerprint,
-                uid: session.uid,
-                session_id: session.session_id,
-                signed_at: admin.firestore.FieldValue.serverTimestamp()
-              });
-          } catch (tnErr) {
-            // Trace-novelty is best-effort; failure here doesn't block
-            // signing. Fingerprint generation is local; the failure
-            // path is the Firestore query/write.
-            console.error('Trace-novelty error:', tnErr && tnErr.message ? tnErr.message : 'unknown');
-            traceNovelty = { checked: false, reason: 'firestore_error' };
-          }
-        }
-      } else {
-        boundsViolations.push('event_log_absent');
-      }
+      // The Firestore-trigger doc has signals.composite at signals.composite,
+      // not session.composite, plus uses hashes_earned not interaction_count.
+      // Wrap in the canonical shape extractSessionMetrics expects.
+      const sessionForExtract = {
+        session_id: session.session_id,
+        composite: session.signals.composite,
+        duration_sec: session.duration_sec,
+        hashes_earned: session.hashes_earned,
+        composition_integrity: session.composition_integrity,
+        environmental: session.environmental,
+        event_log: session.event_log,
+        uid: session.uid
+      };
+      const sessionMeta = scorer.extractSessionMetrics(sessionForExtract);
+      walled = await scorer.runWall(sessionMeta, { admin: admin });
     } catch (e) {
-      // Fail-safe: if the scorer module errors, don't block signing —
-      // log + tag. We'd rather sign with a warning than refuse to sign
-      // a legitimate session because of an unrelated server bug.
-      console.error('Server-recompute error:', e && e.message ? e.message : 'unknown');
-      boundsViolations.push('server_recompute_error');
-    }
-
-    // Trust-tier upgrade: server_attested is the highest tier and
-    // requires (a) bounds clean, (b) server recompute ok, (c) no
-    // divergence. client_attested_bounds_clean is the round-4 mid-tier
-    // (no log, plausibility OK). client_attested_bounds_violated is the
-    // forensic-only floor.
-    let trustTier;
-    if (serverRecomputeResult.ok && !serverRecomputeResult.divergent && boundsViolations.length === 0) {
-      trustTier = 'server_attested';
-    } else if (boundsViolations.length === 0) {
-      trustTier = 'client_attested_bounds_clean';
-    } else if (boundsViolations.length === 1 && boundsViolations[0] === 'event_log_absent') {
-      // Legacy path (SDK didn't ship a log) — keep mid-tier so existing
-      // sessions don't all flip to violated. Once SDK uniformly ships
-      // logs, tighten this to a violation.
-      trustTier = 'client_attested_no_event_log';
-    } else {
-      trustTier = 'client_attested_bounds_violated';
+      console.error('Trigger wall error:', e && e.message ? e.message : 'unknown');
+      walled = {
+        trustTier: 'client_attested_bounds_violated',
+        boundsViolations: ['runwall_error'],
+        serverRecomputeResult: { ok: false, reason: 'runwall_threw' },
+        traceNovelty: { checked: false, reason: 'runwall_threw' },
+        walledOutcome: {
+          trust_tier: 'client_attested_bounds_violated',
+          bounds_violations: ['runwall_error'],
+          server_recompute: { ok: false, reason: 'runwall_threw' },
+          trace_novelty: { checked: false, reason: 'runwall_threw' }
+        }
+      };
     }
 
     try {
-      // Same defense-in-depth we apply on the HTTP endpoint — a malicious
-      // Firestore write must not be able to inject extra fields into the
-      // signed JWT. Finding: audit Apr 21.
       const clean = sanitizeSession({
         session_id: session.session_id,
         composite: session.signals.composite,
@@ -507,31 +365,12 @@ exports.onSessionWritten = onDocumentCreated(
         environmental: session.environmental,
         composition_integrity: session.composition_integrity,
         consent: session.consent,
-        uid: session.uid
+        uid: session.uid,
+        event_log: session.event_log
       });
-      // Embed wall outcome in the signed credential so offline verifiers
-      // (verify.html, prove-humanness.html, verify-offline.js) see the
-      // trust_tier + recompute divergence without needing the Firestore
-      // doc. THIS is what makes THE WALL user-visible end-to-end.
-      const walledOutcomeForJwt = {
-        trust_tier: trustTier,
-        bounds_violations: boundsViolations,
-        server_recompute: serverRecomputeResult.ok ? {
-          server_composite: serverRecomputeResult.server_composite,
-          divergence: serverRecomputeResult.divergence,
-          divergent: serverRecomputeResult.divergent,
-          threshold: serverRecomputeResult.threshold,
-          version: serverRecomputeResult.version
-        } : { ok: false, reason: serverRecomputeResult.reason },
-        trace_novelty: traceNovelty.checked ? {
-          fingerprint: traceNovelty.fingerprint,
-          recent_matches_other_uid: traceNovelty.recent_matches_other_uid,
-          suspicious: traceNovelty.suspicious
-        } : { checked: false }
-      };
       const { jwt, credential } = await signSessionReceipt(
         clean, SIGNING_KEY.value(), SIGNING_KID.value() || 'sws-attention-2026-04',
-        walledOutcomeForJwt);
+        walled.walledOutcome);
 
       await snap.ref.update({
         signed_jwt: jwt,
@@ -539,19 +378,10 @@ exports.onSessionWritten = onDocumentCreated(
         credential_url: 'https://sws-attention-proofs.web.app/prove-humanness.html#c=' + jwt,
         signed_at: admin.firestore.FieldValue.serverTimestamp(),
         signing_kid: SIGNING_KID.value() || 'sws-attention-2026-04',
-        trust_tier: trustTier,
-        bounds_violations: boundsViolations,
-        // Persist the server recompute result so a downstream verifier
-        // (verify.html, prove-humanness.html, scripts/verify-offline.js)
-        // can render it. Strip the per-event signal_details to keep doc
-        // size bounded — the user-visible UI only needs the verdict.
-        server_recompute: serverRecomputeResult.ok ? {
-          server_composite: serverRecomputeResult.server_composite,
-          divergence: serverRecomputeResult.divergence,
-          divergent: serverRecomputeResult.divergent,
-          threshold: serverRecomputeResult.threshold,
-          version: serverRecomputeResult.version
-        } : { ok: false, reason: serverRecomputeResult.reason }
+        trust_tier: walled.trustTier,
+        bounds_violations: walled.boundsViolations,
+        server_recompute: walled.walledOutcome.server_recompute,
+        trace_novelty: walled.traceNovelty
       });
     } catch (e) {
       // Log the error without key material

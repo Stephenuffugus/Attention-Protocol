@@ -622,6 +622,19 @@ async function doVerify() {
           + 'OK for legacy sessions; future receipts should carry one. Trust tier: '
           + tier + '.'));
         vSlot.appendChild(noLogBanner);
+      } else if (tier === 'client_attested_no_trace_novelty') {
+        // Round-6 R6-NEW-2: HTTP signReceipt path may not have admin
+        // Firestore context. Recompute ran cleanly but trace-novelty
+        // didn't. Softer than bounds_violated; harder than no_event_log.
+        const noTnBanner = el('div', 'verdict warn');
+        noTnBanner.appendChild(el('div', 'big',
+          '⚠ Server recompute clean BUT trace-novelty was not checked'));
+        noTnBanner.appendChild(el('div', null,
+          'The signing path could not query the trace-novelty fingerprint '
+          + 'collection (e.g., HTTP endpoint without admin context). The '
+          + 'recompute matched, but a recorded-trace replay attack cannot '
+          + 'be ruled out from this path alone. Trust tier: ' + tier + '.'));
+        vSlot.appendChild(noTnBanner);
       } else if (tier === 'server_attested') {
         // Positive signal — promote.
         const okBanner = el('div', 'verdict ok');

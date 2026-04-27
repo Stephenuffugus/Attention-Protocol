@@ -117,3 +117,64 @@ Then POST to `http://127.0.0.1:5001/sws-attention-proofs/us-central1/signReceipt
 firebase functions:delete signReceipt
 # etc. — each function can be removed independently without breaking others
 ```
+
+## THE WALL — Firestore prerequisites (R2-NEW-2b trace-novelty)
+
+The wall (R2-NEW-2 + R2-NEW-2b) writes a fingerprint per signed session
+to a `session_fingerprints` collection and queries it for replay
+detection. Two configuration steps required for production:
+
+### 1. Composite index
+
+The trace-novelty query is:
+```
+where('fingerprint', '==', fp).where('signed_at', '>=', oneHourAgo)
+```
+
+Firestore needs a composite index on `(fingerprint ASC, signed_at ASC)`.
+On first invocation Firestore returns `FAILED_PRECONDITION: query
+requires an index` with a console URL — click it, or create explicitly:
+
+```bash
+gcloud firestore indexes composite create \
+  --collection-group=session_fingerprints \
+  --field-config field-path=fingerprint,order=ascending \
+  --field-config field-path=signed_at,order=ascending
+```
+
+Without this index the trigger's trace-novelty query throws and the
+wall silently degrades to `traceNovelty.checked: false` — receipts get
+tagged `trace_novelty_firestore_error` and downgraded to
+`client_attested_bounds_violated` (round-6 R6-NEW-8 fix). The wall
+still rejects, but you lose the replay-detection signal.
+
+### 2. TTL policy on `signed_at`
+
+Fingerprints accumulate forever without a TTL. Replay window is 1 hour;
+24-hour retention is sufficient and bounds storage cost. Configure via:
+
+```bash
+gcloud firestore fields ttls update signed_at \
+  --collection-group=session_fingerprints \
+  --enable-ttl
+```
+
+Without TTL, ~365k docs/year at 1k sessions/day balloons under attack.
+Storage cost: $0.18/GB/mo + $0.06/100k writes. An attacker who fuzzes
+1M session POSTs (~$60 attack cost) burns ~$200/mo recurring storage.
+
+### 3. Firestore rules
+
+Round-6 R6-NEW-3 added an explicit rule for the collection
+(`firestore.rules`):
+
+```
+match /session_fingerprints/{document=**} {
+  allow read, write: if isAdmin();
+}
+```
+
+Admin SDK (the trigger context) bypasses rules at runtime, but having
+the explicit rule defends against accidental client-side access if a
+future page tries to read fingerprints (which are quantized statistical
+summaries — not PII, but not user-readable either).

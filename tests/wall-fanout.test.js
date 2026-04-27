@@ -67,6 +67,39 @@ describe('wall fan-out invariants (R6 codification of R3/R4/R5 lessons)', () => 
       expect({ line: lineNo, argCount: argCount }).toEqual(
         expect.objectContaining({ argCount: 4 })
       );
+
+      // Round-6 R6-NEW-11: also assert the 4th arg is NOT a literal
+      // null/undefined/{}. A future regression
+      // `signSessionReceipt(c, k, kid, undefined)` passes the arg-count
+      // assertion above but bypasses the wall (buildCredential's
+      // `if (walledOutcome)` short-circuits). Extract the 4th arg's
+      // text and assert it's an identifier (no leading null/undefined/{).
+      const callBody = indexJs.slice(openIdx + 1, i);
+      // Walk to find the 4th arg by counting top-level commas again.
+      let argDepth = 0, argStart = 0, currentArg = 0, fourthArgText = null;
+      for (let p = 0; p <= callBody.length; p++) {
+        const ch = callBody[p];
+        if (p === callBody.length) {
+          if (currentArg === 3) fourthArgText = callBody.slice(argStart, p);
+          break;
+        }
+        if (ch === '(' || ch === '{' || ch === '[') argDepth++;
+        else if (ch === ')' || ch === '}' || ch === ']') argDepth--;
+        else if (ch === ',' && argDepth === 0) {
+          if (currentArg === 3) {
+            fourthArgText = callBody.slice(argStart, p);
+            break;
+          }
+          currentArg++;
+          argStart = p + 1;
+        }
+      }
+      const trimmed = (fourthArgText || '').trim();
+      expect({ line: lineNo, fourthArg: trimmed }).toEqual(
+        expect.objectContaining({
+          fourthArg: expect.not.stringMatching(/^(null|undefined|\{\s*\})$/)
+        })
+      );
     }
   });
 

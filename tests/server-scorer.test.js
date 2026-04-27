@@ -210,7 +210,84 @@ describe('server-scorer — divergence threshold tunable', () => {
   });
 });
 
-describe('server-scorer — motion redistribution (R5-NEW-10)', () => {
+describe('server-scorer — extractSessionMetrics (R6-NEW-1 normalisation)', () => {
+  test('accepts both duration_sec and duration_ms shapes', () => {
+    const a = scorer.extractSessionMetrics({ composite: 0.5, duration_sec: 120 });
+    expect(a.durationSec).toBe(120);
+    const b = scorer.extractSessionMetrics({ composite: 0.5, duration_ms: 120000 });
+    expect(b.durationSec).toBe(120);
+  });
+
+  test('accepts both interaction_count and hashes_earned', () => {
+    const a = scorer.extractSessionMetrics({ composite: 0.5, interaction_count: 7 });
+    expect(a.interactions).toBe(7);
+    const b = scorer.extractSessionMetrics({ composite: 0.5, hashes_earned: 12 });
+    expect(b.interactions).toBe(12);
+  });
+
+  test('type-coerces string-numeric to number', () => {
+    const r = scorer.extractSessionMetrics({ composite: '0.5', interaction_count: '7' });
+    expect(r.composite).toBe(0.5);
+    expect(r.interactions).toBe(7);
+  });
+
+  test('NaN composite clamps to 0', () => {
+    const r = scorer.extractSessionMetrics({ composite: 'not a number' });
+    expect(r.composite).toBe(0);
+  });
+});
+
+describe('server-scorer — runWall (R6-NEW-1+5 shared helper)', () => {
+  test('clean session_attested path produces server_attested tier', async () => {
+    const log = buildHumanLikeLog({ durationSec: 180, mousemoveRate: 4, keystrokes: 60, seed: 11 });
+    const meta = scorer.extractSessionMetrics({
+      session_id: 's1', composite: 0.65, duration_sec: 180,
+      composition_integrity: { verdict: 'authored' },
+      environmental: { loaded: true, bot: false },
+      hashes_earned: 12, uid: 'u1', event_log: log
+    });
+    const r = await scorer.runWall(meta, {});
+    // No admin context → trace-novelty checked:false → 'no_trace_novelty' tier
+    expect(['server_attested', 'client_attested_no_trace_novelty']).toContain(r.trustTier);
+  });
+
+  test('forged composite (high) with short duration → bounds_violated', async () => {
+    const meta = scorer.extractSessionMetrics({
+      session_id: 's2', composite: 0.95, duration_sec: 5,
+      composition_integrity: { verdict: 'pasted' },
+      environmental: { loaded: true, bot: false },
+      hashes_earned: 0, uid: 'u2'
+    });
+    const r = await scorer.runWall(meta, {});
+    expect(r.trustTier).toBe('client_attested_bounds_violated');
+    expect(r.boundsViolations.length).toBeGreaterThan(0);
+  });
+
+  test('off-by-one fix: composite=0.85 EXACTLY also triggers high-composite bounds', async () => {
+    // Pre-fix: `if (composite > 0.85)` skipped at exactly 0.85. Now `>=`.
+    const meta = scorer.extractSessionMetrics({
+      session_id: 's3', composite: 0.85, duration_sec: 5,
+      hashes_earned: 0, uid: 'u3'
+    });
+    const r = await scorer.runWall(meta, {});
+    // Should fire high-composite checks (env not clean, ci not authored,
+    // duration < 60, interactions < 5).
+    expect(r.boundsViolations.some(v => v.startsWith('high_composite_'))).toBe(true);
+  });
+
+  test('event_log absent → no_event_log tier (legacy SDK path)', async () => {
+    const meta = scorer.extractSessionMetrics({
+      session_id: 's4', composite: 0.6, duration_sec: 120,
+      composition_integrity: { verdict: 'authored' },
+      environmental: { loaded: true, bot: false },
+      hashes_earned: 8, uid: 'u4'
+    });
+    const r = await scorer.runWall(meta, {});
+    expect(r.trustTier).toBe('client_attested_no_event_log');
+  });
+});
+
+describe('server-scorer — motion redistribution (R5-NEW-10 + R6-NEW-6)', () => {
   test('keyboard-only session (no motion + many keystrokes) redistributes motion weight', () => {
     const startMs = 1700000000000;
     const events = [];

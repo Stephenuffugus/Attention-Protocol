@@ -49,5 +49,17 @@ service cloud.firestore {
       allow create, update: if isAdmin();
       allow delete: if false;
     }
+
+    match /session_fingerprints/{document=**} {
+      // Round-6 R6-NEW-3: trace-novelty (R2-NEW-2b) collection. The
+      // onSessionWritten trigger writes a fingerprint per signed
+      // session and queries the collection for matches. Admin SDK
+      // bypasses these rules at runtime, but having an EXPLICIT rule
+      // (rather than relying on the default-deny + admin-bypass
+      // combination) protects against accidental client access if a
+      // future page tries to read fingerprints. NOT human-readable;
+      // fingerprints are quantized statistical summaries, not PII.
+      allow read, write: if isAdmin();
+    }
   }
 }

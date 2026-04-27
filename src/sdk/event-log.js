@@ -86,10 +86,12 @@ function createEventLog(opts) {
   function record(ev) {
     if (!ev || typeof ev !== 'object') return;
     if (!consentReady) {
-      // Pre-consent: do not record anything. Caller can flush a
-      // permitted-pre-consent set (e.g., 'visibility' for accessibility
-      // detection) via the explicit setConsentReady() path; default
-      // posture is "no telemetry until granted."
+      // Pre-consent: do not record anything. The setConsentReady()
+      // method flips consentReady = true; from that moment, recording
+      // proceeds. There is no retroactive recording — events between
+      // SDK init and consent grant are dropped, matching the BIPA / GDPR
+      // posture in docs/legal/bipa-posture.md ("aggregate behavioral
+      // signals collected only with explicit user consent").
       return;
     }
     if (anchorEvents.length < ANCHOR_SIZE) {

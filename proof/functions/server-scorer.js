@@ -315,11 +315,18 @@ function serverRecompute(eventLog, claimedComposite, claimedDurationSec, claimed
     event_density: eventDensityScore
   };
 
-  // Round-5 R5-NEW-10: detect "motion not applicable" so we don't
-  // false-flag keyboard-only / accessibility / mobile users. If the
-  // motion-score reason is 'no_motion' AND we have ≥10 keystrokes,
-  // assume motion is N/A and redistribute the weight.
-  var motionApplicable = !(motion.reason === 'no_motion' && keystroke.n >= 10);
+  // Round-5 R5-NEW-10 + Round-6 R6-NEW-6: detect "motion not applicable"
+  // so we don't false-flag keyboard-only / accessibility / mobile / pure-
+  // reading users. Two cases qualify:
+  //   (a) keyboard-only: motion absent + ≥10 keystrokes
+  //   (b) pure-reading (round-6 add): motion absent + keystrokes absent
+  //       + ≥20 scroll events (e.g., long-form reading on a trackpad
+  //       with momentum scroll, or a page where the user only scrolls).
+  var scrollCount = events.filter(function(e) { return e.type === 'scroll'; }).length;
+  var motionApplicable = !(
+    motion.reason === 'no_motion' &&
+    (keystroke.n >= 10 || (keystroke.n === 0 && scrollCount >= 20))
+  );
   var serverComposite = computeServerComposite(signals, motionApplicable);
   // Round-5 R5-NEW-10b: divergent is ONE-SIDED — fires only when the
   // client OVER-claims relative to the server. The reverse case
@@ -424,6 +431,213 @@ function featureFingerprint(eventLog, claimedDurationSec) {
   return 'fp1:' + cvBucket + ':' + distBucket + ':' + ksBucket + ':' + durBucket + ':' + densityBucket;
 }
 
+/**
+ * Round-6 R6-NEW-1+5 fix: extract a single shared runner so BOTH
+ * signing paths (HTTP signReceipt + Firestore-trigger onSessionWritten)
+ * use identical wall logic. Round-5's HTTP-path fix duplicated the
+ * plausibility-bounds + recompute + trustTier resolution inline,
+ * which round-6 caught as drift bait — the two paths read different
+ * field names (duration_ms vs duration_sec, interaction_count vs
+ * hashes_earned) and resolved trustTier as two parallel if-else trees.
+ * Now: one helper, both callers normalize via the same field-extractor.
+ *
+ * @param {Object} sessionMeta - normalised session view (already extracted)
+ *   { composite, durationSec, ciVerdict, environmental, interactions, eventLog, uid, sessionId }
+ * @param {Object} ctx - { admin: optional FirebaseAdmin for trace-novelty Firestore queries }
+ *   When admin is supplied, trace-novelty runs against the
+ *   `session_fingerprints` collection. When omitted (legacy / non-trigger
+ *   contexts), only the local fingerprint is computed and the match
+ *   query is reported as `checked: false, reason: 'no_admin_context'`.
+ *
+ * Returns: {
+ *   trustTier, boundsViolations, serverRecompute, traceNovelty,
+ *   walledOutcome (pre-shaped for buildCredential)
+ * }
+ */
+async function runWall(sessionMeta, ctx) {
+  ctx = ctx || {};
+  var composite = sessionMeta.composite;
+  var durationSec = sessionMeta.durationSec || 0;
+  var ciVerdict = sessionMeta.ciVerdict;
+  var env = sessionMeta.environmental;
+  var envClean = env && env.loaded === true && env.bot !== true;
+  var ciAuthored = ciVerdict === 'authored';
+  var interactions = sessionMeta.interactions || 0;
+
+  // Round-6 R6-NEW-4: bounds use >= not > so composite=0.85 exactly is
+  // also constrained. Off-by-one previously let an attacker post
+  // composite=0.85 to skip all high-composite checks.
+  var boundsViolations = [];
+  if (composite >= 0.85) {
+    if (!envClean) boundsViolations.push('high_composite_without_clean_env');
+    if (!ciAuthored) boundsViolations.push('high_composite_without_authored_ci');
+    if (durationSec < 60) boundsViolations.push('high_composite_short_session_' + durationSec + 's');
+    if (interactions < 5) boundsViolations.push('high_composite_low_interaction_' + interactions);
+  } else if (composite >= 0.50) {
+    if (durationSec < 30) boundsViolations.push('mid_composite_short_session_' + durationSec + 's');
+  }
+
+  var serverRecomputeResult = { ok: false, reason: 'event_log_absent' };
+  var traceNovelty = { checked: false };
+
+  if (sessionMeta.eventLog) {
+    serverRecomputeResult = serverRecompute(
+      sessionMeta.eventLog, composite, durationSec, ciVerdict);
+    if (!serverRecomputeResult.ok) {
+      boundsViolations.push('server_recompute_failed:' + serverRecomputeResult.reason);
+    } else if (serverRecomputeResult.divergent) {
+      boundsViolations.push('server_recompute_divergent:client=' +
+        serverRecomputeResult.client_composite + ',server=' +
+        serverRecomputeResult.server_composite);
+    }
+
+    // R2-NEW-2b trace-novelty
+    var fingerprint = featureFingerprint(sessionMeta.eventLog, durationSec);
+    if (fingerprint) {
+      if (ctx.admin) {
+        try {
+          var oneHourAgo = ctx.admin.firestore.Timestamp.fromMillis(
+            Date.now() - 60 * 60 * 1000);
+          var matchSnap = await ctx.admin.firestore()
+            .collection('session_fingerprints')
+            .where('fingerprint', '==', fingerprint)
+            .where('signed_at', '>=', oneHourAgo)
+            .limit(10)
+            .get();
+          var matches = matchSnap.docs.filter(function(d) {
+            return d.data().uid !== sessionMeta.uid;
+          });
+          traceNovelty = {
+            checked: true,
+            fingerprint: fingerprint,
+            recent_matches_other_uid: matches.length,
+            suspicious: matches.length >= 1
+          };
+          if (matches.length >= 1) {
+            boundsViolations.push('trace_novelty_low:' + matches.length +
+              '_other_uid_in_last_hour');
+          }
+          await ctx.admin.firestore()
+            .collection('session_fingerprints')
+            .add({
+              fingerprint: fingerprint,
+              uid: sessionMeta.uid,
+              session_id: sessionMeta.sessionId,
+              signed_at: ctx.admin.firestore.FieldValue.serverTimestamp()
+            });
+        } catch (tnErr) {
+          // Round-6 R6-NEW-3 / R6-NEW-8 fix: explicit reason instead of
+          // silent fail-open. The verifier surfaces will treat
+          // 'firestore_error' as a non-server_attested condition.
+          traceNovelty = { checked: false, reason: 'firestore_error',
+                           fingerprint: fingerprint };
+          // Surface the failure as a bounds violation so trustTier
+          // resolution can downgrade. Without this, an attacker could
+          // route through a context where trace-novelty errors silently
+          // and pass as server_attested.
+          boundsViolations.push('trace_novelty_firestore_error');
+        }
+      } else {
+        // No admin context (HTTP signReceipt before this commit).
+        // Round-6 R6-NEW-2 fix: explicit non-server_attested signal.
+        // The fingerprint is computed for forensic value but the
+        // collection query did not run, so we cannot rule out replay.
+        traceNovelty = { checked: false, reason: 'no_admin_context',
+                         fingerprint: fingerprint };
+        boundsViolations.push('trace_novelty_not_checked');
+      }
+    }
+  } else {
+    boundsViolations.push('event_log_absent');
+  }
+
+  // Trust-tier resolution — single source of truth, replaces the two
+  // parallel if-else trees previously in HTTP + Firestore paths.
+  var trustTier;
+  if (serverRecomputeResult.ok && !serverRecomputeResult.divergent
+      && boundsViolations.length === 0) {
+    trustTier = 'server_attested';
+  } else if (boundsViolations.length === 0) {
+    trustTier = 'client_attested_bounds_clean';
+  } else if (boundsViolations.length === 1
+             && boundsViolations[0] === 'event_log_absent') {
+    trustTier = 'client_attested_no_event_log';
+  } else if (boundsViolations.length === 1
+             && boundsViolations[0] === 'trace_novelty_not_checked') {
+    // HTTP path with a clean recompute but no trace-novelty available
+    // — softer than bounds_violated but harder than no_event_log.
+    trustTier = 'client_attested_no_trace_novelty';
+  } else {
+    trustTier = 'client_attested_bounds_violated';
+  }
+
+  var walledOutcome = {
+    trust_tier: trustTier,
+    bounds_violations: boundsViolations,
+    server_recompute: serverRecomputeResult.ok ? {
+      server_composite: serverRecomputeResult.server_composite,
+      divergence: serverRecomputeResult.divergence,
+      divergent: serverRecomputeResult.divergent,
+      threshold: serverRecomputeResult.threshold,
+      version: serverRecomputeResult.version
+    } : { ok: false, reason: serverRecomputeResult.reason },
+    trace_novelty: traceNovelty
+  };
+
+  return {
+    trustTier: trustTier,
+    boundsViolations: boundsViolations,
+    serverRecomputeResult: serverRecomputeResult,
+    traceNovelty: traceNovelty,
+    walledOutcome: walledOutcome
+  };
+}
+
+/**
+ * Field-name normaliser (round-6 R6-NEW-1 + R6-NEW-9 fix). HTTP
+ * signReceipt and Firestore-trigger onSessionWritten read different
+ * shapes; this helper accepts both and produces the canonical
+ * sessionMeta that runWall consumes.
+ */
+function extractSessionMetrics(session) {
+  // Round-6 R6-NEW-9: type-coerce numeric fields. Previously
+  // `session.interaction_count || 0` short-circuited on `false`/`[]`/
+  // `0` to 0 (legit), but a string like "5" passed through and the
+  // `< 5` numeric comparison silently coerced. Number() makes the
+  // coercion explicit and clamps NaN.
+  var composite = Number(session.composite);
+  if (!Number.isFinite(composite)) composite = 0;
+
+  var durationSec = 0;
+  if (typeof session.duration_sec === 'number' && session.duration_sec > 0) {
+    durationSec = session.duration_sec;
+  } else if (typeof session.duration_ms === 'number' && session.duration_ms > 0) {
+    durationSec = session.duration_ms / 1000;
+  }
+
+  // Interactions: HTTP path uses `interaction_count`, Firestore path
+  // uses `hashes_earned`. Accept either.
+  var interactions = Number(
+    (session.interaction_count != null ? session.interaction_count : session.hashes_earned)
+  );
+  if (!Number.isFinite(interactions)) interactions = 0;
+
+  var ciVerdict = session.composition_integrity
+    ? session.composition_integrity.verdict
+    : null;
+
+  return {
+    composite: composite,
+    durationSec: durationSec,
+    ciVerdict: ciVerdict,
+    environmental: session.environmental || null,
+    interactions: interactions,
+    eventLog: session.event_log || null,
+    uid: session.uid || 'anonymous',
+    sessionId: session.session_id
+  };
+}
+
 module.exports = {
   serverRecompute: serverRecompute,
   validateEventLog: validateEventLog,
@@ -432,6 +646,8 @@ module.exports = {
   motionScore: motionScore,
   keystrokeCoherenceScore: keystrokeCoherenceScore,
   featureFingerprint: featureFingerprint,
+  runWall: runWall,
+  extractSessionMetrics: extractSessionMetrics,
   DIVERGENCE_THRESHOLD: DIVERGENCE_THRESHOLD,
   VERSION: VERSION
 };
