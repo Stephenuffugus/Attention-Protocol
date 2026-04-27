@@ -39,10 +39,34 @@ describe('receipt-composite — no gates triggered', () => {
     expect(r.tierFinal).toBe('active');
   });
 
-  test('environmental not loaded → no gate (fail-open on absence)', () => {
+  test('environmental explicitly unresolved → unresolved cap fires (round-2 hardening)', () => {
+    // Round-2 hostile-review finding: an attacker who monkey-patches
+    // SWSEnvironmentalGate.check() to return {loaded:false, error:...}
+    // previously evaded the cap because the gate only fired on
+    // affirmative bot===true. cme-demo.html had its own
+    // 'environmental:unresolved' branch (commit fef4c20) but the shared
+    // SDK module did not. Now the module fires the same defense.
+    // Distinct from absence-of-env (caller didn't integrate env at all),
+    // which remains uncapped — see the next test.
     const r = computeFinalComposite({
       behavioralComposite: 0.70,
       environmental: { loaded: false, bot: null, error: 'lib_missing' }
+    });
+    expect(r.finalComposite).toBeCloseTo(0.30, 10);
+    expect(r.gatesApplied).toHaveLength(1);
+    expect(r.gatesApplied[0].layer).toBe('environmental');
+    expect(r.gatesApplied[0].reason).toBe('unresolved:error');
+    expect(r.gatesApplied[0].cap).toBeCloseTo(0.30, 10);
+  });
+
+  test('environmental absent (caller did not integrate) → no gate', () => {
+    // Distinct from the unresolved case above: when env is null /
+    // undefined the caller deliberately did not integrate the env-gate
+    // (e.g., a vertical that is inherently human-only or runs in an
+    // environment where BotD cannot be loaded). No cap fires.
+    const r = computeFinalComposite({
+      behavioralComposite: 0.70,
+      environmental: null
     });
     expect(r.finalComposite).toBeCloseTo(0.70, 10);
     expect(r.gatesApplied).toEqual([]);
@@ -199,6 +223,24 @@ describe('receipt-composite — input defensiveness', () => {
       gates: { environmentalBot: 0.15 }
     });
     expect(r.finalComposite).toBeCloseTo(0.15, 10);
+  });
+
+  test('gates_overridden surfaced in result when caller passes gates (round-2 hardening)', () => {
+    // Round-2 finding: caller-supplied gates override defaults silently.
+    // Now the result advertises gatesOverridden=true so a decision-grade
+    // verifier can reject. Mirrors calibration_override pattern.
+    const overridden = computeFinalComposite({
+      behavioralComposite: 0.90,
+      environmental: { loaded: true, bot: false },
+      gates: { environmentalBot: 0.15 }
+    });
+    expect(overridden.gatesOverridden).toBe(true);
+
+    const defaulted = computeFinalComposite({
+      behavioralComposite: 0.90,
+      environmental: { loaded: true, bot: false }
+    });
+    expect(defaulted.gatesOverridden).toBe(false);
   });
 });
 

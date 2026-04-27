@@ -571,10 +571,24 @@
         gatesTriggered.push('environmental:unresolved');
       }
       if (ci && (ci.verdict === 'mechanical' || ci.verdict === 'pasted')) gatesTriggered.push('compositionIntegrity:' + ci.verdict);
+      // Round-2 code-review finding: 'suspicious' verdict was defined in
+      // src/sdk/receipt-composite.js (cap 0.50) but the inline cme-demo
+      // gating never checked for it. A session that the SDK marks
+      // suspicious previously got an uncapped behavioral composite into
+      // the receipt. Now applies a mid-cap (0.50) — less aggressive than
+      // the bot/paste cap because 'suspicious' is a softer verdict.
+      if (ci && ci.verdict === 'suspicious') gatesTriggered.push('compositionIntegrity:suspicious');
       var PASSIVE_CAP = 0.30;
-      var medComposite = (gatesTriggered.length > 0)
-        ? Math.min(medCompositeRaw, PASSIVE_CAP)
-        : medCompositeRaw;
+      var SUSPICIOUS_CAP = 0.50;
+      // If a hard gate (env or composition pasted/mechanical) fires, cap
+      // at PASSIVE_CAP (0.30). Otherwise if only the soft suspicious gate
+      // fires, cap at SUSPICIOUS_CAP (0.50). No gates → uncapped.
+      var hardGateFired = gatesTriggered.some(function(g) {
+        return !g.endsWith(':suspicious');
+      });
+      var capValue = hardGateFired ? PASSIVE_CAP
+                   : (gatesTriggered.length > 0 ? SUSPICIOUS_CAP : 1.0);
+      var medComposite = Math.min(medCompositeRaw, capValue);
 
       var verdict;
       if (medComposite >= MEDICAL_PROFILE.thresholds.pass) verdict = 'pass';
@@ -805,6 +819,9 @@
         }
         if (g.indexOf('compositionIntegrity:mechanical') === 0) {
           return '<strong>mechanical typing patterns</strong> were detected — uniform inter-key intervals inconsistent with human keystroke biology. The composite was capped at the passive-observation maximum (0.30).';
+        }
+        if (g.indexOf('compositionIntegrity:suspicious') === 0) {
+          return 'the typing pattern was <strong>flagged as suspicious</strong> — short of a hard mechanical / paste verdict but outside the human-typical range. The composite was capped at 0.50 rather than the harder 0.30 because the evidence is softer; re-run with deliberate typing to clear the gate.';
         }
         if (g === 'environmental:unresolved') {
           return 'the <strong>environmental check did not resolve</strong> in time — the BotD module may have been blocked, rate-limited, or unreachable. Out of caution, sessions that cannot be environmentally verified are capped at the passive-observation maximum (0.30) rather than getting the benefit of the doubt. Re-run on a stable connection.';

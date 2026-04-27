@@ -17,6 +17,7 @@
  *     gated judgment, with provenance.
  *
  * Gates (current thresholds; conservative):
+ *   environmental.loaded === false / null / err ... cap 0.30  (unresolved == bot-equivalent)
  *   environmental.bot === true ................ cap 0.30
  *   compositionIntegrity.verdict 'pasted'|'mechanical' ... cap 0.40
  *   compositionIntegrity.verdict 'suspicious' .. cap 0.50
@@ -39,6 +40,7 @@ var VERSION = 'receipt-composite-v1';
 
 // Gate thresholds. Exposed for test-time override and future calibration.
 var DEFAULT_GATES = Object.freeze({
+  environmentalUnresolved: 0.30,
   environmentalBot: 0.30,
   compositionPasted: 0.40,
   compositionMechanical: 0.40,
@@ -85,13 +87,37 @@ function computeFinalComposite(inputs) {
   if (bc < 0) bc = 0;
   if (bc > 1) bc = 1;
 
-  var gates = (inputs.gates && typeof inputs.gates === 'object') ? inputs.gates : DEFAULT_GATES;
+  // Round-2 hardening: surface caller-supplied gate overrides so a
+  // verifier can reject decision-grade receipts that don't use defaults.
+  // Mirrors the calibration_override pattern in attention-protocol.js.
+  var gatesOverridden = !!(inputs.gates && typeof inputs.gates === 'object');
+  var gates = gatesOverridden ? inputs.gates : DEFAULT_GATES;
   var applied = [];
   var cap = 1.0;
 
   // --- Gate 1: environmental bot detection ---
+  // Round-2 hardening: treat env.loaded===false / env.error / null env as
+  // bot-equivalent. Previously the SDK module only fired this cap when
+  // BotD affirmatively returned bot===true; cme-demo.html had its own
+  // 'environmental:unresolved' branch (commit fef4c20) but the shared
+  // SDK module did not. Any vertical that consumes computeFinalComposite
+  // directly (not via cme-demo's inline gating) would silently lose the
+  // defense when BotD ESM was 404'd, rate-limited, or blocked. Now the
+  // module has the same protection.
   var env = inputs.environmental;
-  if (env && env.loaded === true && env.bot === true) {
+  // env absent (null/undefined) means the caller did not integrate the
+  // env-gate — their deliberate choice; no cap. env present but
+  // unresolved (loaded:false OR error truthy) means the caller TRIED to
+  // run env-gate and it failed/was blocked; that's a likely-bot signal.
+  if (env != null && (env.loaded === false || env.error)) {
+    var unresCap = gates.environmentalUnresolved != null ? gates.environmentalUnresolved : DEFAULT_GATES.environmentalUnresolved;
+    if (unresCap < cap) cap = unresCap;
+    applied.push({
+      layer: 'environmental',
+      reason: env.error ? 'unresolved:error' : 'unresolved:not_loaded',
+      cap: unresCap
+    });
+  } else if (env && env.loaded === true && env.bot === true) {
     var envCap = gates.environmentalBot != null ? gates.environmentalBot : DEFAULT_GATES.environmentalBot;
     if (envCap < cap) cap = envCap;
     applied.push({
@@ -135,6 +161,7 @@ function computeFinalComposite(inputs) {
     behavioralComposite: bc,
     gatesApplied: applied,
     tierFinal: tierForScore(finalScore),
+    gatesOverridden: gatesOverridden,
     version: VERSION
   };
 }
