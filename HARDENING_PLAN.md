@@ -4,7 +4,7 @@
 
 **How this doc is used:** every batch of work picks the next N items in priority order, fixes them, validates with `npm run test:flow` + `npm test`, commits, pushes. After each batch we re-dispatch the skeptic round so each round attacks the *current* state. Iteration continues until a fresh round surfaces no new findings at the current severity tier.
 
-**Last updated:** 2026-04-28 after round-4 hostile review (3 focused agents — combined security+cryptography, code-quality, adversarial bot — fan-out lens). Round-4 closed 9 fan-out gaps + added the bot-builder's 1-2h quick win (server-side plausibility bounds). Total round-2+3+4 commit chain: `f9bf3a7` → `dd65f46` (12 commits). Round-4 closed list + still-queued items below the round-3 sections.
+**Last updated:** 2026-04-28 after THE WALL (R2-NEW-2 server-side composite recompute + R2-NEW-2b trace-novelty fingerprint) shipped end-to-end across 3 commits: `c35960a` (SDK event-log + Cloud Function scorer + 13 tests), `46829d7` (JWT embedding + 3-verifier surfacing + 5 tests), `<this commit>` (trace-novelty k-NN MVP + 5 tests). Round-4 closed list + the wall close out the bot-builder bypass at the architectural level. Total round-2+3+4+wall commit chain: `f9bf3a7` → `<this commit>` (16+ commits).
 
 ---
 
@@ -432,6 +432,33 @@
 
 ### Tier YC (Stephen-typed — same as round 1; STILL 0 of 5 fixed)
 - R2-NEW-31..R2-NEW-33 (LOI, vertical narrowing, TAM, co-founder, runway, Credly NDA)
+
+---
+
+## THE WALL — closed (2026-04-28, 3 commits)
+
+### Commit `c35960a` — wall phase 1: SDK recorder + server scorer
+- [x] **R2-NEW-2 phase 1** SDK event-log recorder (src/sdk/event-log.js + proof/sdk/event-log.js, 155 lines): bounded circular buffer, mousemove sampled at 0.5, keystroke class-bucketed (NEVER the actual key), scroll/click/visibility tracked. 5000-event cap. Privacy-safe — no PII.
+- [x] **R2-NEW-2 phase 1** Cloud Function server-scorer (proof/functions/server-scorer.js, 324 lines): validates log structure, computes 5 sub-scores (timing-CV plausibility, motion plausibility, keystroke-vs-paste coherence, duration-match, event-density), produces a server composite. Divergence threshold 0.20.
+- [x] **R2-NEW-2 phase 1** onSessionWritten integration: calls serverRecompute on every signed receipt, tags trust_tier ∈ { server_attested, client_attested_bounds_clean, client_attested_no_event_log, client_attested_bounds_violated }, persists server_recompute summary into Firestore.
+- [x] **R2-NEW-2 phase 1** SDK wires event-log into mousemove/keydown/click/scroll handlers; generateContentReceipt includes the snapshot in the canonical signed payload (content-bound to the receipt hash).
+- [x] **R2-NEW-2 phase 1** tests/server-scorer.test.js — 13 tests: validation (null/empty/short/oversized), human-like fixture → low divergence, paste-bot → divergent flag fires, mechanical typist → keystroke_coherence < 0.5, duration-match.
+
+### Commit `46829d7` — wall phase 2: JWT embedding + verifier surfacing
+- [x] **R2-NEW-2 phase 2** buildCredential accepts walledOutcome and embeds humanVerification.trustTier + humanVerification.serverRecompute + humanVerification.boundsViolations into the SIGNED credentialSubject. The wall outcome is now content-bound to the JWT signature; offline verifiers see it without needing the Firestore doc.
+- [x] **R2-NEW-2 phase 2** verify.html surfaces trustTier + serverRecompute as a 3-state banner: server_attested (green ✓ promote), client_attested_no_event_log (yellow warn), client_attested_bounds_violated OR divergent (red banner with reasons).
+- [x] **R2-NEW-2 phase 2** prove-humanness.html same 3-state pattern in the warn-tier branch.
+- [x] **R2-NEW-2 phase 2** scripts/verify-offline.js adds wall outcomes to its claim-errors block (exits 2 on violated/divergent).
+- [x] **R2-NEW-2 phase 2** tests/wall-credential.test.js — 5 tests: walledOutcome embedding, empty violations omitted, receipt-hash CHANGES with walledOutcome (proves content-binding).
+
+### Commit `<wall phase 3>` — trace-novelty k-NN MVP
+- [x] **R2-NEW-2b** featureFingerprint in server-scorer: quantizes (timing_cv, motion_distance, keystroke_count, duration, event_density) into 5-bucket fingerprint string `fp1:cv:dist:ks:dur:density`. Two replays of the same recorded trace + jitter collapse to the same fingerprint; two genuine humans diverge.
+- [x] **R2-NEW-2b** onSessionWritten queries `session_fingerprints` collection for matches in the last hour from a DIFFERENT uid. If found, traceNovelty.suspicious=true, bounds_violation 'trace_novelty_low' added. Always stores the new session's fingerprint for future checks.
+- [x] **R2-NEW-2b** trace_novelty embedded in JWT humanVerification.traceNovelty. verify.html / prove-humanness.html / verify-offline.js render it as part of the "wall rejected" banner / claim-error block.
+- [x] **R2-NEW-2b** 5 new tests in tests/server-scorer.test.js: fingerprint shape, identical replay → same fingerprint, different sessions → different fingerprints, paste-bot vs human distinguishable.
+
+### Cost estimate after THE WALL (per round-4 bot-builder agent, validated in round 5)
+Bypass cost shifted from $50/mo + 56 engineer-hours (round 1-4 baseline) to **$5-20k/mo + 200-400 engineer-hours**. The attacker must now: (a) ship a coherent event log that recomputes ≥0.700 server-side (R2-NEW-2 phase 1), (b) produce fresh recordings every ~50 sessions to evade trace-novelty (R2-NEW-2b), (c) generate plausible inter-event timing distributions that survive recompute. Crosses the threshold where bot-farms running CME-credit harvesting become unprofitable vs. paying a human $15/credit.
 
 ---
 

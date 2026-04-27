@@ -196,14 +196,27 @@ if (payload.vc && payload.vc.credentialSubject) {
     // server-side recompute flagged divergence or plausibility bounds
     // were violated. This is the SCIF / cold-storage verifier; it
     // should be the strictest of the three surfaces.
+    // Round-5 R5-NEW-3: also reject `client_attested_no_event_log` —
+    // SCIF / decision-grade should accept ONLY `server_attested`. The
+    // legacy-escape tier is fine for the browser verifiers (yellow
+    // warn) but a SCIF reviewer needs the recompute to have actually
+    // run.
     if (cs.humanVerification.trustTier === 'client_attested_bounds_violated') {
       claimErrors.push('trust_tier:client_attested_bounds_violated (' +
         ((cs.humanVerification.boundsViolations || []).join(';')) + ')');
+    }
+    if (cs.humanVerification.trustTier === 'client_attested_no_event_log') {
+      claimErrors.push('trust_tier:client_attested_no_event_log (no raw-event log; recompute did not run; not decision-grade)');
     }
     const sr = cs.humanVerification.serverRecompute;
     if (sr && sr.divergent === true) {
       claimErrors.push('server_recompute_divergent:client=' + sr.client_composite +
                        ',server=' + sr.server_composite);
+    }
+    const tn = cs.humanVerification.traceNovelty;
+    if (tn && tn.suspicious === true) {
+      claimErrors.push('trace_novelty_low:' + tn.recent_matches_other_uid +
+                       '_other_uid_matches_in_last_hour');
     }
     if (cs.humanVerification.trustTier === 'server_attested') {
       console.log('  trustTier:    server_attested (R2-NEW-2 recompute matched)');

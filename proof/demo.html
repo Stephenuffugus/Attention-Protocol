@@ -357,6 +357,13 @@
 
   <!-- SWS SDK (cache-busted 2026-04-21c) -->
   <script src="sdk/secure-config.js?v=20260421e"></script>
+  <!-- R2-NEW-2 / "THE WALL": event-log recorder MUST load before the
+       SDK so SWSEventLog is defined when SWSAttention.init() runs.
+       Round-5 caught that demo.html was missing this load (cme-demo
+       had it from the wall's first commit), causing all demo.html
+       receipts to legacy-escape via _eventLog=null → trust_tier
+       'client_attested_no_event_log'. -->
+  <script src="sdk/event-log.js?v=20260428"></script>
   <script src="sdk/attention-protocol.js?v=20260426f"></script>
   <script src="sdk/economy-engine.js?v=20260421e"></script>
   <script src="sdk/environmental-gate.js?v=20260421e"></script>

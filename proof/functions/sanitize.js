@@ -15,7 +15,18 @@
 'use strict';
 
 const LAYER_LIMIT_BYTES = 8192;
-const PAYLOAD_LIMIT_BYTES = 65536;
+// Round-5 R5-NEW-4: raised PAYLOAD_LIMIT_BYTES from 64KB → 384KB to
+// accommodate the wall's event-log payload. A 5000-event log with
+// {type:'mm',t,x,y} averages ~40 bytes/event = ~200KB — the prior 64KB
+// cap rejected legitimate long sessions BEFORE the wall scorer ran
+// (silent legacy escape via `event_log_absent`). 384KB gives ~3x
+// headroom; the event_log itself is also bounded at 5000 events by
+// the recorder + 50000 by the scorer's own validateEventLog cap.
+const PAYLOAD_LIMIT_BYTES = 393216;
+// The event_log layer can legitimately be ~200KB on a long active
+// session — exempt it from the per-layer 8KB cap. Other layers stay
+// tight (8KB caps anomaly-injection vectors).
+const EVENT_LOG_LIMIT_BYTES = 524288; // 512KB
 
 function _truncate(s, n) {
   return typeof s === 'string' ? s.slice(0, n) : s;
@@ -45,7 +56,8 @@ function sanitizeSession(session) {
     environmental:         session.environmental || null,
     composition_integrity: session.composition_integrity || null,
     consent:               session.consent || null,
-    honeypot:              session.honeypot || null
+    honeypot:              session.honeypot || null,
+    event_log:             session.event_log || null
   };
   for (const k of ['environmental','composition_integrity','consent','honeypot','signals']) {
     if (clean[k] && JSON.stringify(clean[k]).length > LAYER_LIMIT_BYTES) {
@@ -55,11 +67,19 @@ function sanitizeSession(session) {
       throw err;
     }
   }
+  // event_log gets a separate, larger cap.
+  if (clean.event_log && JSON.stringify(clean.event_log).length > EVENT_LOG_LIMIT_BYTES) {
+    const err = new Error('event_log_too_large');
+    err.http_status = 413;
+    err.details = { field: 'event_log', limit_bytes: EVENT_LOG_LIMIT_BYTES };
+    throw err;
+  }
   return clean;
 }
 
 module.exports = {
   sanitizeSession,
   PAYLOAD_LIMIT_BYTES,
-  LAYER_LIMIT_BYTES
+  LAYER_LIMIT_BYTES,
+  EVENT_LOG_LIMIT_BYTES
 };

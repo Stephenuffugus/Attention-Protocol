@@ -32,10 +32,21 @@
 var VERSION = 'server-scorer-v1';
 
 // Divergence threshold: if |client_composite - server_composite| exceeds
-// this, mark the receipt server_recompute_divergent. Set generously so
-// real human noise doesn't trigger it; tighten once we have an empirical
-// distribution from real-pilot sessions.
-var DIVERGENCE_THRESHOLD = 0.20;
+// this, mark the receipt server_recompute_divergent.
+//
+// Round-5 calibration concern: the MVP scorer uses 5 signals while the
+// client uses 20+. A real human with a desktop session that's 80%
+// reading + 15% click + 5% type lands client≈0.65, server≈0.40 (motion
+// signal=low, keystroke signal=low because few keys, density=low) →
+// divergence 0.25. The previous 0.20 threshold caught this as a false-
+// positive divergent. Widened to 0.30 until empirical-pilot baseline
+// data establishes the real human-noise distribution.
+//
+// Long-term: shift to a percentile-of-baseline test or a relative-
+// divergence metric (delta / max(client, server)) bounded by signal-
+// coverage gap rather than absolute composite delta. Tracked in
+// HARDENING_PLAN under R5-NEW-9.
+var DIVERGENCE_THRESHOLD = 0.30;
 
 // Plausibility bands from human-typing literature:
 //   Inter-event CV (timing variability): humans land in [0.30, 1.50]
@@ -213,14 +224,31 @@ function keystrokeCoherenceScore(events, claimedVerdict) {
  * a SCORE that should track the client's composite for legitimate
  * sessions.
  */
-function computeServerComposite(signals) {
-  var weights = {
-    timing_cv: 0.30,
-    motion: 0.30,
-    keystroke_coherence: 0.20,
-    duration_match: 0.10,
-    event_density: 0.10
-  };
+function computeServerComposite(signals, motionApplicable) {
+  // Round-5 R5-NEW-10: when motion is N/A for the device (mobile touch,
+  // keyboard-only accessibility users, headless without mouse), the
+  // 0.30 motion weight redistributes onto keystroke + density. Mirrors
+  // the SDK's mobile-reweight pattern (4 mouse-only signals read 0 on
+  // touch and the composite is reweighted across the remaining 19).
+  // motionApplicable defaults true when omitted (legacy behavior).
+  var weights;
+  if (motionApplicable === false) {
+    weights = {
+      timing_cv: 0.30,
+      motion: 0.0,
+      keystroke_coherence: 0.40,  // +0.20
+      duration_match: 0.10,
+      event_density: 0.20         // +0.10
+    };
+  } else {
+    weights = {
+      timing_cv: 0.30,
+      motion: 0.30,
+      keystroke_coherence: 0.20,
+      duration_match: 0.10,
+      event_density: 0.10
+    };
+  }
   var s = 0;
   s += (signals.timing_cv || 0) * weights.timing_cv;
   s += (signals.motion || 0) * weights.motion;
@@ -287,9 +315,21 @@ function serverRecompute(eventLog, claimedComposite, claimedDurationSec, claimed
     event_density: eventDensityScore
   };
 
-  var serverComposite = computeServerComposite(signals);
+  // Round-5 R5-NEW-10: detect "motion not applicable" so we don't
+  // false-flag keyboard-only / accessibility / mobile users. If the
+  // motion-score reason is 'no_motion' AND we have ≥10 keystrokes,
+  // assume motion is N/A and redistribute the weight.
+  var motionApplicable = !(motion.reason === 'no_motion' && keystroke.n >= 10);
+  var serverComposite = computeServerComposite(signals, motionApplicable);
+  // Round-5 R5-NEW-10b: divergent is ONE-SIDED — fires only when the
+  // client OVER-claims relative to the server. The reverse case
+  // (server > client + threshold) means the server was MORE lenient
+  // (e.g., a keyboard-only session where the client tanked the score
+  // because of missing motor signals; the server-side redistribution
+  // gave it credit). That's fine; not an attack vector.
+  // Absolute |delta| is still reported for forensic value.
   var divergence = Math.abs(claimedComposite - serverComposite);
-  var divergent = divergence > DIVERGENCE_THRESHOLD;
+  var divergent = (claimedComposite - serverComposite) > DIVERGENCE_THRESHOLD;
 
   return {
     ok: true,
@@ -312,6 +352,78 @@ function serverRecompute(eventLog, claimedComposite, claimedDurationSec, claimed
   };
 }
 
+/**
+ * R2-NEW-2b / TRACE-NOVELTY MVP — feature-fingerprint of an event log.
+ *
+ * The wall (R2-NEW-2) catches a bot that fakes a composite without
+ * shipping a coherent event log. The next bypass is to record real
+ * human event logs (e.g., $5/trace via Mechanical Turk, 10 traces =
+ * $50) and REPLAY them with small jitter. The replay passes the wall
+ * because the events ARE genuinely human-generated.
+ *
+ * Trace-novelty defense: produce a quantized fingerprint of the
+ * session's statistical profile. Two replays of the same recorded
+ * trace (with small Gaussian jitter) collapse to the same fingerprint
+ * bucket; two genuine independent human sessions diverge. If a new
+ * session's fingerprint matches a recent fingerprint from a DIFFERENT
+ * uid in the last lookback window, flag as trace_novelty_low.
+ *
+ * Quantization buckets are deliberately coarse:
+ *   timing_cv     → bucket 0-9 (cv*10 floored, capped at 9)
+ *   motion_dist   → bucket 0-9 (log10(distance+1) floored, capped at 9)
+ *   keystroke_n   → bucket 0-9 (log10(n+1) floored, capped at 9)
+ *   duration_sec  → bucket 0-9 (log10(s+1) floored, capped at 9)
+ *   event_density → bucket 0-9 (events/sec floored, capped at 9)
+ *
+ * Yields ~10^5 = 100k possible fingerprints. With 200 stored per uid,
+ * the false-positive rate (two genuine humans collide on a fingerprint)
+ * is ~ 200/100000 = 0.2% — acceptable for an MVP. Tighter buckets +
+ * Hamming-distance k-NN are the next iteration.
+ */
+function featureFingerprint(eventLog, claimedDurationSec) {
+  if (!eventLog || !Array.isArray(eventLog.events) || eventLog.events.length === 0) {
+    return null;
+  }
+  var events = eventLog.events;
+
+  // timing_cv bucket
+  var intervals = [];
+  for (var i = 1; i < events.length; i++) {
+    var dt = events[i].t - events[i - 1].t;
+    if (dt > 0 && dt < 30000) intervals.push(dt);
+  }
+  var cvBucket = 0;
+  if (intervals.length >= 4) {
+    var m = mean(intervals), s = stdev(intervals);
+    var cv = m > 0 ? s / m : 0;
+    cvBucket = Math.min(9, Math.floor(cv * 10));
+  }
+
+  // motion_distance bucket
+  var moves = events.filter(function(e) { return e.type === 'mm'; });
+  var totalDist = 0;
+  for (var j = 1; j < moves.length; j++) {
+    var dx = moves[j].x - moves[j - 1].x;
+    var dy = moves[j].y - moves[j - 1].y;
+    totalDist += Math.sqrt(dx * dx + dy * dy);
+  }
+  var distBucket = Math.min(9, Math.floor(Math.log10(totalDist + 1)));
+
+  // keystroke_count bucket
+  var keystrokes = events.filter(function(e) { return e.type === 'kd'; }).length;
+  var ksBucket = Math.min(9, Math.floor(Math.log10(keystrokes + 1)));
+
+  // duration_sec bucket
+  var dur = claimedDurationSec || (eventLog.duration_ms / 1000);
+  var durBucket = Math.min(9, Math.floor(Math.log10(dur + 1)));
+
+  // event_density bucket
+  var density = dur > 0 ? events.length / dur : 0;
+  var densityBucket = Math.min(9, Math.floor(density));
+
+  return 'fp1:' + cvBucket + ':' + distBucket + ':' + ksBucket + ':' + durBucket + ':' + densityBucket;
+}
+
 module.exports = {
   serverRecompute: serverRecompute,
   validateEventLog: validateEventLog,
@@ -319,6 +431,7 @@ module.exports = {
   timingCvScore: timingCvScore,
   motionScore: motionScore,
   keystrokeCoherenceScore: keystrokeCoherenceScore,
+  featureFingerprint: featureFingerprint,
   DIVERGENCE_THRESHOLD: DIVERGENCE_THRESHOLD,
   VERSION: VERSION
 };

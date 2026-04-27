@@ -350,12 +350,18 @@ function renderHumannessVerdict(result) {
   // signature is valid but the receipt's CLAIMS don't match what the
   // server recomputed from raw events.
   if (hv.trustTier === 'client_attested_bounds_violated' ||
-      (hv.serverRecompute && hv.serverRecompute.divergent === true)) {
+      (hv.serverRecompute && hv.serverRecompute.divergent === true) ||
+      (hv.traceNovelty && hv.traceNovelty.suspicious === true)) {
     const sr = hv.serverRecompute || {};
+    const tn = hv.traceNovelty || {};
     const reasons = [];
     if (sr.divergent) {
       reasons.push('server recomputed composite ' + sr.server_composite +
                    ' vs client claim ' + sr.client_composite);
+    }
+    if (tn.suspicious) {
+      reasons.push('trace-novelty LOW — fingerprint matches ' + tn.recent_matches_other_uid +
+                   ' recent session(s) from a different uid (likely replay attack)');
     }
     if (Array.isArray(hv.boundsViolations) && hv.boundsViolations.length > 0) {
       reasons.push('bounds: ' + hv.boundsViolations.join('; '));
@@ -364,7 +370,7 @@ function renderHumannessVerdict(result) {
       '<div class="verdict bad">' +
       '<div class="big">⚠ Server-side recompute REJECTED this credential</div>' +
       '<div class="detail">The Ed25519 signature is valid, but the issuer\'s ' +
-      'server-side recompute (R2-NEW-2) flagged this receipt: ' +
+      'server-side recompute (R2-NEW-2 + trace-novelty) flagged this receipt: ' +
       (reasons.join(' | ') || 'plausibility violations') + '. ' +
       'A decision-grade verifier should reject. OK for forensic only.</div>' +
       '</div>';

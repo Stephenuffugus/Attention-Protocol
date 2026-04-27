@@ -126,6 +126,11 @@ function buildCredential(session, walledOutcome) {
     if (walledOutcome.bounds_violations && walledOutcome.bounds_violations.length > 0) {
       hv.boundsViolations = walledOutcome.bounds_violations;
     }
+    // R2-NEW-2b trace-novelty fingerprint match. Embedded in the signed
+    // payload so a verifier (online or offline) can reject when the
+    // session's fingerprint matches a recent session from a different
+    // uid — the canonical signal of a recorded-trace replay attack.
+    if (walledOutcome.trace_novelty) hv.traceNovelty = walledOutcome.trace_novelty;
   }
 
   const receiptHash = crypto.createHash('sha256')
@@ -231,18 +236,102 @@ exports.signReceipt = onRequest(
       return;
     }
 
+    // Round-5 R5-NEW-1 CRITICAL fix: the HTTP endpoint must run THE
+    // WALL too. Round-5 hostile review caught that this endpoint was
+    // signing receipts without ever calling signSessionReceipt's
+    // walledOutcome arg — so receipts issued via HTTP carried no
+    // trust_tier, no serverRecompute, no boundsViolations, and an
+    // attacker who POSTed {composite:0.95} got a fully-signed JWT that
+    // verifiers rendered as ✓ verified with no banner. Now: same wall
+    // logic as onSessionWritten (plausibility bounds + server scorer +
+    // trace-novelty if a fingerprint collection is reachable).
+    let serverRecomputeResult = { ok: false, reason: 'event_log_absent' };
+    let traceNovelty = { checked: false };
+    const boundsViolations = [];
+    const composite = session.composite;
+    const durationSec = session.duration_ms ? session.duration_ms / 1000 : 0;
+    const ciVerdict = session.composition_integrity && session.composition_integrity.verdict;
+    const envClean = session.environmental && session.environmental.loaded === true && session.environmental.bot !== true;
+    const ciAuthored = ciVerdict === 'authored';
+    const interactions = session.interaction_count || 0;
+    if (composite > 0.85) {
+      if (!envClean) boundsViolations.push('high_composite_without_clean_env');
+      if (!ciAuthored) boundsViolations.push('high_composite_without_authored_ci');
+      if (durationSec < 60) boundsViolations.push('high_composite_short_session_' + durationSec + 's');
+      if (interactions < 5) boundsViolations.push('high_composite_low_interaction_' + interactions);
+    } else if (composite > 0.50) {
+      if (durationSec < 30) boundsViolations.push('mid_composite_short_session_' + durationSec + 's');
+    }
     try {
+      const scorer = require('./server-scorer');
+      if (session.event_log) {
+        serverRecomputeResult = scorer.serverRecompute(
+          session.event_log, composite, durationSec, ciVerdict);
+        if (!serverRecomputeResult.ok) {
+          boundsViolations.push('server_recompute_failed:' + serverRecomputeResult.reason);
+        } else if (serverRecomputeResult.divergent) {
+          boundsViolations.push('server_recompute_divergent:client=' +
+            serverRecomputeResult.client_composite + ',server=' +
+            serverRecomputeResult.server_composite);
+        }
+        // Trace-novelty: skip on HTTP path (no Firestore admin context
+        // here unless we wire it in — keep MVP scope tight). Fingerprint
+        // is still computed and embedded; future iteration can wire the
+        // collection query.
+        const fingerprint = scorer.featureFingerprint(session.event_log, durationSec);
+        if (fingerprint) {
+          traceNovelty = {
+            checked: false,
+            reason: 'http_endpoint_no_collection_query',
+            fingerprint: fingerprint
+          };
+        }
+      } else {
+        boundsViolations.push('event_log_absent');
+      }
+    } catch (e) {
+      console.error('HTTP wall recompute error:', e && e.message ? e.message : 'unknown');
+      boundsViolations.push('server_recompute_error');
+    }
+    let trustTier;
+    if (serverRecomputeResult.ok && !serverRecomputeResult.divergent && boundsViolations.length === 0) {
+      trustTier = 'server_attested';
+    } else if (boundsViolations.length === 0) {
+      trustTier = 'client_attested_bounds_clean';
+    } else if (boundsViolations.length === 1 && boundsViolations[0] === 'event_log_absent') {
+      trustTier = 'client_attested_no_event_log';
+    } else {
+      trustTier = 'client_attested_bounds_violated';
+    }
+
+    try {
+      const walledOutcomeForJwt = {
+        trust_tier: trustTier,
+        bounds_violations: boundsViolations,
+        server_recompute: serverRecomputeResult.ok ? {
+          server_composite: serverRecomputeResult.server_composite,
+          divergence: serverRecomputeResult.divergence,
+          divergent: serverRecomputeResult.divergent,
+          threshold: serverRecomputeResult.threshold,
+          version: serverRecomputeResult.version
+        } : { ok: false, reason: serverRecomputeResult.reason },
+        trace_novelty: traceNovelty
+      };
       const { jwt, credential } = await signSessionReceipt(
         clean,
         SIGNING_KEY.value(),
-        SIGNING_KID.value() || 'sws-attention-2026-04'
+        SIGNING_KID.value() || 'sws-attention-2026-04',
+        walledOutcomeForJwt
       );
       const credUrl = 'https://sws-attention-proofs.web.app/prove-humanness.html#c=' + jwt;
       res.status(200).json({
         signed_jwt: jwt,
         credential_url: credUrl,
         valid_until: credential.validUntil,
-        kid: SIGNING_KID.value() || 'sws-attention-2026-04'
+        kid: SIGNING_KID.value() || 'sws-attention-2026-04',
+        trust_tier: trustTier,
+        server_recompute: walledOutcomeForJwt.server_recompute,
+        bounds_violations: boundsViolations
       });
     } catch (e) {
       // NEVER leak key material into logs
@@ -307,6 +396,7 @@ exports.onSessionWritten = onDocumentCreated(
     // event log — round-4 estimate said this raises bypass cost from
     // $50/mo + 56h to $5-20k/mo + 200-400h.
     let serverRecomputeResult = { ok: false, reason: 'event_log_absent' };
+    let traceNovelty = { checked: false };
     try {
       const scorer = require('./server-scorer');
       if (session.event_log) {
@@ -322,6 +412,55 @@ exports.onSessionWritten = onDocumentCreated(
           boundsViolations.push('server_recompute_divergent:client=' +
             serverRecomputeResult.client_composite + ',server=' +
             serverRecomputeResult.server_composite);
+        }
+
+        // R2-NEW-2b / TRACE-NOVELTY MVP: feature-fingerprint the event
+        // log, query Firestore for matching fingerprints from DIFFERENT
+        // uids in the last 1 hour. If found, this session is suspiciously
+        // close to a recently-seen one — likely a replay attack. Catches
+        // the "record N human traces, replay with jitter" bypass that
+        // round-4 bot-builder agent named as the next-stage attack.
+        const fingerprint = scorer.featureFingerprint(session.event_log, durationSec);
+        if (fingerprint) {
+          try {
+            const oneHourAgo = admin.firestore.Timestamp.fromMillis(Date.now() - 60 * 60 * 1000);
+            const matchSnap = await admin.firestore()
+              .collection('session_fingerprints')
+              .where('fingerprint', '==', fingerprint)
+              .where('signed_at', '>=', oneHourAgo)
+              .limit(10)
+              .get();
+            const matches = matchSnap.docs.filter(function(d) {
+              return d.data().uid !== session.uid;
+            });
+            traceNovelty = {
+              checked: true,
+              fingerprint: fingerprint,
+              recent_matches_other_uid: matches.length,
+              suspicious: matches.length >= 1
+            };
+            if (matches.length >= 1) {
+              boundsViolations.push('trace_novelty_low:' + matches.length +
+                '_other_uid_in_last_hour');
+            }
+            // Always store the new session's fingerprint for future
+            // novelty checks. TTL via a separate cleanup function or
+            // Firestore TTL policy on `signed_at`.
+            await admin.firestore()
+              .collection('session_fingerprints')
+              .add({
+                fingerprint: fingerprint,
+                uid: session.uid,
+                session_id: session.session_id,
+                signed_at: admin.firestore.FieldValue.serverTimestamp()
+              });
+          } catch (tnErr) {
+            // Trace-novelty is best-effort; failure here doesn't block
+            // signing. Fingerprint generation is local; the failure
+            // path is the Firestore query/write.
+            console.error('Trace-novelty error:', tnErr && tnErr.message ? tnErr.message : 'unknown');
+            traceNovelty = { checked: false, reason: 'firestore_error' };
+          }
         }
       } else {
         boundsViolations.push('event_log_absent');
@@ -383,7 +522,12 @@ exports.onSessionWritten = onDocumentCreated(
           divergent: serverRecomputeResult.divergent,
           threshold: serverRecomputeResult.threshold,
           version: serverRecomputeResult.version
-        } : { ok: false, reason: serverRecomputeResult.reason }
+        } : { ok: false, reason: serverRecomputeResult.reason },
+        trace_novelty: traceNovelty.checked ? {
+          fingerprint: traceNovelty.fingerprint,
+          recent_matches_other_uid: traceNovelty.recent_matches_other_uid,
+          suspicious: traceNovelty.suspicious
+        } : { checked: false }
       };
       const { jwt, credential } = await signSessionReceipt(
         clean, SIGNING_KEY.value(), SIGNING_KID.value() || 'sws-attention-2026-04',

@@ -188,15 +188,18 @@ describe('sanitizeSession — type coercion', () => {
 });
 
 describe('sanitizeSession — payload size caps', () => {
-  test('rejects a payload larger than 64 KB', () => {
-    const bloat = 'x'.repeat(70000);
+  // Round-5 R5-NEW-4: PAYLOAD_LIMIT_BYTES raised from 64 KB → 384 KB to
+  // accommodate the wall's event-log payload. Test now uses a payload
+  // ~400 KB (above the new cap) to assert the limit still works.
+  test('rejects a payload larger than the limit', () => {
+    const bloat = 'x'.repeat(400000);
     expect(() => sanitizeSession({
       session_id: 's1', composite: 0.5, uid: bloat
     })).toThrow(/payload_too_large/);
   });
 
   test('attaches http_status=413 and details to payload_too_large error', () => {
-    const bloat = 'x'.repeat(70000);
+    const bloat = 'x'.repeat(400000);
     try {
       sanitizeSession({ session_id: 's1', composite: 0.5, uid: bloat });
       throw new Error('should have thrown');
@@ -206,6 +209,22 @@ describe('sanitizeSession — payload size caps', () => {
       expect(e.details.limit_bytes).toBe(PAYLOAD_LIMIT_BYTES);
       expect(e.details.got_bytes).toBeGreaterThan(PAYLOAD_LIMIT_BYTES);
     }
+  });
+
+  test('event_log up to ~200 KB is accepted (R5-NEW-4 wall payload)', () => {
+    // Synthetic 5000-event log: ~200 KB. Pre-fix this would have hit
+    // the 64 KB cap; post-fix it's accepted.
+    const events = [];
+    for (let i = 0; i < 5000; i++) {
+      events.push({ type: 'mm', t: 1700000000000 + i * 30, x: 100 + (i % 800), y: 100 + (i % 600) });
+    }
+    const eventLog = {
+      version: 'event-log-v1', started_at: 1700000000000, duration_ms: 150000,
+      events_recorded: 5000, events: events
+    };
+    expect(() => sanitizeSession({
+      session_id: 's1', composite: 0.6, uid: 'u1', event_log: eventLog
+    })).not.toThrow();
   });
 });
 

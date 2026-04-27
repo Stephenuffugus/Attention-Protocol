@@ -578,8 +578,17 @@ async function doVerify() {
       const tier = hv.trustTier || 'unknown';
       const sr = hv.serverRecompute;
 
-      // Hard-warn on divergent server recompute or bounds-violated tier.
-      if (tier === 'client_attested_bounds_violated' || (sr && sr.divergent === true)) {
+      // R2-NEW-2b — trace-novelty: if the session's fingerprint matches
+      // a recent fingerprint from a different uid in the last hour, that's
+      // the canonical signal of a recorded-trace replay attack. Surface
+      // BEFORE the divergence check (which won't fire on a replay since
+      // the events are real human events).
+      const tn = hv.traceNovelty;
+
+      // Hard-warn on divergent server recompute, bounds-violated tier,
+      // or low trace-novelty (replay attack).
+      if (tier === 'client_attested_bounds_violated' || (sr && sr.divergent === true)
+          || (tn && tn.suspicious === true)) {
         const wallBanner = el('div', 'verdict bad');
         wallBanner.appendChild(el('div', 'big',
           '⚠ Server-side recompute REJECTS this receipt'));
@@ -588,6 +597,11 @@ async function doVerify() {
           reasons.push('client claimed composite ' + sr.client_composite +
                        ' but server recomputed ' + sr.server_composite +
                        ' (divergence ' + sr.divergence + ', threshold ' + sr.threshold + ')');
+        }
+        if (tn && tn.suspicious) {
+          reasons.push('trace-novelty LOW — fingerprint matches ' +
+                       tn.recent_matches_other_uid +
+                       ' recent session(s) from different uid (likely replay attack)');
         }
         if (Array.isArray(hv.boundsViolations) && hv.boundsViolations.length > 0) {
           reasons.push('plausibility-bounds violations: ' + hv.boundsViolations.join('; '));

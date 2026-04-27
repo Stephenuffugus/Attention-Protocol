@@ -204,7 +204,52 @@ describe('server-scorer — duration-match', () => {
 
 describe('server-scorer — divergence threshold tunable', () => {
   test('threshold is exposed for downstream tuning', () => {
-    expect(scorer.DIVERGENCE_THRESHOLD).toBe(0.20);
+    // Round-5 widened from 0.20 → 0.30 to avoid false-positives on
+    // simple-session legitimate humans.
+    expect(scorer.DIVERGENCE_THRESHOLD).toBe(0.30);
+  });
+});
+
+describe('server-scorer — motion redistribution (R5-NEW-10)', () => {
+  test('keyboard-only session (no motion + many keystrokes) redistributes motion weight', () => {
+    const startMs = 1700000000000;
+    const events = [];
+    for (let i = 0; i < 80; i++) {
+      events.push({ type: 'kd', t: startMs + i * (90 + (i % 7) * 30), c: 'letter' });
+    }
+    const log = {
+      version: 'event-log-v1',
+      started_at: startMs,
+      duration_ms: 12000,
+      events_recorded: events.length,
+      events: events
+    };
+    const r = scorer.serverRecompute(log, 0.65, 12, 'authored');
+    expect(r.ok).toBe(true);
+    // motion=0 (no_motion), but redistribution should give server composite
+    // > 0.5 because keystroke_coherence is solid.
+    expect(r.signal_details.motion.reason).toBe('no_motion');
+    expect(r.server_composite).toBeGreaterThan(0.5);
+  });
+
+  test('keyboard-only with claimed composite 0.65 → low divergence (no false-positive)', () => {
+    const startMs = 1700000000000;
+    const events = [];
+    for (let i = 0; i < 80; i++) {
+      events.push({ type: 'kd', t: startMs + i * (90 + (i % 7) * 30), c: 'letter' });
+    }
+    const log = {
+      version: 'event-log-v1',
+      started_at: startMs,
+      duration_ms: 12000,
+      events_recorded: events.length,
+      events: events
+    };
+    const r = scorer.serverRecompute(log, 0.65, 12, 'authored');
+    // The pre-fix would have hit divergence > 0.20 because motion=0
+    // tanked the composite to ~0.40. Post-fix with redistribution +
+    // wider 0.30 threshold, this is OK.
+    expect(r.divergent).toBe(false);
   });
 });
 
@@ -213,6 +258,46 @@ describe('server-scorer — module exports', () => {
     expect(typeof scorer.serverRecompute).toBe('function');
     expect(typeof scorer.validateEventLog).toBe('function');
     expect(typeof scorer.computeServerComposite).toBe('function');
+    expect(typeof scorer.featureFingerprint).toBe('function');
     expect(scorer.VERSION).toBe('server-scorer-v1');
+  });
+});
+
+describe('featureFingerprint (R2-NEW-2b trace-novelty MVP)', () => {
+  test('null log → null fingerprint', () => {
+    expect(scorer.featureFingerprint(null, 0)).toBeNull();
+    expect(scorer.featureFingerprint({ events: [] }, 0)).toBeNull();
+  });
+
+  test('produces a fp1: prefixed string with 5 buckets', () => {
+    const log = buildHumanLikeLog({ durationSec: 180, mousemoveRate: 4, keystrokes: 60 });
+    const fp = scorer.featureFingerprint(log, 180);
+    expect(fp).toMatch(/^fp1:\d:\d:\d:\d:\d$/);
+  });
+
+  test('two replays of the same trace produce identical fingerprint (replay-detection target)', () => {
+    // Same seed → identical event log → identical fingerprint.
+    // This is the canonical "attacker replays a recorded trace" case.
+    const log1 = buildHumanLikeLog({ durationSec: 180, mousemoveRate: 4, keystrokes: 60, seed: 7 });
+    const log2 = buildHumanLikeLog({ durationSec: 180, mousemoveRate: 4, keystrokes: 60, seed: 7 });
+    const fp1 = scorer.featureFingerprint(log1, 180);
+    const fp2 = scorer.featureFingerprint(log2, 180);
+    expect(fp1).toBe(fp2);
+  });
+
+  test('two genuinely different sessions produce different fingerprints', () => {
+    const log1 = buildHumanLikeLog({ durationSec: 60, mousemoveRate: 2, keystrokes: 20, seed: 1 });
+    const log2 = buildHumanLikeLog({ durationSec: 300, mousemoveRate: 8, keystrokes: 200, seed: 2 });
+    const fp1 = scorer.featureFingerprint(log1, 60);
+    const fp2 = scorer.featureFingerprint(log2, 300);
+    expect(fp1).not.toBe(fp2);
+  });
+
+  test('paste-bot vs human-like produce different fingerprints', () => {
+    const human = buildHumanLikeLog({ durationSec: 180 });
+    const bot = buildPasteBotLog();
+    const fpHuman = scorer.featureFingerprint(human, 180);
+    const fpBot = scorer.featureFingerprint(bot, 5);
+    expect(fpHuman).not.toBe(fpBot);
   });
 });
