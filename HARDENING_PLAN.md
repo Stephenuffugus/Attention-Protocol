@@ -462,6 +462,36 @@ Bypass cost shifted from $50/mo + 56 engineer-hours (round 1-4 baseline) to **$5
 
 ---
 
+## Round 6 closed (2026-04-28, 2 commits)
+
+### Commit `9800268` — round-5 mediums batch G
+- [x] **R5-NEW-7** tests/wall-fanout.test.js (5 tests) codifies fan-out invariants. Future drift on signing paths or HTML SDK loads or verifier surfaces fails CI.
+- [x] **R5-NEW-5** Event-log pre-consent gate. Recorder defaults consentReady=false; SDK init flips on SWSPrivacy.hasConsent(...) or navigator.webdriver. No retroactive recording.
+- [x] **R5-NEW-11** Anchored-earliest events (200-event never-evicted anchor + 5000-event rolling window). Resists flood-eviction attacks on the 5000-event cap.
+- [x] **R5-NEW-12** Deterministic hash-based mousemove sampling. Math.random() replaced with FNV-like hash of (t,x,y) so attackers can't statistically guarantee retention of forged events.
+- [x] **R5-NEW-6** scripts/generate-evidence-kit.js + scripts/to-openbadge.js surface trustTier + serverRecompute + boundsViolations + traceNovelty in audit bundles.
+
+### Commit `f19a69b` — round-6 H batch (3 CRITICALs + 6 high/medium)
+- [x] **R6-NEW-1** Field-name drift between HTTP (duration_ms / interaction_count) and Firestore-trigger (duration_sec / hashes_earned) paths. Fix: extractSessionMetrics + runWall shared helper accepts both shapes.
+- [x] **R6-NEW-2** HTTP signReceipt skipped trace-novelty (`http_endpoint_no_collection_query`). Fix: runWall accepts {admin} ctx; HTTP path now passes admin firestore reference; trace-novelty runs across BOTH paths.
+- [x] **R6-NEW-3** Firestore rule for session_fingerprints collection (admin-only) + DEPLOY.md documents required composite index + 24h TTL policy.
+- [x] **R6-NEW-4** Off-by-one bounds (`>` not `>=`) — composite=0.85 exactly skipped all high-composite checks. Now `>=`.
+- [x] **R6-NEW-5** Parallel trustTier resolution trees (HTTP + Firestore-trigger). Fix: runWall is single source of truth.
+- [x] **R6-NEW-6** Pure-reading session (motion=0 + keys=0 + scroll>=20) now redistributes motion weight. Previously false-positive divergent.
+- [x] **R6-NEW-8** Fail-open on scorer throw. runWall now catches at helper level; both paths uniformly fail-closed on scorer error.
+- [x] **R6-NEW-9** Type coercion in HTTP composite/interactions via Number() + Number.isFinite() guard.
+- [x] **R6-NEW-10** Anchor-events comment lied about "permitted-pre-consent set." Rewrote to match actual behavior.
+- [x] **R6-NEW-11** wall-fanout test asserts 4th arg to signSessionReceipt is not literal null/undefined/{}.
+- [x] **NEW** verify.html surfaces 'client_attested_no_trace_novelty' tier as yellow warn.
+
+### Net effect
+proof/functions/index.js shrank by 312 lines (-255 in deletions, +57 in shared-helper calls). The runWall extraction eliminates the parallel-implementation drift class entirely. Fan-out tests catch future regressions automatically.
+
+### Cost-shift after round 6
+Per round-6 bot-builder agent: estimate stands at $5-20k/mo + 200-400 engineer-hours, NOW WITH DEPLOYMENT NOTE that production must create the composite index + TTL policy or trace-novelty silently degrades. Round-5's HTTP-path bypass is closed; the wall is now uniform across both signing surfaces.
+
+---
+
 ## Round 4 verdict snapshot
 
 - **Security + cryptography v4 (combined)** — HIGH: 7 fan-out gaps from rounds 1-3; CRITICAL the SHA-256 fix only landed in 2 of 5 files. Closed in dd65f46.
