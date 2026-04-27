@@ -87,11 +87,23 @@ function computeFinalComposite(inputs) {
   if (bc < 0) bc = 0;
   if (bc > 1) bc = 1;
 
-  // Round-2 hardening: surface caller-supplied gate overrides so a
-  // verifier can reject decision-grade receipts that don't use defaults.
-  // Mirrors the calibration_override pattern in attention-protocol.js.
-  var gatesOverridden = !!(inputs.gates && typeof inputs.gates === 'object');
-  var gates = gatesOverridden ? inputs.gates : DEFAULT_GATES;
+  // Round-2 hardening (round-3 refined): surface caller-supplied gate
+  // overrides so a verifier can reject decision-grade receipts that
+  // don't use defaults. Mirrors the calibration_override pattern in
+  // attention-protocol.js. Round-3 R3-NEW-1 fix: only flag overrides
+  // when resolved values DIFFER from defaults (an empty {gates:{}}
+  // shouldn't trigger the warning, since it resolves to defaults
+  // anyway). Compare each gate key against DEFAULT_GATES.
+  var gates = (inputs.gates && typeof inputs.gates === 'object') ? inputs.gates : DEFAULT_GATES;
+  var gatesOverridden = false;
+  if (inputs.gates && typeof inputs.gates === 'object') {
+    for (var gk in DEFAULT_GATES) {
+      if (Object.prototype.hasOwnProperty.call(DEFAULT_GATES, gk)) {
+        var resolved = (inputs.gates[gk] != null) ? inputs.gates[gk] : DEFAULT_GATES[gk];
+        if (resolved !== DEFAULT_GATES[gk]) { gatesOverridden = true; break; }
+      }
+    }
+  }
   var applied = [];
   var cap = 1.0;
 

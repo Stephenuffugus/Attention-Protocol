@@ -227,25 +227,30 @@ async function verifyJwt(jwt, jwks) {
     claimErrors.push('iss_vc_issuer_mismatch');
   }
 
-  // Round-2 R2-NEW-5: per-kid validity window. The JWKS now publishes
+  // Round-2 R2-NEW-5: per-kid validity window. The JWKS publishes
   // sws_validFrom / sws_validUntil per key. During a rotation grace
   // window the OLD key remains in the JWKS for backward-compat — but
   // an attacker holding the leaked old key could mint receipts dated
   // *after* rotation and have them verify, because the public key is
   // still published. Reject when payload.iat is outside this kid's
-  // window. Receipts with no `iat` are accepted (legacy fixtures);
-  // future receipts are required to carry it.
-  if (typeof payload.iat === 'number') {
-    const iatMs = payload.iat * 1000;
-    if (jwk.sws_validFrom) {
-      const vfMs = Date.parse(jwk.sws_validFrom);
-      if (Number.isFinite(vfMs) && iatMs + CLOCK_SKEW_SEC * 1000 < vfMs) {
+  // window. Round-3 R3-NEW-2/3 hardening: validity fields are now
+  // MANDATORY (a JWKS that omits them silently fails-open the entire
+  // window check), and an unparseable date is a hard rejection (the
+  // previous Number.isFinite-guarded soft-fail let a hostile JWKS host
+  // corrupt the field to evade the check).
+  if (!jwk.sws_validFrom || !jwk.sws_validUntil) {
+    claimErrors.push('kid_missing_validity_window (kid=' + jwk.kid + ')');
+  } else {
+    const vfMs = Date.parse(jwk.sws_validFrom);
+    const vuMs = Date.parse(jwk.sws_validUntil);
+    if (!Number.isFinite(vfMs)) claimErrors.push('jwk_validFrom_unparseable');
+    if (!Number.isFinite(vuMs)) claimErrors.push('jwk_validUntil_unparseable');
+    if (typeof payload.iat === 'number' && Number.isFinite(vfMs) && Number.isFinite(vuMs)) {
+      const iatMs = payload.iat * 1000;
+      if (iatMs + CLOCK_SKEW_SEC * 1000 < vfMs) {
         claimErrors.push('iat_before_kid_validFrom (kid=' + jwk.kid + ' validFrom=' + jwk.sws_validFrom + ')');
       }
-    }
-    if (jwk.sws_validUntil) {
-      const vuMs = Date.parse(jwk.sws_validUntil);
-      if (Number.isFinite(vuMs) && iatMs > vuMs + CLOCK_SKEW_SEC * 1000) {
+      if (iatMs > vuMs + CLOCK_SKEW_SEC * 1000) {
         claimErrors.push('iat_after_kid_validUntil (kid=' + jwk.kid + ' validUntil=' + jwk.sws_validUntil + ')');
       }
     }
@@ -405,20 +410,27 @@ function renderLayers(cs) {
   if (cs.bitcoinAnchor) {
     const b = cs.bitcoinAnchor;
     // Round-2 R2-NEW-6: cross-check OTS block-time against the receipt's
-    // claimed issuance time. OTS proves "this hash existed by block N" —
+    // signed issuance time. OTS proves "this hash existed by block N" —
     // it does NOT prove "the receipt was signed at block N." An attacker
     // with a leaked private key can pre-stamp a hash and back-date the
-    // JWT iat. If |issuanceDate - bitcoinBlockTime| > 24h, the anchor is
-    // suspicious; surface a warn rather than a clean ok.
-    const issuanceMs = cs.proof && cs.proof.created ? Date.parse(cs.proof.created)
-                    : (cs.signing_metadata && cs.signing_metadata.signed_at) ? Date.parse(cs.signing_metadata.signed_at)
-                    : null;
+    // JWT. Round-3 R3-NEW-4: pin the comparison to JWT `iat` (which is
+    // INSIDE the JWT signature scope and was already enforced against
+    // the kid's validity window) rather than the previous payload-
+    // internal `proof.created` / `signing_metadata.signed_at` which
+    // were forgeable with a leaked key. Also: when bitcoinAnchor is
+    // confirmed but issuance time can't be recovered, render a warn
+    // instead of dropping the row entirely.
+    const jwtIat = (window.__sws_lastJwtPayload && typeof window.__sws_lastJwtPayload.iat === 'number')
+                   ? window.__sws_lastJwtPayload.iat * 1000 : null;
     const blockMs = b.bitcoinBlockTime ? Date.parse(b.bitcoinBlockTime) : null;
-    const skewHours = (issuanceMs && blockMs)
-      ? Math.abs(issuanceMs - blockMs) / (1000 * 60 * 60)
+    const skewHours = (jwtIat !== null && blockMs)
+      ? Math.abs(jwtIat - blockMs) / (1000 * 60 * 60)
       : null;
     const skewSuspicious = skewHours !== null && skewHours > 24;
-    const status = b.status === 'bitcoin_confirmed' && skewSuspicious
+    const noIssuanceTime = b.status === 'bitcoin_confirmed' && jwtIat === null;
+    const status = noIssuanceTime
+                    ? { cls: 'warn', label: 'BTC block #' + b.bitcoinBlockHeight + ' — no JWT iat to cross-check' }
+                    : b.status === 'bitcoin_confirmed' && skewSuspicious
                     ? { cls: 'warn', label: 'BTC block #' + b.bitcoinBlockHeight + ' — TIME SKEW' }
                     : b.status === 'bitcoin_confirmed'
                     ? { cls: 'ok', label: 'BTC block #' + b.bitcoinBlockHeight }
@@ -430,9 +442,11 @@ function renderLayers(cs) {
       ['Proof size', b.proofB64 ? Math.round(b.proofB64.length * 0.75) + ' bytes' : '—']
     ];
     if (skewSuspicious) {
-      rows.push(['Skew vs issuance', skewHours.toFixed(1) + 'h — suspicious (>24h means receipt may have been pre-stamped or back-dated)']);
+      rows.push(['Skew vs JWT iat', skewHours.toFixed(1) + 'h — suspicious (>24h means receipt may have been pre-stamped or back-dated)']);
     } else if (skewHours !== null) {
-      rows.push(['Skew vs issuance', skewHours.toFixed(1) + 'h (within tolerance)']);
+      rows.push(['Skew vs JWT iat', skewHours.toFixed(1) + 'h (within tolerance)']);
+    } else if (noIssuanceTime) {
+      rows.push(['Skew vs JWT iat', 'cannot cross-check (JWT has no iat claim)']);
     }
     grid.appendChild(layerCard('6a. Bitcoin anchor (OTS)', status, rows));
   }
@@ -526,7 +540,28 @@ async function doVerify() {
 
     if (subj) {
       subj.issuer = issuer;
+      // Stash the JWT payload so renderLayers can cross-check
+      // signed-iat against OTS block-time (R3-NEW-4).
+      window.__sws_lastJwtPayload = result.payload;
       renderLayers(subj);
+    }
+
+    // Round-3 R3-NEW-1: surface gatesOverridden. The receipt-composite
+    // SDK module sets this when a caller passed a non-default `gates`
+    // override, but no verifier consumed it until now. A decision-grade
+    // verifier should reject. Rendered AFTER the verdict so the user
+    // sees both the signature ✓ and the gate-override warning.
+    const hv = subj && subj.humanVerification;
+    if (hv && hv.gatesOverridden === true) {
+      const gateBanner = el('div', 'verdict bad');
+      gateBanner.appendChild(el('div', 'big',
+        '⚠ Gate thresholds were overridden by the issuer'));
+      gateBanner.appendChild(el('div', null,
+        'This receipt was issued with non-default gate-cap thresholds. '
+        + 'A decision-grade verifier (CME credit, regulated training, fraud gate) '
+        + 'should reject. The Ed25519 signature is still valid; the issuer\'s '
+        + 'gate-cap policy is what changed.'));
+      vSlot.appendChild(gateBanner);
     }
 
     rSlot.textContent = 'Header: ' + JSON.stringify(result.header, null, 2)
@@ -607,9 +642,12 @@ async function doContentVerify() {
   const ok = recomputed === claimedHash;
   if (ok) {
     cSlot.appendChild(verdictBlock(true,
-      '✓ Content binding verifies',
-      'The pasted payload re-canonicalizes and re-hashes to the claimed hash. ' +
-      'No displayed value has been modified since the receipt was issued.'));
+      '✓ Content is self-consistent with the claimed hash',
+      'The pasted payload re-canonicalizes and re-hashes to the claimed hash — '
+      + 'so no displayed value has been modified relative to the hash. '
+      + 'NOTE: this is content-binding self-consistency only — it does NOT '
+      + 'attest who issued the receipt or whether the SIGNED payload matches. '
+      + 'For issuer attestation, use Section B (Ed25519 JWT).'));
   } else {
     cSlot.appendChild(verdictBlock(false,
       '✗ Hash MISMATCH — receipt has been tampered with or input is wrong',

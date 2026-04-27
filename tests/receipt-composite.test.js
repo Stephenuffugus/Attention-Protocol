@@ -242,6 +242,35 @@ describe('receipt-composite — input defensiveness', () => {
     });
     expect(defaulted.gatesOverridden).toBe(false);
   });
+
+  test('empty gates object does NOT trigger gatesOverridden (round-3 refinement)', () => {
+    // Round-3 found the previous trigger fired on any non-null `gates`
+    // input — including an empty {} that resolves to defaults. False-
+    // positive in the receipt; verify.html banner-cascades downstream.
+    // Now the trigger requires at least one resolved value to differ
+    // from DEFAULT_GATES.
+    const r1 = computeFinalComposite({
+      behavioralComposite: 0.70,
+      environmental: { loaded: true, bot: false },
+      gates: {}
+    });
+    expect(r1.gatesOverridden).toBe(false);
+
+    // Same for an explicit gates object that just echoes the defaults.
+    const r2 = computeFinalComposite({
+      behavioralComposite: 0.70,
+      environmental: { loaded: true, bot: false },
+      gates: {
+        environmentalUnresolved: 0.30,
+        environmentalBot: 0.30,
+        compositionPasted: 0.40,
+        compositionMechanical: 0.40,
+        compositionSuspicious: 0.50,
+        honeypotTripped: 0.25
+      }
+    });
+    expect(r2.gatesOverridden).toBe(false);
+  });
 });
 
 describe('tierForScore — threshold boundaries (match attention-protocol.js#getMaxTier)', () => {

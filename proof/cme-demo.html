@@ -315,9 +315,16 @@
     // Skip the banner in automation contexts (Puppeteer / Selenium /
     // WebDriver). The env-gate downstream will independently flag the
     // session as a bot, so consent is not the right control surface for
-    // automation. Also skip if the page was loaded with ?ap_test=1 (CI).
-    var isAutomation = navigator.webdriver === true
-                    || /[?&]ap_test=1/.test(location.search);
+    // automation. Also skip if the page was loaded with ?ap_test=1 from
+    // a localhost or .local hostname (CI / dev). Round-3 R3-NEW-7 fix:
+    // previously ?ap_test=1 leaked into production — a phishing link
+    // could append ?ap_test=1 to a real URL and suppress the banner
+    // for the victim. Now the test flag only works on dev hostnames.
+    var apTestAllowed = /[?&]ap_test=1/.test(location.search)
+                     && (location.hostname === 'localhost'
+                         || location.hostname === '127.0.0.1'
+                         || location.hostname.endsWith('.local'));
+    var isAutomation = navigator.webdriver === true || apTestAllowed;
     if (!isAutomation && typeof SWSPrivacy !== 'undefined' && SWSPrivacy.showConsentBanner) {
       try { SWSPrivacy.showConsentBanner({}); } catch (e) { /* non-blocking */ }
     }
@@ -484,13 +491,28 @@
       // a user clicking twice during a slow Cloud Function call (3-8s on
       // cold start) would create two Firestore sessions for one quiz —
       // and on a slow signing path, race the two renderResults calls.
-      // Disable + relabel; the page reload after submit clears state.
+      // Round-3 R3-NEW-13 refinement: setting `disabled = true` removes
+      // focus from the button (HTML spec: disabled elements can't hold
+      // focus). Keyboard-only users would lose their place silently.
+      // Use aria-disabled + pointer-events:none so focus is preserved,
+      // and aria-busy=true so SR users hear the in-progress state.
       var submitBtn = document.getElementById('submit-btn');
       if (submitBtn) {
-        if (submitBtn.disabled && submitBtn.dataset.submitted === '1') return;
-        submitBtn.disabled = true;
+        if (submitBtn.dataset.submitted === '1') return;
         submitBtn.dataset.submitted = '1';
+        submitBtn.setAttribute('aria-disabled', 'true');
+        submitBtn.setAttribute('aria-busy', 'true');
+        submitBtn.style.pointerEvents = 'none';
+        submitBtn.style.opacity = '0.6';
         submitBtn.textContent = 'Issuing receipt…';
+        // Block additional clicks via the click handler too (for any
+        // edge case where pointer-events: none is overridden).
+        submitBtn.addEventListener('click', function blocker(ev) {
+          if (submitBtn.dataset.submitted === '1') {
+            ev.preventDefault();
+            ev.stopImmediatePropagation();
+          }
+        }, { capture: true, once: false });
       }
 
       // Lock quiz answer visualization (reveal correct answers)

@@ -295,6 +295,15 @@
         credential.credentialSubject.humanVerification.qualityTierFinal = gated.tierFinal;
         credential.credentialSubject.humanVerification.gatesApplied = gated.gatesApplied;
         credential.credentialSubject.humanVerification.compositeGateVersion = gated.version;
+        // Round-3 R3-NEW-1: surface gatesOverridden so verifiers can
+        // reject decision-grade receipts where the issuer swapped in a
+        // more permissive gate table. Mirrors the calibration_override
+        // pattern. The receipt-composite SDK only sets this true when
+        // resolved gate values actually differ from defaults — empty
+        // {gates:{}} doesn't trigger it.
+        if (gated.gatesOverridden === true) {
+          credential.credentialSubject.humanVerification.gatesOverridden = true;
+        }
       }
     } catch (_e) {
       // Fail-silent: gated composite is additive; its absence never breaks
