@@ -71,11 +71,11 @@
 
   <p class="lead">SWS Attention Protocol is a cryptographic receipt of human attention — a SHA-256-anchored, content-bound, tamper-evident record of what happened in a session. Not a confidence score to trust. An audit artifact a regulator, auditor, or court can verify offline using only a public key and standard crypto primitives.</p>
 
-  <p class="lead">It is not a CAPTCHA. It is not a classifier. The receipt-as-product framing is the thesis: behavioral classifiers leak under sophisticated adversaries — receipts don't. Even when bot detection fails, the receipt is still content-bound, tamper-tested at 100/100, and audit-grade.</p>
+  <p class="lead">It's not a CAPTCHA, not a classifier. The receipt-as-product framing is the whole point: behavioral classifiers fail against sophisticated bots — receipts don't. Even when the bot detector misses, the receipt is still content-bound, tamper-tested at 100/100, and audit-grade.</p>
 
   <div class="ask">
     <h2>What I'm asking for</h2>
-    <p><strong>Critique, not validation.</strong> The structural limits this protocol hits against curve-aware adversaries are disclosed openly in the deep dive — that's the kind of critique I want more of, not less. If you find more, that's the gold. I have 7 days before my YC application is due. Hard pushback now is worth more than a polite read later.</p>
+    <p><strong>Critique, not validation.</strong> The structural limits this protocol hits against curve-aware bots are disclosed openly in the deep dive — that's what I want more of. If you find new ones, that's the gold. YC submission is 7 days out. Hard pushback now beats a polite read later.</p>
     <p style="margin-bottom:0;"><strong>Don't apologize for finding flaws.</strong> If you think a claim doesn't survive a smart skeptic, say so. I'd rather a YC partner not be the one who first surfaces it.</p>
   </div>
 
@@ -89,7 +89,7 @@
     </li>
     <li>
       <a href="cme-demo.html">cme-demo.html — take a 5-minute CME activity</a>
-      <div class="kicker">Most concrete way to feel what's happening. You'll get a real receipt with a real SHA-256 hash, a 23-signal breakdown, a calibrated Bayesian P(human), and a one-click "Verify This Receipt" button that round-trips through the offline verifier.</div>
+      <div class="kicker">Fastest way to see what's actually happening. You'll get a real receipt with a real SHA-256, a 23-signal breakdown, a calibrated Bayesian P(human), and a one-click "Verify This Receipt" button that round-trips through the offline verifier.</div>
       <div class="meta">5 min interaction · produces a real, verifiable artifact</div>
     </li>
     <li>
@@ -104,7 +104,7 @@
     </li>
     <li>
       <a href="docs/yc-defense/11_calibration_methodology.md">11_calibration_methodology.md — for stats-trained reviewers</a> · <a href="https://github.com/Stephenuffugus/Attention-Protocol/blob/main/docs/yc-defense/11_calibration_methodology.md" style="font-size:12px;">(rendered on GitHub)</a>
-      <div class="kicker">~280 lines. Conformal Bayesian P(human) construction defended for a stats-trained reader: class-conditional Gaussian likelihood-ratio with flat prior, the SD-floor 0.05 as a one-sided point prior on σ (the load-bearing skepticism), bootstrap CI per Efron-Tibshirani 1993 with documented limitations, the full calibration set v1 (5 humans + 10 bots, Cohen's d ≈ 1.4), six anticipated reviewer questions with answers, six known limitations, the v2 path. Citations: Vovk-Gammerman-Shafer 2005, Angelopoulos-Bates 2023, Efron-Tibshirani 1993, Gelman 2013, Cohen 1988 — all real, verifiable.</div>
+      <div class="kicker">~280 lines. Conformal Bayesian P(human) construction defended for a stats-trained reader: class-conditional Gaussian likelihood-ratio with flat prior, the SD-floor 0.05 as a one-sided point prior on σ (the load-bearing skepticism), bootstrap CI per Efron-Tibshirani 1993 with documented limitations, the full calibration set v1 (5 humans + 10 bots, Cohen's d ≈ 1.4), six anticipated reviewer questions with answers, six known limitations, the v2 path. Citations: Vovk-Gammerman-Shafer 2005, Angelopoulos-Bates 2023, Efron-Tibshirani 1993, Gelman 2013, Cohen 1988 — every one verifiable in any university library or Google Scholar.</div>
       <div class="meta">~12 min · skip if not your domain</div>
     </li>
     <li>
@@ -151,7 +151,7 @@
     <ol>
       <li>
         <strong>Is the receipt-as-product framing actually distinct from "another bot detector"?</strong>
-        I argue yes — the receipt is auditable offline, content-bound, signed, verifiable in any browser using only WebCrypto, and survives even when bot detection fails. Roundtable (YC W26) ships a score; Didit (YC W26) ships ID verification; we ship the audit artifact. Push back if you think the distinction is weaker than I'm framing it.
+        I think yes — the receipt is auditable offline, content-bound, signed, verifiable in any browser using only WebCrypto, and survives even when bot detection fails. Roundtable (YC W26) ships a score; Didit (YC W26) ships ID verification; we ship the audit artifact. Push back if you think the distinction is weaker than I'm framing it.
       </li>
       <li>
         <strong>Is the conformal Bayesian P(human) honestly disclosed?</strong>
@@ -182,7 +182,7 @@
 
   <h2>How to send feedback</h2>
   <p>Email <a href="mailto:stephenfurpahs@gmail.com">stephenfurpahs@gmail.com</a> directly, or open an issue on the GitHub repo if the comment fits an issue (claim X is wrong, file Y has an error, etc.).</p>
-  <p>Critique that lands by <strong>2026-05-03</strong> can be integrated into the YC application. After 2026-05-04 the application is locked but the protocol keeps shipping; pushback after that goes into the v2 plan.</p>
+  <p>Pushback before <strong>2026-05-03</strong> makes the YC submission. After May 4 the application is locked, but the protocol keeps shipping — anything that lands later goes into the v2 plan.</p>
 
   <div class="footer">
     <p><strong>Repository:</strong> <a href="https://github.com/Stephenuffugus/Attention-Protocol">github.com/Stephenuffugus/Attention-Protocol</a></p>

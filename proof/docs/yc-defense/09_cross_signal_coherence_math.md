@@ -10,7 +10,7 @@ We need this to be defensible with citations and ideally formalized mathematical
 
 ## The mathematical framing
 
-Let X = (X₁, ..., X_d) be a behavioral feature vector (our 20 signals).
+Let X = (X₁, ..., X_d) be a behavioral feature vector (our 23 signals — 21 weighted + 2 diagnostic-only).
 
 By **Sklar's theorem**, the joint distribution decomposes:
 

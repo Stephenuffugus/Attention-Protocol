@@ -7,7 +7,7 @@ Source: agent research synthesis 2026-04-26. Cutoff: April 2026.
 ### Top 3 to absorb
 
 1. **Bind the receipt optionally to a TEE/TPM attestation quote** (composite-attestation pattern, CCxTrust 2025). Software fallback for non-TEE devices. Single biggest defensibility upgrade available — receipt becomes silicon-anchored.
-2. **Multi-instance / session-vector aggregation** (Session2vec, MDPI Electronics, May 2025). 20 signals → session embedding hashed into receipt. Verifier checks "session embedding is consistent with human-distribution prior."
+2. **Multi-instance / session-vector aggregation** (Session2vec, MDPI Electronics, May 2025). 23 signals → session embedding hashed into receipt. Verifier checks "session embedding is consistent with human-distribution prior."
 3. **Side-channel keystroke verification** (Ben-Gurion University Malboard defense). Adds timing-distribution + error-correction-reaction features so a Malboard-style USB injection that forges rhythm still fails our higher-order signals. Closes the most public attack on keystroke biometrics.
 
 ### Top 3 threats

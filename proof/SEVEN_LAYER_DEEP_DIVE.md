@@ -114,7 +114,7 @@ BotD is MIT-licensed, ships as 11 KB of JavaScript, no vendor call, no tracking,
 
 - **Signal 17c: Submovement count** (`submovementCount`, weight 0.05). Counts velocity peaks per ballistic mouse movement using a 7-point Gaussian-smoothed velocity profile + 15% prominence threshold + 4-sample minimum-separation peak detection. Crossman & Goodeve 1983 / Meyer et al. 1988 / Woodworth 1899 grounding — humans show 2–3 peaks (ballistic + corrective phases); simple Bezier bots show 1. **Weight 0.05** is a real defense against straight-line Bezier and low-frequency-sampling bots. Empirically defeated by 60 Hz Bezier-with-Gaussian-noise (artificial peaks from noise — DMTG bot drops to 0.20 because the v2 detector recognizes the noise pattern, but the bot isn't penalized further) but kept as a defense-in-depth contribution against simpler adversaries. v3 idea (post-YC): count discrete movement events, not per-sample peaks.
 
-**Plus two independent integrity signals that are NOT in the behavioral composite — they ride in the receipt as separate fields (see §3a and §3b):**
+**Plus two independent integrity signals that are NOT in the behavioral composite — they ride in the receipt as separate fields (see §3 Layer 3a and §4 Layer 3b below):**
 - Layer 3a: Composition Integrity (typing-vs-paste keystroke fingerprint)
 - Layer 3b: Honeypot Canary (invisible prompt-injection trap for LLM cheaters)
 
@@ -389,7 +389,7 @@ That is **irrefutability at a level no traditional e-signature product can match
 Here is the honest list, and it's why we offer Layer 6b (RFC 3161) alongside Layer 6a:
 
 1. **12-hour confirmation delay.** A receipt is `pending` for up to ~12 hours before Bitcoin confirmation. That's fine for CME / training records (no one audits a receipt 10 seconds after issuance) but would be annoying for real-time fraud-check use cases. We're OK with this — our use cases all tolerate the delay.
-2. **"Blockchain" word is a red flag for some buyers.** Pharma compliance officers and Big Pharma IT security teams occasionally have blanket "no crypto / no blockchain" procurement policies, dating to the 2017–2022 hype cycle. They don't distinguish OpenTimestamps (a timestamping protocol that happens to use Bitcoin) from "we want you to buy our new token." **This is why we also offer RFC 3161 (§7.1 below) — same buyer gets the timestamp guarantee in a format they already accept.**
+2. **"Blockchain" word is a red flag for some buyers.** Pharma compliance officers and Big Pharma IT security teams occasionally have blanket "no crypto / no blockchain" procurement policies, dating to the 2017–2022 hype cycle. They don't distinguish OpenTimestamps (a timestamping protocol that happens to use Bitcoin) from "we want you to buy our new token." **This is why we also offer RFC 3161 (§8 below — Layer 6b) — same buyer gets the timestamp guarantee in a format they already accept.**
 3. **Network dependency to stamp.** `stamp()` requires outbound HTTPS to calendar servers. If the network is down, we fail-to-unknown (status: `failed`, receipt is still signed, just not anchored). The anchoring is additive evidence, not a blocking gate.
 4. **Verify-offline requires the proof file to have been upgraded.** Pre-upgrade proofs are valid but only prove "the calendar servers attested to this hash at time T"; post-upgrade they prove "Bitcoin block #X contained this hash, confirmed at time T." We upgrade proofs via `node scripts/upgrade-timestamps.js` — typically run once ~12 hours after stamping.
 
