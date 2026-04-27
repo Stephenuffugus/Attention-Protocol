@@ -594,17 +594,36 @@ async function doVerify() {
           '⚠ Server-side recompute REJECTS this receipt'));
         const reasons = [];
         if (sr && sr.divergent) {
-          reasons.push('client claimed composite ' + sr.client_composite +
-                       ' but server recomputed ' + sr.server_composite +
-                       ' (divergence ' + sr.divergence + ', threshold ' + sr.threshold + ')');
+          // Round-7 R7-NEW-4: redact specific composite values to
+          // category strings. Raw values are forensic data in the
+          // signed JWT; we don't expose them in the user-facing banner
+          // because an attacker tuning a bot reads the banner and
+          // learns the exact divergence threshold.
+          reasons.push('server-recompute divergent (client over-claims relative to server-side recompute)');
         }
         if (tn && tn.suspicious) {
-          reasons.push('trace-novelty LOW — fingerprint matches ' +
-                       tn.recent_matches_other_uid +
-                       ' recent session(s) from different uid (likely replay attack)');
+          reasons.push('trace-novelty: fingerprint matches a recent session from a different uid (likely replay attack)');
         }
         if (Array.isArray(hv.boundsViolations) && hv.boundsViolations.length > 0) {
-          reasons.push('plausibility-bounds violations: ' + hv.boundsViolations.join('; '));
+          // Map full violation strings to redacted category labels.
+          // Specific threshold values stay in the JWT (forensic) but
+          // the banner shows only the category.
+          const categories = new Set();
+          for (const v of hv.boundsViolations) {
+            if (v.startsWith('high_composite_without_clean_env')) categories.add('plausibility:env_unverified_at_high_composite');
+            else if (v.startsWith('high_composite_without_authored_ci')) categories.add('plausibility:composition_not_authored_at_high_composite');
+            else if (v.startsWith('high_composite_short_session')) categories.add('plausibility:session_too_short_for_high_composite');
+            else if (v.startsWith('high_composite_low_interaction')) categories.add('plausibility:too_few_interactions_for_high_composite');
+            else if (v.startsWith('mid_composite_short_session')) categories.add('plausibility:session_too_short_for_mid_composite');
+            else if (v === 'event_log_absent') categories.add('event_log_absent');
+            else if (v === 'trace_novelty_not_checked') categories.add('trace_novelty_not_checked');
+            else if (v === 'trace_novelty_firestore_error') categories.add('trace_novelty_query_failed');
+            else if (v.startsWith('server_recompute_failed')) categories.add('server_recompute_failed');
+            else if (v.startsWith('server_recompute_divergent')) categories.add('server_recompute_divergent');
+            else if (v.startsWith('trace_novelty_low')) categories.add('trace_novelty_low');
+            else categories.add('other');
+          }
+          reasons.push('plausibility-bounds violations: ' + Array.from(categories).join(', '));
         }
         wallBanner.appendChild(el('div', null,
           'The Ed25519 signature is mathematically valid, but the issuer\'s '

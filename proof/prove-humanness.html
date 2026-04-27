@@ -355,16 +355,26 @@ function renderHumannessVerdict(result) {
     const sr = hv.serverRecompute || {};
     const tn = hv.traceNovelty || {};
     const reasons = [];
+    // Round-7 R7-NEW-4: redact specific values to category labels —
+    // attacker tuning a bot reads the banner; don't expose the exact
+    // divergence delta or threshold suffixes.
     if (sr.divergent) {
-      reasons.push('server recomputed composite ' + sr.server_composite +
-                   ' vs client claim ' + sr.client_composite);
+      reasons.push('server-recompute divergent (client over-claims relative to server)');
     }
     if (tn.suspicious) {
-      reasons.push('trace-novelty LOW — fingerprint matches ' + tn.recent_matches_other_uid +
-                   ' recent session(s) from a different uid (likely replay attack)');
+      reasons.push('trace-novelty: fingerprint matches a recent session from a different uid (likely replay)');
     }
     if (Array.isArray(hv.boundsViolations) && hv.boundsViolations.length > 0) {
-      reasons.push('bounds: ' + hv.boundsViolations.join('; '));
+      const categories = new Set();
+      for (const v of hv.boundsViolations) {
+        if (v.startsWith('high_composite_')) categories.add('plausibility_high_composite');
+        else if (v.startsWith('mid_composite_')) categories.add('plausibility_mid_composite');
+        else if (v === 'event_log_absent') categories.add('event_log_absent');
+        else if (v.startsWith('trace_novelty_')) categories.add('trace_novelty');
+        else if (v.startsWith('server_recompute_')) categories.add('server_recompute');
+        else categories.add('other');
+      }
+      reasons.push('bounds: ' + Array.from(categories).join(', '));
     }
     vSlot.innerHTML =
       '<div class="verdict bad">' +

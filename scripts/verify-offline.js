@@ -208,6 +208,13 @@ if (payload.vc && payload.vc.credentialSubject) {
     if (cs.humanVerification.trustTier === 'client_attested_no_event_log') {
       claimErrors.push('trust_tier:client_attested_no_event_log (no raw-event log; recompute did not run; not decision-grade)');
     }
+    // Round-7 R7-NEW-1: reject the new tier. SCIF / decision-grade
+    // accepts ONLY 'server_attested'. The 'no_trace_novelty' tier
+    // means recompute matched but trace-novelty couldn't run — cannot
+    // rule out replay attack from this verifier.
+    if (cs.humanVerification.trustTier === 'client_attested_no_trace_novelty') {
+      claimErrors.push('trust_tier:client_attested_no_trace_novelty (recompute clean but replay-detection did not run)');
+    }
     const sr = cs.humanVerification.serverRecompute;
     if (sr && sr.divergent === true) {
       claimErrors.push('server_recompute_divergent:client=' + sr.client_composite +

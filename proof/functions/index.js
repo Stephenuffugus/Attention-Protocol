@@ -271,6 +271,11 @@ exports.signReceipt = onRequest(
         walled.walledOutcome
       );
       const credUrl = 'https://sws-attention-proofs.web.app/prove-humanness.html#c=' + jwt;
+      // Round-7 R7-NEW-3: response body uses walled.walledOutcome.trace_novelty
+      // (the public subset — fingerprint stripped at runWall level). The
+      // raw fingerprint stays admin-only in the session_fingerprints
+      // Firestore collection; never reaches the HTTP response or the
+      // signed JWT. Closes the bucket-probe attack.
       res.status(200).json({
         signed_jwt: jwt,
         credential_url: credUrl,
@@ -279,7 +284,7 @@ exports.signReceipt = onRequest(
         trust_tier: walled.trustTier,
         server_recompute: walled.walledOutcome.server_recompute,
         bounds_violations: walled.boundsViolations,
-        trace_novelty: walled.traceNovelty
+        trace_novelty: walled.walledOutcome.trace_novelty
       });
     } catch (e) {
       // NEVER leak key material into logs
@@ -381,6 +386,12 @@ exports.onSessionWritten = onDocumentCreated(
         trust_tier: walled.trustTier,
         bounds_violations: walled.boundsViolations,
         server_recompute: walled.walledOutcome.server_recompute,
+        // Round-7 R7-NEW-3: persist the FULL trace_novelty (with raw
+        // fingerprint) to the demos doc for forensic audit. Firestore
+        // rules deny non-admin reads on demos/* (round-2 R2-1 fix), so
+        // this is admin-only. The signed JWT carries only the public
+        // subset (walled.walledOutcome.trace_novelty) so a verifier
+        // who decodes the JWT does NOT recover the bucket value.
         trace_novelty: walled.traceNovelty
       });
     } catch (e) {

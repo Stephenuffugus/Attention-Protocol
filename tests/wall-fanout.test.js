@@ -100,6 +100,17 @@ describe('wall fan-out invariants (R6 codification of R3/R4/R5 lessons)', () => 
           fourthArg: expect.not.stringMatching(/^(null|undefined|\{\s*\})$/)
         })
       );
+      // Round-7 R7-NEW-7 tightening: the 4th arg must reference
+      // .walledOutcome specifically (not just `walled` — passing the
+      // whole runWall return object would silently break embedding
+      // because property names differ between the return object
+      // (camelCase) and the walledOutcome (snake_case)). Match
+      // `*.walledOutcome` or a literal walledOutcome variable.
+      expect({ line: lineNo, fourthArg: trimmed }).toEqual(
+        expect.objectContaining({
+          fourthArg: expect.stringMatching(/walledOutcome\b/)
+        })
+      );
     }
   });
 

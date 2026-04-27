@@ -571,6 +571,21 @@ async function runWall(sessionMeta, ctx) {
     trustTier = 'client_attested_bounds_violated';
   }
 
+  // Round-7 R7-NEW-3 CRITICAL fix: never expose the raw fingerprint
+  // bucket value beyond the admin-only Firestore session_fingerprints
+  // collection. An attacker who can read the bucket value can probe
+  // the response space (~100k buckets) by submitting candidate traces
+  // and selecting a bucket with zero recent matches — completely
+  // bypassing trace-novelty for ~$5-50 of compute. We surface only
+  // the verdict-relevant fields publicly (checked/suspicious/match
+  // count); the bucket itself stays admin-only.
+  var traceNoveltyPublic = {
+    checked: traceNovelty.checked === true,
+    suspicious: traceNovelty.suspicious === true,
+    recent_matches_other_uid: traceNovelty.recent_matches_other_uid || 0
+  };
+  if (traceNovelty.reason) traceNoveltyPublic.reason = traceNovelty.reason;
+
   var walledOutcome = {
     trust_tier: trustTier,
     bounds_violations: boundsViolations,
@@ -581,15 +596,16 @@ async function runWall(sessionMeta, ctx) {
       threshold: serverRecomputeResult.threshold,
       version: serverRecomputeResult.version
     } : { ok: false, reason: serverRecomputeResult.reason },
-    trace_novelty: traceNovelty
+    trace_novelty: traceNoveltyPublic
   };
 
   return {
     trustTier: trustTier,
     boundsViolations: boundsViolations,
     serverRecomputeResult: serverRecomputeResult,
-    traceNovelty: traceNovelty,
-    walledOutcome: walledOutcome
+    traceNovelty: traceNovelty,           // FULL — for admin / Firestore storage
+    traceNoveltyPublic: traceNoveltyPublic, // PUBLIC — fingerprint stripped
+    walledOutcome: walledOutcome           // PUBLIC subset (used by signing)
   };
 }
 
@@ -605,8 +621,15 @@ function extractSessionMetrics(session) {
   // `0` to 0 (legit), but a string like "5" passed through and the
   // `< 5` numeric comparison silently coerced. Number() makes the
   // coercion explicit and clamps NaN.
+  // Round-7 R7-NEW-5: clamp composite to [0, 1]. The Firestore-trigger
+  // path didn't bound-check (only HTTP did at line 222), so a malicious
+  // doc with composite=-0.5 or composite=1.5 was passed through as-is.
+  // Practical impact was limited (downstream verifiers reject negative
+  // composite anyway) but it's unsanitary. Now clamped at extraction.
   var composite = Number(session.composite);
   if (!Number.isFinite(composite)) composite = 0;
+  if (composite < 0) composite = 0;
+  if (composite > 1) composite = 1;
 
   var durationSec = 0;
   if (typeof session.duration_sec === 'number' && session.duration_sec > 0) {
