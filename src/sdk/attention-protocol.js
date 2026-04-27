@@ -3033,7 +3033,18 @@
           size_bot: nB,
           captured_date: cal.captured_date || null,
           version: cal.version || 'v1-bootstrap',
-          calibration_override: calibrationOverride
+          calibration_override: calibrationOverride,
+          // Small-N honesty: bootstrap coverage at n<20 is empirically ~60-70%
+          // not the nominal 95% (Efron-Tibshirani 1993 caution against
+          // bootstrap below ~20 samples per class). The flag below tells any
+          // verifier or downstream consumer that the printed CI should be
+          // read as "wide and approximate," not "rigorous 95%." Drop the flag
+          // when both classes reach n>=20 — at that point standard bootstrap
+          // is well-justified and BCa is optional polish.
+          small_n_caveat: (nH < 20 || nB < 20),
+          small_n_caveat_note: (nH < 20 || nB < 20)
+            ? 'Bootstrap CI at n<20 has empirical coverage below the nominal 95%. Treat as wide, approximate uncertainty rather than a rigorous 95% interval. See calibration methodology doc for the path to n>=30.'
+            : null
         },
         method: 'Class-conditional Gaussian likelihood ratio with flat prior (textbook two-class Bayes classifier). Bootstrap 95% CI per Efron & Tibshirani 1993; SD floor 0.05 prevents small-N over-confidence. NOT Vovk-Gammerman split-conformal prediction — see methodology doc for the distinction.',
         notes: 'Calibration set will grow as real-tester runs accumulate. Wide CIs reflect small calibration size; downstream apps can pass their own calibration via the calibration argument. The SD floor is a deliberate skepticism: small samples cannot estimate distribution width tighter than expected device/effort noise.'

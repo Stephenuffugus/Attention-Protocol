@@ -38,9 +38,13 @@
 - [x] **T2-12** env-gate race — missing/errored env-check now fires `environmental:unresolved` gate. No more silent bypass when BotD ESM is blocked or rate-limited.
 - [x] **T2-6** URL-fragment overflow on Verify link — canonical now stashed in sessionStorage keyed on hash; fragment carries only hash for receipts above the 1.6KB budget. Outlook/Slack/iPad clients no longer truncate the verify path.
 
-## Closed in next commit (T1-3 WCAG quiz buttons, 2026-04-27)
+## Closed in commit `acc9769` (T1-3 WCAG quiz buttons, 2026-04-27)
 
 - [x] **T1-3** WCAG 2.1 + Section 508 quiz keyboard accessibility — converted `<div class="opt">` to `<button type="button" class="opt" role="radio" aria-checked>`, wrapped each question's options in `role="radiogroup" aria-labelledby`, added `<label for="reflection">` and `aria-describedby` for word counter, added `role="progressbar"` with valuenow updates, added `<header>` + `<main>` landmarks + visible-on-focus skip-link. Native button elements give keyboard activation (Enter/Space) for free. Screen-reader users now get group/role/state announcements; keyboard-only users can complete the entire flow without a mouse. **Note:** roving-tabindex pattern (W3C ARIA-Practices recommended for radiogroup) is NOT yet implemented — all options are tabbable in DOM order. That's WCAG 2.1.1 (Keyboard) compliant but not the textbook ARIA radiogroup. Queued as T1-3.5 below.
+
+## Closed in next commit (T2-2 small-N honesty, 2026-04-27)
+
+- [x] **T2-2** Bootstrap CI honesty at small N — receipts now carry `calibration.small_n_caveat: true` and a `small_n_caveat_note` string when either class has n<20. The on-screen meta line shows "Bootstrap CI (wide, approximate at small N)" instead of "95% bootstrap CI" until both classes reach n=20. Drops automatically when calibration grows. Doesn't replace the n_h≥30 work in T1-4 — this is honest disclosure of what the current CI actually represents.
 
 ## Newly identified (this session)
 

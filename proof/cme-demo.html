@@ -697,8 +697,15 @@
           pill2.style.display = 'block';
           document.getElementById('conformal-phuman').textContent =
             'P(human) = ' + pHuman.toFixed(3);
+          // Show "wide CI" framing when n<20 (T2-2 small-N honesty). At
+          // current sample sizes the bootstrap CI's empirical coverage is
+          // below the nominal 95%; calling it a wide approximate interval is
+          // honest, calling it "95% CI" without qualification is not.
+          var ciLabel = conformal.calibration.small_n_caveat
+            ? 'Bootstrap CI (wide, approximate at small N)'
+            : '95% bootstrap CI';
           document.getElementById('conformal-meta').textContent =
-            '95% bootstrap CI: [' + ci[0].toFixed(3) + ' – ' + ci[1].toFixed(3) + ']  ·  calibration n=' +
+            ciLabel + ': [' + ci[0].toFixed(3) + ' – ' + ci[1].toFixed(3) + ']  ·  calibration n=' +
             conformal.calibration.size_human + ' humans + ' + conformal.calibration.size_bot +
             ' bots (' + (conformal.calibration.version || 'v1') + ')  ·  ' +
             'Class-conditional Gaussian likelihood ratio with flat prior';
