@@ -4,7 +4,7 @@
 
 **How this doc is used:** every batch of work picks the next N items in priority order, fixes them, validates with `npm run test:flow` + `npm test`, commits, pushes. After each batch we re-dispatch the skeptic round so each round attacks the *current* state. Iteration continues until a fresh round surfaces no new findings at the current severity tier.
 
-**Last updated:** 2026-04-28 after round-3 hostile review (5 parallel agents — security, cryptography, code-quality, adversarial bot designer, a11y — focused on areas that changed since round 2). Round-3 commits: T2 crypto batch `4684097` + critical-fix batch `e22ffdf`. Total round-2 + round-3 commit chain: `f9bf3a7` → `e22ffdf` (8 commits). Round-3 closed list + still-queued items below the round-2 sections.
+**Last updated:** 2026-04-28 after round-4 hostile review (3 focused agents — combined security+cryptography, code-quality, adversarial bot — fan-out lens). Round-4 closed 9 fan-out gaps + added the bot-builder's 1-2h quick win (server-side plausibility bounds). Total round-2+3+4 commit chain: `f9bf3a7` → `dd65f46` (12 commits). Round-4 closed list + still-queued items below the round-3 sections.
 
 ---
 
@@ -367,6 +367,79 @@
 ### Tier — adversarial bot status (round-3 confirmation)
 
 - [ ] **R3-NEW-15 = R2-NEW-2 restated** — Round-3 adversarial-bot-builder agent CONFIRMED the round-2 bypass remains unchanged. Composite ≥0.700 from a fully-automated pipeline at ~$50 / 56 engineer-hours. Round-2 + T2 closed seven OTHER attack surfaces (kid-confusion, pre-stamped anchors, exfiltration, replay, paste-bot soft tier, hash-collision on Unicode, suspicious-verdict bypass) but did NOT close, narrow, or raise the cost of the composite-bypass. **Server-side composite recompute from a posted raw event log + trace-novelty k-NN rejection** is still the only meaningful defense. Cost estimate to implement: 24-40h for #1, +16-24h for trace-novelty. Together: ships bypass cost from $50/mo to $5-20k/mo and ~200 engineer-hours per fresh recording cycle. Rank: ship #1 → #2 → reactive canary (T2-9).
+
+---
+
+## Round 4 closed (2026-04-28)
+
+### Commit `685bd2e` — round-3-queued T2 batch
+- [x] **R3-NEW-1** gatesOverridden consumed in verify.html + persisted in verifiable-credentials + tightened to only fire on actual diff from DEFAULT_GATES
+- [x] **R3-NEW-2** mandatory JWKS sws_validFrom/sws_validUntil in verify.html
+- [x] **R3-NEW-3** NaN-on-validity-field as hard error in verify.html
+- [x] **R3-NEW-4** OTS skew now pins to JWT iat (was payload-internal proof.created)
+- [x] **R3-NEW-6** Section A wording → "self-consistent with the claimed hash" (was "verifies")
+- [x] **R3-NEW-7** ?ap_test=1 hostname-gated in cme-demo.html
+- [x] **R3-NEW-13** submit-btn aria-disabled (was disabled=true which loses focus)
+- [x] **R3-NEW-12** tests/verify-jwt-claims.test.js (12 tests covering all claim-error paths)
+
+### Commit `dd65f46` — round-4 fan-out batch
+- [x] **R4-FAN-1** SHA-256 UTF-8 fix fanned out to ALL 5 pure-JS implementations (round 2 hit 1 file, round 3 hit 1 more, round 4 hit the remaining 3: src/sdk/attention-protocol.js + public/js/attention-protocol.js + public/js/attention-receipts.js). Plus `tests/sha256-fanout.test.js` (56 tests, grep-asserts the bug pattern is gone + canonical-match across non-ASCII inputs).
+- [x] **R4-FAN-2** prove-humanness.html mandatory validity-window enforcement (was soft-fail).
+- [x] **R4-FAN-3** prove-humanness.html `did:web:localhost` hostname-gate (was hardcoded into prod).
+- [x] **R4-FAN-4** prove-humanness.html surfaces gatesOverridden as warn-tier (was ignored, "✓ Verified human" rendered regardless).
+- [x] **R4-FAN-5** scripts/verify-offline.js full claim-error block (was soft `exp` only). Cold-storage / SCIF reviewer now gets parity with verify.html; exits 2 on any claim error.
+- [x] **R4-FAN-6** src/sdk/attention-signer.js#verifyJwt now requires header.kid (was accepting empty/missing kid as long as key matched).
+- [x] **R4-FAN-7** src/sdk/attention-signer.js#verifyJwt now requires sws_validFrom/Until when opts.jwk supplied (was soft-fail).
+- [x] **R4-FAN-8** scripts/generate-evidence-kit.js derives kid from JWT header not jwks.keys[0] (would have written wrong kid into post-rotation audit bundle).
+- [x] **R4-FAN-9** verify.html resets window.__sws_lastJwtPayload at top of doVerify (cross-render leakage prevention).
+- [x] **R4-NEW-1** NEW DEFENSE: server-side plausibility bounds in onSessionWritten. composite > 0.85 requires env clean + ci authored + duration > 60s + ≥5 interactions; composite > 0.50 requires duration > 30s. Sessions that fail bounds get tagged `trust_tier:'client_attested_bounds_violated'`. Forensic audit trail kept; downstream verifier can reject. **The 1-2h quick win the round-4 bot-builder agent ranked #1 by yield/cost; kills lazy "post composite=0.95 with duration=2s" bypasses even before R2-NEW-2 server-side recompute lands.**
+
+---
+
+## Round 4 still-queued (open after round-4 fixes)
+
+### Tier 1 (the bot-builder wall — multi-week)
+- [ ] **R2-NEW-2** Server-side composite recompute from raw event log (24-40h). Round 4 bot-builder agent CONFIRMED bypass cost still ~$50/56h. Plausibility bounds (R4-NEW-1) catch the lazy version; full recompute kills the trace-replay version. **Single biggest remaining open finding.**
+- [ ] **R2-NEW-2b** Trace-novelty k-NN over recent event logs (16-24h, builds on R2-NEW-2). Catches replayed traces within ~50 sessions per source recording.
+
+### Tier 2 (round-4 newly identified)
+- [ ] **R4-NEW-2** Decide: wire `gatesOverridden` end-to-end so `verifiable-credentials.js#computeFinalComposite` is called WITH `inputs.gates` from a session-level override field. Currently the code path always calls without `gates`, so the field is structurally always false. Either wire it OR rip the verify.html banner to remove dead code.
+- [ ] **R4-NEW-3** consent banner non-blocking — `SWSAttention.init()` currently runs BEFORE the user clicks Accept/Reject. For demo-tier defensible (no PII), but the bipa-posture.md describes "explicit consent." Gate `init()` on a Promise that resolves on consent click.
+- [ ] **R4-NEW-4** demo.html consent banner not gated by `navigator.webdriver`/ap_test (round-4 minor finding F7). Apply the same gate as cme-demo.html for consistency.
+
+### Tier 2 (round-3-queued not yet closed in round 4)
+- [ ] **R3-NEW-5** attention-receipts.js receipt-hash uses non-canonical V8-insertion-order JSON.stringify (no production caller; defer to fixture-regen batch).
+- [ ] **R3-NEW-8** consent banner non-blocking (same as R4-NEW-3).
+- [ ] **R3-NEW-9** proof/sdk/ vs src/sdk/ drift (T2-11 restated — the fan-out pattern proves this is load-bearing).
+- [ ] **R3-NEW-10** firestore.rules `data.size() < 65536` is no-op (size() = field count not bytes).
+- [ ] **R3-NEW-11** consent banner a11y polish (role=dialog, aria-modal, focus shift, Learn more dead link, button target size).
+- [ ] **R3-NEW-14** suspicious-verdict cap may false-positive on slow/hesitant typists; instrument verdict distribution + tune CV thresholds.
+
+### Tier 2 (round-2 leftovers — defer until pilot demand)
+- [ ] R2-NEW-7 RFC 3161 cert-chain validation in browser
+- [ ] R2-NEW-8 receipt-hash domain include application_id / proof.hash_ids
+- [ ] R2-NEW-10 RFC 8785 canonical (NFC normalization)
+- [ ] R2-NEW-11 onSessionWritten client-trust (R4-NEW-1 partially addressed; full fix is R2-NEW-2)
+- [ ] R2-NEW-12 toJwt() unsigned alg:none export — delete or rename
+- [ ] R2-NEW-13 32-bit DID hash → HMAC-SHA-256 truncated
+- [ ] R2-NEW-14 attention-merkle leaves missing 0x00/0x01 domain-separation prefix
+
+### Tier SRE (no round-4 movement; same 7 items)
+- R2-NEW-18..R2-NEW-24 (SLO doc, runbooks, observability, App Check, billing budget, Uptime Check, GH Actions SHA pinning)
+
+### Tier Legal (Stephen-driven + counsel)
+- R2-NEW-25..R2-NEW-30 (EU geo-block, Schrems II, CPRA Limit-Use, FTO opinion, BAA template, BIPA-posture sign-off)
+
+### Tier YC (Stephen-typed — same as round 1; STILL 0 of 5 fixed)
+- R2-NEW-31..R2-NEW-33 (LOI, vertical narrowing, TAM, co-founder, runway, Credly NDA)
+
+---
+
+## Round 4 verdict snapshot
+
+- **Security + cryptography v4 (combined)** — HIGH: 7 fan-out gaps from rounds 1-3; CRITICAL the SHA-256 fix only landed in 2 of 5 files. Closed in dd65f46.
+- **Code-quality v4** — MEDIUM: 3 fan-out gaps + 1 dead code (gatesOverridden never trips in production because verifiable-credentials.js never passes `gates`). Test coverage holes: 4-5 boundary cases (empty kid string, partial sws_validFrom, mandatory-window error, negative iat). Gate-overridden dead-code restated as R4-NEW-2.
+- **Adversarial bot v4** — CRITICAL: bypass cost UNCHANGED at ~$50/56h. R4-NEW-1 plausibility bounds is the cheapest 1-2h quick win that materially raises the bar against lazy bots; full server-side recompute (R2-NEW-2) remains the only meaningful defense against the trace-replay version.
 
 ---
 
