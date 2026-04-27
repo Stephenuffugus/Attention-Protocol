@@ -295,6 +295,26 @@
     var correctAnswers = ['thiazide', 'acei', '50', 'true', 'lifestyle'];
 
     // ---- INIT SDK ----
+    // Round-2 legal-review fix: surface a consent banner before SDK init
+    // on first visit. The flagship CME flow had no consent surface at
+    // all — round-1 fixes hardened cme-demo cryptographically but the
+    // very first byte the user sent (mouse-position events) was
+    // collected without a banner. Demo-tier behavior (anon-auth, no
+    // PII persisted, hashed reflection) does not strictly require a
+    // GDPR Art. 7 / CCPA §1798.120 / BIPA §15(b) banner — but a real
+    // pilot will, and a YC reviewer pasting from a privacy-conscious
+    // browser will look for one. SWSPrivacy.showConsentBanner is a
+    // no-op once the user has previously consented (timestamp gate),
+    // so first-paint shows the banner; subsequent visits skip it.
+    // Skip the banner in automation contexts (Puppeteer / Selenium /
+    // WebDriver). The env-gate downstream will independently flag the
+    // session as a bot, so consent is not the right control surface for
+    // automation. Also skip if the page was loaded with ?ap_test=1 (CI).
+    var isAutomation = navigator.webdriver === true
+                    || /[?&]ap_test=1/.test(location.search);
+    if (!isAutomation && typeof SWSPrivacy !== 'undefined' && SWSPrivacy.showConsentBanner) {
+      try { SWSPrivacy.showConsentBanner({}); } catch (e) { /* non-blocking */ }
+    }
     SWSAttention.init({ gameId: 'cme_demo', debug: false, enableBehavioralAnalysis: true });
     SWSAttention.recordSectionEntry('section_1', countWordsInSection(1));
     SWSAttention.recordContentRender('moderate');

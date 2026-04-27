@@ -226,13 +226,13 @@
       <tr>
         <td class="clause">§11.200(a)</td>
         <td class="req">Non-biometric signatures require at least two distinct identification components (e.g. ID + password).</td>
-        <td class="sws">Customer identity provider handles authentication (1st factor) + SWS captures behavioral biometrics during the session (2nd factor, in the §11.200(b) sense).</td>
+        <td class="sws">Customer identity provider handles authentication (1st factor) + SWS captures aggregate behavioral-signal statistics during the session (engagement-quality evidence, not individual identification — see §11.200(b) row below for the legal-posture distinction).</td>
         <td><span class="chip mixed">MIXED</span></td>
       </tr>
       <tr>
         <td class="clause">§11.200(b)</td>
         <td class="req">Biometric electronic signatures shall be designed to ensure they cannot be used by anyone other than their genuine owners.</td>
-        <td class="sws">23-signal behavioral composite (Fitts' Law, Hick's Law, prewhitened DFA-1 1/f scaling per Torre-Delignières 2008, two-thirds power law, reading-speed coherence, keystroke digraph timing, submovement count per Crossman-Goodeve 1983 / Meyer 1988, microsaccades per Engbert-Kliegl 2003, 1/f cross-channel coherence per Sklar-Nandakumar formal grounding, etc.) is a behavioral biometric. Composition Integrity (paste-burst + LLM-cheating detector) further detects LLM-assisted submissions. Research basis: arXiv 2511.12468 (97–99% F1 on LLM-assisted cheating).</td>
+        <td class="sws">23-signal behavioral composite (Fitts' Law, Hick's Law, prewhitened DFA-1 1/f scaling per Torre-Delignières 2008, two-thirds power law, reading-speed coherence, keystroke digraph timing, submovement count per Crossman-Goodeve 1983 / Meyer 1988, microsaccades per Engbert-Kliegl 2003, 1/f cross-channel coherence per Sklar-Nandakumar formal grounding, etc.) measures engagement quality from aggregate behavioral statistics. <strong>It does not collect biometric identifiers as enumerated under BIPA §10 (Illinois 740 ILCS 14/10), TX SB 800, or WA HB 1493</strong> — no retina, iris, fingerprint, voiceprint, or scan of hand/face geometry is captured; raw keystrokes are not stored (privacy-safe class bucketing only); no cleartext content persists. Composition Integrity (paste-burst + LLM-cheating detector) further detects LLM-assisted submissions. Research basis: arXiv 2511.12468 (97–99% F1 on LLM-assisted cheating).</td>
         <td><span class="chip tech">TECH</span></td>
       </tr>
     </tbody>

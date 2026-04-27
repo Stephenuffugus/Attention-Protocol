@@ -28,7 +28,7 @@ The SWS Proof of Attention Protocol is **privacy-safe by architecture**. The sys
 | Device identifiers | NO | Session ID generated fresh each session |
 | URLs | NO | Never captured |
 | IP addresses | NO | Not captured by the protocol |
-| Biometric identifiers | NO | Not collected |
+| Biometric identifiers (BIPA §10 / TX SB 800 / WA HB 1493 enumerated) | NO | Not collected. The statutes enumerate retina, iris, fingerprint, voiceprint, and scan of hand/face geometry — none of which the SDK touches. SWS measures aggregate keystroke-cadence and mouse-trajectory statistics (digraph timing, Fitts/Hick compliance, submovement count, etc.) and stores them as bucketed numbers, never as raw events. See `docs/legal/bipa-posture.md` for the full theory. |
 | Photos | NO | Not collected |
 | Any other unique identifier | NO | Anonymous UID only |
 
