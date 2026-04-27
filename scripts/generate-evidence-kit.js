@@ -266,9 +266,15 @@ const fs = require('fs');
 
 const jwt = fs.readFileSync('sample-signed-receipt.json', 'utf8');
 const { signed_jwt } = JSON.parse(jwt);
-const jwk = JSON.parse(fs.readFileSync('public-key.jwk.json','utf8')).keys[0];
 
 const [h, p, s] = signed_jwt.split('.');
+const header = JSON.parse(Buffer.from(h, 'base64url').toString('utf8'));
+if (!header.kid) throw new Error('JWT header missing kid');
+const jwks = JSON.parse(fs.readFileSync('public-key.jwk.json','utf8'));
+// Round-4 fan-out: strict kid match (no keys[0] fallback). Mirrors
+// verify.html R2-2 / prove-humanness R3-2.
+const jwk = jwks.keys.find(k => k.kid === header.kid);
+if (!jwk) throw new Error('No JWK in JWKS matches kid=' + header.kid);
 
 // Reconstruct the 32-byte Ed25519 public key from JWK
 const rawPub = Buffer.from(jwk.x.replace(/-/g,'+').replace(/_/g,'/') + '=',
@@ -484,9 +490,20 @@ async function main() {
   const receiptBundle = JSON.parse(fs.readFileSync(path.resolve(receiptPath), 'utf8'));
   const jwks = JSON.parse(fs.readFileSync(path.join(repoRoot, 'proof/.well-known/attention-pubkey.json'), 'utf8'));
 
+  // Round-4 fan-out: derive kid from the JWT header itself, not from
+  // jwks.keys[0]. During key rotation [0] may be the new key while the
+  // receipt was signed with the old; without this fix the evidence-kit
+  // would write a key/kid mismatch into the bundle handed to lawyers.
+  let derivedKid = receiptBundle.kid;
+  if (!derivedKid && receiptBundle.signed_jwt) {
+    try {
+      const hdr = JSON.parse(Buffer.from(receiptBundle.signed_jwt.split('.')[0], 'base64url').toString('utf8'));
+      derivedKid = hdr.kid;
+    } catch (_) { /* fall through to unknown */ }
+  }
   const meta = {
     receiptId: receiptBundle.signed_jwt ? 'embedded in signed_jwt' : 'unknown',
-    kid: receiptBundle.kid || (jwks.keys[0] && jwks.keys[0].kid) || 'unknown',
+    kid: derivedKid || 'unknown',
     issuer: receiptBundle.issuer_did || receiptBundle.issuer || 'did:web:sws-attention-proofs.web.app'
   };
 

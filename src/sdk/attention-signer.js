@@ -267,6 +267,15 @@ async function verifyJwt(jwt, publicKey, opts) {
     if (!sigB64) {
       return { valid: false, error: 'no_signature' };
     }
+    // Round-4 fan-out: mirror verify.html's strict kid presence check.
+    // A JWT with header.kid missing or empty-string was previously
+    // accepted as long as the supplied publicKey matched the signature.
+    // verify.html already requires kid; the Node-side signer now does
+    // too unless caller opts out via opts.allowMissingKid (for legacy
+    // fixtures that predate kid).
+    if (!opts.allowMissingKid && !header.kid) {
+      return { valid: false, error: 'jwt_header_missing_kid' };
+    }
 
     // JWT exp check (RFC 7519 §4.1.4). Allow 300s of clock skew.
     // Runs BEFORE signature verification so an expired token short-circuits.
@@ -345,22 +354,23 @@ async function verifyJwt(jwt, publicKey, opts) {
       if (vcIssuerId && payload.iss && vcIssuerId !== payload.iss) {
         claimErrors.push('iss_vc_issuer_mismatch');
       }
-      // Per-kid validity-window check. Caller passes the JWK that was
-      // used to verify (since publicKey may be a raw 32-byte buffer the
-      // signer doesn't know the kid for). If opts.jwk is the JWK with
-      // sws_validFrom/sws_validUntil set, enforce the window.
-      if (opts.jwk && typeof payload.iat === 'number') {
-        const iatMs = payload.iat * 1000;
-        if (opts.jwk.sws_validFrom) {
+      // Per-kid validity-window check. Round-4 fan-out: when opts.jwk
+      // is supplied, validity fields are now MANDATORY (mirrors
+      // verify.html R3-NEW-2/3). Without opts.jwk the check is skipped
+      // (legacy callers like raw-bytes verification don't know the
+      // kid's window). NaN-on-present-field is a hard rejection.
+      if (opts.jwk) {
+        if (!opts.jwk.sws_validFrom || !opts.jwk.sws_validUntil) {
+          claimErrors.push('kid_missing_validity_window');
+        } else {
           const vfMs = Date.parse(opts.jwk.sws_validFrom);
-          if (Number.isFinite(vfMs) && iatMs + 300 * 1000 < vfMs) {
-            claimErrors.push('iat_before_kid_validFrom');
-          }
-        }
-        if (opts.jwk.sws_validUntil) {
           const vuMs = Date.parse(opts.jwk.sws_validUntil);
-          if (Number.isFinite(vuMs) && iatMs > vuMs + 300 * 1000) {
-            claimErrors.push('iat_after_kid_validUntil');
+          if (!Number.isFinite(vfMs)) claimErrors.push('jwk_validFrom_unparseable');
+          if (!Number.isFinite(vuMs)) claimErrors.push('jwk_validUntil_unparseable');
+          if (typeof payload.iat === 'number' && Number.isFinite(vfMs) && Number.isFinite(vuMs)) {
+            const iatMs = payload.iat * 1000;
+            if (iatMs + 300 * 1000 < vfMs) claimErrors.push('iat_before_kid_validFrom');
+            if (iatMs > vuMs + 300 * 1000) claimErrors.push('iat_after_kid_validUntil');
           }
         }
       }

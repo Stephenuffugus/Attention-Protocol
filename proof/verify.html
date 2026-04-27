@@ -470,6 +470,10 @@ function renderLayers(cs) {
 
 // ---------- main ----------
 async function doVerify() {
+  // Round-4 fix: reset the JWT-payload global so renderLayers' OTS
+  // skew check doesn't leak A's iat into B's render if B fails before
+  // we set it. Avoids cross-receipt bleeding via window state.
+  window.__sws_lastJwtPayload = null;
   const vSlot = document.getElementById('verdict-slot');
   const lSlot = document.getElementById('layers-slot');
   const rSlot = document.getElementById('raw-slot');

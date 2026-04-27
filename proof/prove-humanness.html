@@ -223,10 +223,16 @@ async function fetchJwk() {
 // plus had no iss/nbf/iat/validity-window enforcement. Mirror the
 // hardened verify.html block here so the humanness page is not weaker
 // than the receipt-verification page.
-const ACCEPTED_ISSUERS_HUMANNESS = new Set([
-  'did:web:sws-attention-proofs.web.app',
-  'did:web:localhost'
-]);
+// Round-4 fan-out: hostname-gate `did:web:localhost` so production
+// can't accept dev-issued receipts (mirror verify.html's R3-NEW-7 fix).
+const ACCEPTED_ISSUERS_HUMANNESS = (function() {
+  const set = new Set(['did:web:sws-attention-proofs.web.app']);
+  const host = (typeof location !== 'undefined' && location.hostname) || '';
+  if (host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) {
+    set.add('did:web:localhost');
+  }
+  return set;
+})();
 const CLOCK_SKEW_SEC_HUMANNESS = 300;
 
 async function verifyHumanness(jwt, jwks) {
@@ -261,18 +267,23 @@ async function verifyHumanness(jwt, jwks) {
   if (vcIssuerId && payload.iss && vcIssuerId !== payload.iss) {
     claimErrors.push('iss_vc_issuer_mismatch');
   }
-  // Per-kid validity-window check (matches verify.html).
-  if (typeof payload.iat === 'number') {
-    const iatMs = payload.iat * 1000;
-    if (jwk.sws_validFrom) {
-      const vfMs = Date.parse(jwk.sws_validFrom);
-      if (Number.isFinite(vfMs) && iatMs + CLOCK_SKEW_SEC_HUMANNESS * 1000 < vfMs) {
+  // Per-kid validity-window check. Round-4 fan-out: validity fields
+  // are MANDATORY (a JWKS that omits them silently fail-opens the
+  // entire window check); NaN-on-present-field is a hard rejection.
+  // Mirrors verify.html R3-NEW-2/3.
+  if (!jwk.sws_validFrom || !jwk.sws_validUntil) {
+    claimErrors.push('kid_missing_validity_window');
+  } else {
+    const vfMs = Date.parse(jwk.sws_validFrom);
+    const vuMs = Date.parse(jwk.sws_validUntil);
+    if (!Number.isFinite(vfMs)) claimErrors.push('jwk_validFrom_unparseable');
+    if (!Number.isFinite(vuMs)) claimErrors.push('jwk_validUntil_unparseable');
+    if (typeof payload.iat === 'number' && Number.isFinite(vfMs) && Number.isFinite(vuMs)) {
+      const iatMs = payload.iat * 1000;
+      if (iatMs + CLOCK_SKEW_SEC_HUMANNESS * 1000 < vfMs) {
         claimErrors.push('iat_before_kid_validFrom');
       }
-    }
-    if (jwk.sws_validUntil) {
-      const vuMs = Date.parse(jwk.sws_validUntil);
-      if (Number.isFinite(vuMs) && iatMs > vuMs + CLOCK_SKEW_SEC_HUMANNESS * 1000) {
+      if (iatMs > vuMs + CLOCK_SKEW_SEC_HUMANNESS * 1000) {
         claimErrors.push('iat_after_kid_validUntil');
       }
     }
@@ -315,6 +326,23 @@ function renderHumannessVerdict(result) {
   const hv = vc.credentialSubject.humanVerification || {};
   const eng = vc.credentialSubject.engagement || {};
   const isHuman = (hv.verdict || '').indexOf('verified_human') === 0;
+
+  // Round-4 fan-out: surface gatesOverridden warning (R3-NEW-1).
+  // verify.html consumes this; prove-humanness.html previously did not,
+  // so a decision-grade humanness consumer would render "✓ Verified
+  // human" even with non-default gate-cap thresholds. Now: if gates
+  // were overridden, replace the verdict with a warn-tier message
+  // matching verify.html's pattern.
+  if (hv.gatesOverridden === true) {
+    vSlot.innerHTML =
+      '<div class="verdict warn">' +
+      '<div class="big">⚠ Verified BUT gate thresholds were overridden by the issuer</div>' +
+      '<div class="detail">Ed25519 signature is valid; however the receipt declares non-default ' +
+      'gate-cap thresholds. A decision-grade verifier (CME credit, regulated training, fraud gate) ' +
+      'should reject. OK for forensic / informational use.</div>' +
+      '</div>';
+    return;
+  }
 
   // Time until expiry (graceful fallback if exp missing)
   const hasExp = typeof result.payload.exp === 'number';

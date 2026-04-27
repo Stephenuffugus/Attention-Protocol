@@ -252,6 +252,35 @@ exports.onSessionWritten = onDocumentCreated(
     if (typeof session.signals?.composite !== 'number') return;
     if (session.signed_jwt) return; // already signed
 
+    // Round-4 R4-NEW-1: per-session minimum-duration + plausibility
+    // bounds. The full server-side-recompute defense (R2-NEW-2) is a
+    // multi-week project, but the bot-builder agent identified this
+    // 1-2h check as the cheapest meaningful raise: any composite > 0.85
+    // requires environmental.loaded + composition_integrity 'authored'
+    // + duration_sec > 60s + at least some interaction. This catches
+    // the lazy "post composite=0.95 to Firestore" bypass even before
+    // raw-event recompute lands. Mark sessions that fail bounds with
+    // tier:client_attested rather than refusing to sign — a forensic
+    // audit trail is more useful than a black hole, and a downstream
+    // verifier can reject `tier:client_attested` for decision-grade.
+    const composite = session.signals.composite;
+    const durationSec = session.duration_sec || 0;
+    const envLoaded = session.environmental && session.environmental.loaded === true;
+    const envClean = envLoaded && session.environmental.bot !== true;
+    const ciVerdict = session.composition_integrity && session.composition_integrity.verdict;
+    const ciAuthored = ciVerdict === 'authored';
+    const interactions = session.hashes_earned || 0;
+    const boundsViolations = [];
+    if (composite > 0.85) {
+      if (!envClean) boundsViolations.push('high_composite_without_clean_env');
+      if (!ciAuthored) boundsViolations.push('high_composite_without_authored_ci');
+      if (durationSec < 60) boundsViolations.push('high_composite_short_session_' + durationSec + 's');
+      if (interactions < 5) boundsViolations.push('high_composite_low_interaction_' + interactions);
+    } else if (composite > 0.50) {
+      if (durationSec < 30) boundsViolations.push('mid_composite_short_session_' + durationSec + 's');
+    }
+    const trustTier = boundsViolations.length === 0 ? 'client_attested_bounds_clean' : 'client_attested_bounds_violated';
+
     try {
       // Same defense-in-depth we apply on the HTTP endpoint — a malicious
       // Firestore write must not be able to inject extra fields into the
@@ -277,7 +306,9 @@ exports.onSessionWritten = onDocumentCreated(
         credential_valid_until: credential.validUntil,
         credential_url: 'https://sws-attention-proofs.web.app/prove-humanness.html#c=' + jwt,
         signed_at: admin.firestore.FieldValue.serverTimestamp(),
-        signing_kid: SIGNING_KID.value() || 'sws-attention-2026-04'
+        signing_kid: SIGNING_KID.value() || 'sws-attention-2026-04',
+        trust_tier: trustTier,
+        bounds_violations: boundsViolations
       });
     } catch (e) {
       // Log the error without key material

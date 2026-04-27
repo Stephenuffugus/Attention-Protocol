@@ -130,17 +130,57 @@ console.log('\nStep 3 — Ed25519 signature verification');
 console.log('  ' + (sigValid ? '✓ VALID' : '✗ INVALID'));
 if (!sigValid) fatal('Signature did not verify against the JWK', 1);
 
-// Step 5: Decode payload + check exp (informational — not a hard fail).
+// Step 5: Decode payload + run the full claim-error block. Round-4
+// fan-out: previously this script only soft-checked `exp` (informational,
+// non-fatal). That made it materially weaker than verify.html /
+// prove-humanness.html / the Node-side signer — and SCIF / cold-storage
+// reviewers were the audience for whom strictness most matters. Now
+// mirrors the verify.html block: enforce iss / nbf / iat against the
+// kid's validity window; surface gatesOverridden and calibration_override
+// as decision-grade-rejecting warnings.
 const payload = JSON.parse(base64urlToBuffer(payloadB64).toString('utf8'));
 const nowSec = Math.floor(Date.now() / 1000);
-const expStatus = typeof payload.exp === 'number'
-  ? (nowSec > payload.exp + 300 ? 'EXPIRED' : 'within validity window')
-  : 'no exp claim';
+const CLOCK_SKEW_SEC = 300;
+const ACCEPTED_ISSUERS = new Set([
+  'did:web:sws-attention-proofs.web.app'
+  // did:web:localhost intentionally NOT included — cold-storage / SCIF
+  // verifier should never accept dev-issued receipts.
+]);
+const claimErrors = [];
+
+if (typeof payload.exp === 'number' && nowSec > payload.exp + CLOCK_SKEW_SEC) {
+  claimErrors.push('expired (exp=' + new Date(payload.exp * 1000).toISOString() + ')');
+}
+if (typeof payload.nbf === 'number' && nowSec + CLOCK_SKEW_SEC < payload.nbf) {
+  claimErrors.push('not_yet_valid (nbf=' + new Date(payload.nbf * 1000).toISOString() + ')');
+}
+if (payload.iss && !ACCEPTED_ISSUERS.has(payload.iss)) {
+  claimErrors.push('unknown_issuer (' + payload.iss + ')');
+}
+const vcIssuerId = payload.vc && payload.vc.issuer && payload.vc.issuer.id;
+if (vcIssuerId && payload.iss && vcIssuerId !== payload.iss) {
+  claimErrors.push('iss_vc_issuer_mismatch');
+}
+// Mandatory per-kid validity window (mirrors verify.html R3-NEW-2/3).
+if (!jwk.sws_validFrom || !jwk.sws_validUntil) {
+  claimErrors.push('kid_missing_validity_window (kid=' + jwk.kid + ')');
+} else {
+  const vfMs = Date.parse(jwk.sws_validFrom);
+  const vuMs = Date.parse(jwk.sws_validUntil);
+  if (!Number.isFinite(vfMs)) claimErrors.push('jwk_validFrom_unparseable');
+  if (!Number.isFinite(vuMs)) claimErrors.push('jwk_validUntil_unparseable');
+  if (typeof payload.iat === 'number' && Number.isFinite(vfMs) && Number.isFinite(vuMs)) {
+    const iatMs = payload.iat * 1000;
+    if (iatMs + CLOCK_SKEW_SEC * 1000 < vfMs) claimErrors.push('iat_before_kid_validFrom');
+    if (iatMs > vuMs + CLOCK_SKEW_SEC * 1000) claimErrors.push('iat_after_kid_validUntil');
+  }
+}
+
 console.log('\nStep 4 — Claims');
 console.log('  issuer:       ' + (payload.iss || '(none)'));
 console.log('  subject:      ' + (payload.sub || '(none)'));
 console.log('  issuedAt:     ' + (payload.iat ? new Date(payload.iat * 1000).toISOString() : '(none)'));
-console.log('  expires:      ' + (payload.exp ? new Date(payload.exp * 1000).toISOString() : '(none)') + ' — ' + expStatus);
+console.log('  expires:      ' + (payload.exp ? new Date(payload.exp * 1000).toISOString() : '(none)'));
 if (payload.vc && payload.vc.credentialSubject) {
   const cs = payload.vc.credentialSubject;
   if (cs.humanVerification) {
@@ -149,15 +189,27 @@ if (payload.vc && payload.vc.credentialSubject) {
     if (typeof cs.humanVerification.compositeScoreFinal === 'number') {
       console.log('  gatedFinal:   ' + cs.humanVerification.compositeScoreFinal + '  (after defense-in-depth gates)');
     }
+    if (cs.humanVerification.gatesOverridden === true) {
+      claimErrors.push('gates_overridden_by_issuer (decision-grade verifiers should reject)');
+    }
+  }
+  if (cs.conformalAnalysis && cs.conformalAnalysis.calibration) {
+    if (cs.conformalAnalysis.calibration.calibration_override === true) {
+      claimErrors.push('calibration_override (decision-grade verifiers should reject)');
+    }
+    if (cs.conformalAnalysis.calibration.small_n_caveat === true) {
+      claimErrors.push('small_n_caveat (CI is approximate; OK for forensic, NOT decision-grade)');
+    }
   }
 }
 
 // Step 6: Verdict.
 console.log('\n━━━ VERIFICATION RESULT ━━━');
-if (expStatus === 'EXPIRED') {
-  console.log('⚠ Cryptographically authentic, but outside freshness window.');
-  console.log('  Use case: audit / replay. Use case: NOT humanness-presentation.');
+if (claimErrors.length > 0) {
+  console.log('⚠ Cryptographically authentic, BUT failed one or more claim checks:');
+  for (const e of claimErrors) console.log('  ✗ ' + e);
+  console.log('\n  Use case: audit / forensic / replay. NOT decision-grade.');
   process.exit(2);
 }
-console.log('✓ Receipt is authentic (Ed25519 signature valid) and within its freshness window.');
+console.log('✓ Receipt is authentic (Ed25519 signature valid) and passes ALL claim checks.');
 console.log('  Verified using Node built-in crypto + two local files. No network involved.');

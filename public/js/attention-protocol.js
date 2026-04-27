@@ -163,6 +163,34 @@
 
   // Minimal JS SHA-256 fallback
   function _jsSha256(str) {
+    // Round-4 fan-out propagation of R2-NEW-9 UTF-8 SHA-256 fix to
+    // public/js (Hostinger production path for stevieweedseed.com).
+    // The original `if (j >> 8) return ''` path silently emitted empty
+    // hashes for any non-ASCII codepoint. Surrogate-pair-safe legacy
+    // fallback for environments without TextEncoder.
+    var bytes;
+    if (typeof TextEncoder !== 'undefined') {
+      bytes = new TextEncoder().encode(str);
+    } else {
+      var out = [];
+      for (var ci = 0; ci < str.length; ci++) {
+        var c = str.charCodeAt(ci);
+        if (c >= 0xD800 && c <= 0xDBFF && ci + 1 < str.length) {
+          var c2 = str.charCodeAt(ci + 1);
+          if (c2 >= 0xDC00 && c2 <= 0xDFFF) {
+            c = 0x10000 + ((c - 0xD800) << 10) + (c2 - 0xDC00);
+            ci++;
+          } else { c = 0xFFFD; }
+        } else if (c >= 0xDC00 && c <= 0xDFFF) {
+          c = 0xFFFD;
+        }
+        if (c < 0x80) out.push(c);
+        else if (c < 0x800) { out.push(0xC0 | (c >> 6)); out.push(0x80 | (c & 0x3F)); }
+        else if (c < 0x10000) { out.push(0xE0 | (c >> 12)); out.push(0x80 | ((c >> 6) & 0x3F)); out.push(0x80 | (c & 0x3F)); }
+        else { out.push(0xF0 | (c >> 18)); out.push(0x80 | ((c >> 12) & 0x3F)); out.push(0x80 | ((c >> 6) & 0x3F)); out.push(0x80 | (c & 0x3F)); }
+      }
+      bytes = out;
+    }
     function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
     var mathPow = Math.pow;
     var maxWord = mathPow(2, 32);
@@ -170,7 +198,8 @@
     var i, j;
     var result = '';
     var words = [];
-    var asciiBitLength = str[lengthProperty] * 8;
+    var byteLen = bytes[lengthProperty];
+    var asciiBitLength = byteLen * 8;
     var hash = [];
     var k = [];
     var primeCounter = 0;
@@ -184,11 +213,12 @@
       }
     }
 
-    str += '\x80';
-    while (str[lengthProperty] % 64 - 56) str += '\x00';
-    for (i = 0; i < str[lengthProperty]; i++) {
-      j = str.charCodeAt(i);
-      if (j >> 8) return '';
+    var padded = [];
+    for (i = 0; i < byteLen; i++) padded.push(bytes[i]);
+    padded.push(0x80);
+    while (padded[lengthProperty] % 64 !== 56) padded.push(0x00);
+    for (i = 0; i < padded[lengthProperty]; i++) {
+      j = padded[i];
       words[i >> 2] |= j << ((3 - i) % 4) * 8;
     }
     words[words[lengthProperty]] = ((asciiBitLength / maxWord) | 0);
