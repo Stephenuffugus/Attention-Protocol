@@ -1,16 +1,53 @@
 rules_version = '2';
+// Hardening note (2026-04-28, round-2 hostile review):
+// Round-1 rules allowed any authenticated user (and anonymous-auth gives
+// every visitor a uid) to read+write everything. That meant any browser
+// session could enumerate every other session's `demos` doc — including
+// the now-hashed reflection, quiz answers, signals, UA, full timeline —
+// and could overwrite arbitrary docs by guessing the session_id.
+//
+// New posture:
+//   demos/  → create-only with uid-binding + size cap; reads admin-only.
+//             Dashboards (pilot-report, compliance-report, export,
+//             results-dashboard) require the caller to hold a custom
+//             claim `admin == true`. Set via Firebase Admin SDK once.
+//   runs/   → admin-only reads + writes. Written by upload-to-firestore.js
+//             which runs with service-account creds anyway.
+//   latest/ → public read (this is the curated proof-gallery surface).
+//             Writes admin-only.
+//
+// Updates and deletes are denied across the board: receipts are an audit
+// trail, not mutable data.
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /runs/{document=**} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
+
+    function isAdmin() {
+      return request.auth != null && request.auth.token.admin == true;
     }
-    match /latest/{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
+
     match /demos/{document=**} {
-      allow read, write: if request.auth != null;
+      // Reads: admin-only. Dashboards must be opened by an admin-claim user.
+      allow read: if isAdmin();
+      // Create: any authenticated user, but the doc must declare its uid
+      // and that uid must match the caller. Cap the doc at 50 fields and
+      // 64KB to bound abuse cost. No updates, no deletes.
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.keys().size() <= 50
+                    && request.resource.data.size() < 65536;
+      allow update, delete: if false;
+    }
+
+    match /runs/{document=**} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /latest/{document=**} {
+      // Public read — this is the curated proof gallery (gallery.html).
+      allow read: if true;
+      allow create, update: if isAdmin();
+      allow delete: if false;
     }
   }
 }

@@ -137,6 +137,15 @@ async function fetchJwk() {
   return await res.json();
 }
 
+// Issuers the verifier accepts. `did:web:sws-attention-proofs.web.app` is
+// the production issuer; allow the localhost demo origin for dev fixtures.
+const ACCEPTED_ISSUERS = new Set([
+  'did:web:sws-attention-proofs.web.app',
+  'did:web:localhost'
+]);
+// Clock-skew tolerance (seconds) for `exp` / `iat` / `nbf`.
+const CLOCK_SKEW_SEC = 300;
+
 async function verifyJwt(jwt, jwks) {
   const parts = jwt.split('.');
   if (parts.length !== 3) throw new Error('jwt_malformed_expected_3_parts');
@@ -144,16 +153,55 @@ async function verifyJwt(jwt, jwks) {
   const header = JSON.parse(b64urlToString(h64));
   if (header.alg !== 'EdDSA') throw new Error('alg_not_eddsa_refusing_downgrade');
 
-  // Match key by kid; fall back to single-key JWKS
-  let jwk = jwks.keys.find(k => k.kid === header.kid) || jwks.keys[0];
-  if (!jwk) throw new Error('no_key_in_jwks');
+  // Strict kid match. Round-2 cryptography review: the previous
+  // `|| jwks.keys[0]` fallback became a kid-confusion vulnerability the
+  // moment the JWKS holds more than one key (rotation grace window).
+  // An attacker holding a leaked old key could mint receipts with a kid
+  // that doesn't match anything; the fallback would then verify them
+  // against `keys[0]`, which during rotation is the *new* key — so the
+  // signature wouldn't actually verify. But the symmetric attack — kid
+  // pointing at the old key during the grace window — *would* succeed.
+  // Simplest defense: require an explicit kid match.
+  if (!header.kid) throw new Error('jwt_header_missing_kid');
+  const jwk = jwks.keys.find(k => k.kid === header.kid);
+  if (!jwk) throw new Error('no_matching_key_for_kid_' + header.kid);
 
   const key = await crypto.subtle.importKey('jwk', jwk, { name: 'Ed25519' }, true, ['verify']);
   const signingInput = new TextEncoder().encode(h64 + '.' + p64);
   const sigBytes = b64urlToBytes(s64);
   const ok = await crypto.subtle.verify({ name: 'Ed25519' }, key, sigBytes, signingInput);
   const payload = JSON.parse(b64urlToString(p64));
-  return { ok: !!ok, header, payload, kid: jwk.kid };
+
+  // Standard JWT claim enforcement. Round-2 found that signature was
+  // checked but `exp`, `iss`, and `nbf` were not — a 5-year-old receipt
+  // with a still-valid signature would render as ✓ verified. Mirror the
+  // Node-side checks (attention-signer.js) so the browser verifier is
+  // not weaker than the back-end.
+  const nowSec = Math.floor(Date.now() / 1000);
+  const claimErrors = [];
+  if (typeof payload.exp === 'number' && nowSec > payload.exp + CLOCK_SKEW_SEC) {
+    claimErrors.push('expired (exp=' + new Date(payload.exp * 1000).toISOString() + ')');
+  }
+  if (typeof payload.nbf === 'number' && nowSec + CLOCK_SKEW_SEC < payload.nbf) {
+    claimErrors.push('not_yet_valid (nbf=' + new Date(payload.nbf * 1000).toISOString() + ')');
+  }
+  if (payload.iss && !ACCEPTED_ISSUERS.has(payload.iss)) {
+    claimErrors.push('unknown_issuer (' + payload.iss + ')');
+  }
+  // Cross-check: the W3C VC issuer.id must agree with the JWT iss.
+  const vcIssuerId = payload.vc && payload.vc.issuer && payload.vc.issuer.id;
+  if (vcIssuerId && payload.iss && vcIssuerId !== payload.iss) {
+    claimErrors.push('iss_vc_issuer_mismatch');
+  }
+
+  return {
+    ok: !!ok && claimErrors.length === 0,
+    sigOk: !!ok,
+    claimErrors,
+    header,
+    payload,
+    kid: jwk.kid
+  };
 }
 
 // ---------- render ----------
@@ -343,9 +391,19 @@ async function doVerify() {
   try {
     const jwks = await fetchJwk();
     const result = await verifyJwt(jwt, jwks);
-    if (!result.ok) {
+    if (!result.sigOk) {
       vSlot.appendChild(verdictBlock(false, '✗ Signature did NOT verify',
         'This receipt was either tampered with, signed by a different issuer, or corrupted in transit.'));
+      rSlot.textContent = 'Header: ' + JSON.stringify(result.header, null, 2)
+                        + '\n\nPayload: ' + JSON.stringify(result.payload, null, 2);
+      return;
+    }
+    if (!result.ok) {
+      // Signature was valid but a JWT claim failed (expiry, issuer, nbf).
+      vSlot.appendChild(verdictBlock(false, '✗ Receipt rejected — ' + result.claimErrors[0],
+        'The Ed25519 signature is mathematically valid, but the receipt fails a standard JWT claim check: '
+        + result.claimErrors.join('; ') + '. This usually means the receipt is past its issuance window or '
+        + 'was issued by an origin we do not recognize.'));
       rSlot.textContent = 'Header: ' + JSON.stringify(result.header, null, 2)
                         + '\n\nPayload: ' + JSON.stringify(result.payload, null, 2);
       return;
@@ -357,6 +415,24 @@ async function doVerify() {
       'Issuer: ' + (issuer && issuer.name ? issuer.name : '—') +
       '    Key ID: ' + result.kid +
       '    Subject: ' + (subj && subj.id ? subj.id : '—')));
+
+    // Calibration-override / small-N caveat surfacing. Round-2 statistics
+    // review pointed out: the receipt carries `calibration_override:true`
+    // and `small_n_caveat:true` flags but no verifier consumed them, so
+    // surfacing was theatre. Make them user-visible.
+    const conf = subj && subj.conformalAnalysis;
+    const cal = conf && conf.calibration;
+    if (cal && (cal.calibration_override === true || cal.small_n_caveat === true)) {
+      const banner = el('div', 'verdict bad');
+      banner.appendChild(el('div', 'big',
+        '⚠ Calibration warning — do not use for decision-grade verification'));
+      const reasons = [];
+      if (cal.calibration_override === true) reasons.push('caller-supplied calibration override');
+      if (cal.small_n_caveat === true) reasons.push('bootstrap CI computed at small N (wide, approximate)');
+      banner.appendChild(el('div', null, 'This receipt declared: ' + reasons.join('; ') + '. '
+        + 'A decision-grade verifier should reject these receipts.'));
+      vSlot.appendChild(banner);
+    }
 
     if (subj) {
       subj.issuer = issuer;
