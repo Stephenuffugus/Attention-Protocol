@@ -346,10 +346,12 @@ describe('featureFingerprint (R2-NEW-2b trace-novelty MVP)', () => {
     expect(scorer.featureFingerprint({ events: [] }, 0)).toBeNull();
   });
 
-  test('produces a fp1: prefixed string with 5 buckets', () => {
+  test('produces a fp2: prefixed string with 5 buckets (post-empirical-tightening)', () => {
+    // Round-7 empirical-validation tightening: bucket count per
+    // dimension bumped from 0-9 to 0-99 (10^10 vs 10^5 cells).
     const log = buildHumanLikeLog({ durationSec: 180, mousemoveRate: 4, keystrokes: 60 });
     const fp = scorer.featureFingerprint(log, 180);
-    expect(fp).toMatch(/^fp1:\d:\d:\d:\d:\d$/);
+    expect(fp).toMatch(/^fp2:\d{1,2}:\d{1,2}:\d{1,2}:\d{1,2}:\d{1,2}$/);
   });
 
   test('two replays of the same trace produce identical fingerprint (replay-detection target)', () => {

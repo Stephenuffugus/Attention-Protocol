@@ -380,12 +380,28 @@ function serverRecompute(eventLog, claimedComposite, claimedDurationSec, claimed
  *   motion_dist   → bucket 0-9 (log10(distance+1) floored, capped at 9)
  *   keystroke_n   → bucket 0-9 (log10(n+1) floored, capped at 9)
  *   duration_sec  → bucket 0-9 (log10(s+1) floored, capped at 9)
- *   event_density → bucket 0-9 (events/sec floored, capped at 9)
+ *   event_density → 0-99 (events_per_sec * 2, capped at 99)
  *
- * Yields ~10^5 = 100k possible fingerprints. With 200 stored per uid,
- * the false-positive rate (two genuine humans collide on a fingerprint)
- * is ~ 200/100000 = 0.2% — acceptable for an MVP. Tighter buckets +
- * Hamming-distance k-NN are the next iteration.
+ * Empirical validation finding (tests/wall-empirical-validation.test.js):
+ * the original 0-9 per-bucket scheme yielded only ~100 unique
+ * fingerprints across 1000 varied synthetic human sessions — a 5.7%
+ * largest-cluster rate. In production with ~50 sessions/hour lookback,
+ * that meant ~5-50% of legitimate users would falsely match a recent
+ * session from another uid → trust_tier dropped to bounds_violated.
+ *
+ * Now (fp v2): each dimension has 100 buckets → 10^10 ≈ 10 billion
+ * effective cells. Real-world variation should produce >90% unique
+ * fingerprints across legitimate sessions; exact replays still
+ * collide (the whole point of the check). Detector string bumped to
+ * 'fp2' so a future verifier can distinguish v1 (coarse, vulnerable
+ * to false-positive) from v2 (production-tight).
+ *
+ * NOTE: bucket boundaries still need real-pilot calibration — see
+ * R5-NEW-9 / R7-NEW-cal-debt in HARDENING_PLAN. The values below are
+ * the best honest defaults given current synthetic data. Pilot
+ * sessions will reveal whether bucket-noise-floor matches actual
+ * session-to-session variance for the SAME source (replay collision)
+ * vs DIFFERENT sources (legitimate diversity).
  */
 function featureFingerprint(eventLog, claimedDurationSec) {
   if (!eventLog || !Array.isArray(eventLog.events) || eventLog.events.length === 0) {
@@ -393,7 +409,7 @@ function featureFingerprint(eventLog, claimedDurationSec) {
   }
   var events = eventLog.events;
 
-  // timing_cv bucket
+  // timing_cv bucket — finer (cv * 50, range 0-99 covers cv 0.0-2.0).
   var intervals = [];
   for (var i = 1; i < events.length; i++) {
     var dt = events[i].t - events[i - 1].t;
@@ -403,10 +419,10 @@ function featureFingerprint(eventLog, claimedDurationSec) {
   if (intervals.length >= 4) {
     var m = mean(intervals), s = stdev(intervals);
     var cv = m > 0 ? s / m : 0;
-    cvBucket = Math.min(9, Math.floor(cv * 10));
+    cvBucket = Math.min(99, Math.floor(cv * 50));
   }
 
-  // motion_distance bucket
+  // motion_distance bucket — log10 * 15 covers 1 to 1B with finer steps.
   var moves = events.filter(function(e) { return e.type === 'mm'; });
   var totalDist = 0;
   for (var j = 1; j < moves.length; j++) {
@@ -414,21 +430,22 @@ function featureFingerprint(eventLog, claimedDurationSec) {
     var dy = moves[j].y - moves[j - 1].y;
     totalDist += Math.sqrt(dx * dx + dy * dy);
   }
-  var distBucket = Math.min(9, Math.floor(Math.log10(totalDist + 1)));
+  var distBucket = Math.min(99, Math.floor(Math.log10(totalDist + 1) * 15));
 
-  // keystroke_count bucket
+  // keystroke_count bucket — log10 * 30 covers 0 to ~1k typical keystrokes
+  // with ~30 buckets in the realistic range.
   var keystrokes = events.filter(function(e) { return e.type === 'kd'; }).length;
-  var ksBucket = Math.min(9, Math.floor(Math.log10(keystrokes + 1)));
+  var ksBucket = Math.min(99, Math.floor(Math.log10(keystrokes + 1) * 30));
 
-  // duration_sec bucket
+  // duration_sec bucket — log10 * 30 covers 1s-3hr.
   var dur = claimedDurationSec || (eventLog.duration_ms / 1000);
-  var durBucket = Math.min(9, Math.floor(Math.log10(dur + 1)));
+  var durBucket = Math.min(99, Math.floor(Math.log10(dur + 1) * 30));
 
-  // event_density bucket
+  // event_density bucket — events_per_sec * 2; covers 0-50 events/sec.
   var density = dur > 0 ? events.length / dur : 0;
-  var densityBucket = Math.min(9, Math.floor(density));
+  var densityBucket = Math.min(99, Math.floor(density * 2));
 
-  return 'fp1:' + cvBucket + ':' + distBucket + ':' + ksBucket + ':' + durBucket + ':' + densityBucket;
+  return 'fp2:' + cvBucket + ':' + distBucket + ':' + ksBucket + ':' + durBucket + ':' + densityBucket;
 }
 
 /**
