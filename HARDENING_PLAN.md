@@ -4,7 +4,7 @@
 
 **How this doc is used:** every batch of work picks the next N items in priority order, fixes them, validates with `npm run test:flow` + `npm test`, commits, pushes. After each batch we re-dispatch the skeptic round so each round attacks the *current* state. Iteration continues until a fresh round surfaces no new findings at the current severity tier.
 
-**Last updated:** 2026-04-28 after round-2 hostile review (9 parallel skeptic agents, including 2 new roles: cryptography deep-audit + adversarial bot designer). Round 2 fixes landed in commits `f9bf3a7` → `5cbf32f` (5 commits). Round-2 closed list and newly-surfaced queue are below the round-1 sections.
+**Last updated:** 2026-04-28 after round-3 hostile review (5 parallel agents — security, cryptography, code-quality, adversarial bot designer, a11y — focused on areas that changed since round 2). Round-3 commits: T2 crypto batch `4684097` + critical-fix batch `e22ffdf`. Total round-2 + round-3 commit chain: `f9bf3a7` → `e22ffdf` (8 commits). Round-3 closed list + still-queued items below the round-2 sections.
 
 ---
 
@@ -308,6 +308,65 @@
       (Credly is BOTH the channel AND the most-likely substitute builder
       — a 6-engineer-week ship for them with their issuer relationships
       intact).
+
+---
+
+## Round 3 closed (2026-04-28)
+
+### Commit `4684097` — T2 crypto batch
+- [x] **R2-NEW-5** JWKS sws_validFrom/sws_validUntil per kid + verify.html iat-window enforcement.
+- [x] **R2-NEW-6** OTS bitcoinBlockTime vs proof.created cross-check (>24h skew → warn label).
+- [x] **R2-NEW-9** (FIRST-TIME ATTEMPT) pure-JS SHA-256 UTF-8 fallback in src/sdk/attention-receipts.js. Round-3 caught that this didn't propagate to proof/sdk; fixed in `e22ffdf`.
+
+### Commit `e22ffdf` — Round-3 critical fixes
+- [x] **R3-1 CRITICAL** UTF-8 SHA-256 fix propagated to proof/sdk/attention-protocol.js (the file cme-demo.html actually loads). The R2-NEW-9 closed claim was previously false.
+- [x] **R3-2 CRITICAL** prove-humanness.html JWT hardening — strict kid match + iss/nbf/iat enforcement + validity-window check + vc.issuer cross-check. Was shipping the EXACT vulnerabilities R2-2/R2-3 supposedly closed.
+- [x] **R3-3 CRITICAL** Node-side attention-signer.js#verifyJwt parity with verify.html via opts.acceptedIssuers + opts.jwk. Default behavior unchanged for callers that don't pass opts.
+- [x] **R3-4** verify.html duplicated `<h1 class="sr-only">` removed (was inside display:none div, defeated sr-only).
+- [x] **R3-5** verify.html `did:web:localhost` issuer gated behind hostname check.
+- [x] **R3-6** verify.html calibration_override now PROMOTES the verdict from green ✓ to warn-tier (was rendering green check above warning).
+- [x] **R3-7** cme-demo.html prefers-reduced-motion @media (WCAG 2.3.3).
+- [x] **R3-8** cme-demo.html MARGINAL mailto receipt.hash format guard (64-hex regex; defends against email-header injection if hash ever has embedded CRLF).
+- [x] **R3-9** firebase.json Cache-Control: no-store on JWKS endpoint (defeats CDN-cache during rotation grace window).
+- [x] Surrogate-pair-safe legacy SHA-256 fallback in both src/sdk and proof/sdk (round-3 cryptography agent's surrogate-pair concern).
+
+---
+
+## Round 3 newly-queued (open after round-3 fixes)
+
+### Tier 2 — credibility blockers
+
+- [ ] **R3-NEW-1** `src/sdk/receipt-composite.js#computeFinalComposite` returns `gatesOverridden` but **no verifier consumes it**. The doc-comment claims decision-grade verifiers can reject — verify.html, verifiable-credentials.js, run-bot-vs-human.js all ignore the field. It's not even persisted into the credentialSubject. Either consume in verify.html (analogous to calibration_override), OR delete the field, OR write `humanVerification.gatesOverridden = gated.gatesOverridden;` in verifiable-credentials.js.
+
+- [ ] **R3-NEW-2** verify.html validity-window enforcement is OPTIONAL when JWK lacks `sws_validFrom`/`sws_validUntil`. A malicious JWKS host (DNS poisoning, malicious mirror, sub-resource compromise) can publish a JWKS without these fields and the iat-window check silently fails-open. **Make sws_validFrom/sws_validUntil mandatory** — reject any JWK that lacks them with `kid_missing_validity_window`.
+
+- [ ] **R3-NEW-3** `Date.parse(jwk.sws_validUntil)` returning NaN is treated as "skip" (soft-fail). An attacker who corrupts the validUntil string evades the check. Treat NaN-on-present-field as a hard `jwk_validUntil_unparseable` error.
+
+- [ ] **R3-NEW-4** verify.html OTS skew check uses payload-internal `proof.created` (which is inside the signed JWT, so an attacker with a leaked key sets it to whatever they want). Pin to JWT `iat` (which is enforced against the kid window) instead. Also: when bitcoinAnchor confirmed but issuanceMs null, escalate to warn rather than dropping the row entirely.
+
+- [ ] **R3-NEW-5** `src/sdk/attention-receipts.js` receipt-hash uses `JSON.stringify({...}, null, 0)` over an object literal — V8 insertion-order, NOT canonical. Cross-engine verification (Hermes, JSC pre-2020, third-party Java/Go verifiers) does not reproduce. Replace with `_canonicalJSON(...)` from attention-protocol.
+
+- [ ] **R3-NEW-6** Section A "✓ Content binding verifies" wording is misleading — it's just self-hash-consistency, NOT signature verification. Rename verdict to "self-consistent" or require Section B (JWT) for any decision-grade flow.
+
+- [ ] **R3-NEW-7** `?ap_test=1` query parameter unconditionally suppresses the consent banner in production. Linkshare attacker can phish a real cme-demo URL with `?ap_test=1` appended. Gate on hostname (`localhost` / `.local`) AND `ap_test=1`, OR strip the parameter at the hosting layer.
+
+- [ ] **R3-NEW-8** Consent banner is non-blocking. `SWSPrivacy.showConsentBanner({})` synchronously appends DOM and returns; the next line `SWSAttention.init()` starts collection BEFORE the user clicks Accept/Reject. For demo-tier this is defensible (no PII persisted) but the legal posture in `bipa-posture.md` describes "explicit consent." Gate `SWSAttention.init` on a Promise that resolves on consent click.
+
+- [ ] **R3-NEW-9** `proof/sdk/privacy-compliance.js` is older than `src/sdk/privacy-compliance.js` (Apr 21 vs Apr 27). Two source-of-truth copies of every SDK module is an active risk: any security fix to `src/sdk/` doesn't ship until manually copied. T2-11 already names this; round 3 confirms it's load-bearing.
+
+- [ ] **R3-NEW-10** `proof/firestore.rules` `request.resource.data.size() < 65536` is a no-op duplicate of `keys().size() <= 50` — Firestore rules' `data.size()` returns top-level field count, not byte length. Comment says "Cap at 50 fields and 64KB"; behavior caps only fields. Drop the second clause or replace with a real-byte guard.
+
+- [ ] **R3-NEW-11** Consent banner needs a11y polish: no `role="dialog"` / `aria-labelledby` / `aria-modal`; no focus shift to banner on append; "Learn more" link has no handler (dead link); button target size <44×44 (passes 2.5.8 AA but fails 2.5.5 AAA).
+
+- [ ] **R3-NEW-12** verify.html validity-window has no test coverage. Round-2 + T2 added 8+ verifier behaviors (exp/iss/nbf/kid_match, OTS skew, JWKS validity-windows, calibration_override, vc_issuer_mismatch, sigOk-vs-ok separation). Only sha256-fallback + receipt-composite have tests. Add tests/verify-jwt.test.js covering each claim-error path.
+
+- [ ] **R3-NEW-13** cme-demo.html `submit-btn.disabled = true` removes focus from the button (HTML spec). No aria-busy announcement, no live-region status. Replace with `aria-disabled=true` + `pointer-events:none` + `aria-busy=true` + a sr-only status node "Issuing receipt — please wait."
+
+- [ ] **R3-NEW-14** cme-demo.html `SUSPICIOUS_CAP=0.50` fires whenever `compositionIntegrity.verdict === 'suspicious'`. The verdict is a fallthrough for any reflection that scores < 0.75 in `_integrityScore` (slightly off the human-band, no paste, no mechanical CV, no backspace anomaly). Could create a false-positive cap on slow/hesitant typists. Instrument verdict distribution across next real test session; tune CV thresholds if FPR > 10%.
+
+### Tier — adversarial bot status (round-3 confirmation)
+
+- [ ] **R3-NEW-15 = R2-NEW-2 restated** — Round-3 adversarial-bot-builder agent CONFIRMED the round-2 bypass remains unchanged. Composite ≥0.700 from a fully-automated pipeline at ~$50 / 56 engineer-hours. Round-2 + T2 closed seven OTHER attack surfaces (kid-confusion, pre-stamped anchors, exfiltration, replay, paste-bot soft tier, hash-collision on Unicode, suspicious-verdict bypass) but did NOT close, narrow, or raise the cost of the composite-bypass. **Server-side composite recompute from a posted raw event log + trace-novelty k-NN rejection** is still the only meaningful defense. Cost estimate to implement: 24-40h for #1, +16-24h for trace-novelty. Together: ships bypass cost from $50/mo to $5-20k/mo and ~200 engineer-hours per fresh recording cycle. Rank: ship #1 → #2 → reactive canary (T2-9).
 
 ---
 
