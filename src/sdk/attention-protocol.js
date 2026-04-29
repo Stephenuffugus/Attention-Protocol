@@ -1084,9 +1084,20 @@
       var variance = gapDurations.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / gapDurations.length;
       var cv = mean > 0 ? Math.sqrt(variance) / mean : 0;
 
-      // Humans: moderate gap ratio (5-40%), variable gap lengths (high CV)
-      var gapRatioScore = 1 - Math.abs(gapRatio - 0.15) * 3; // peaks at 15% gap ratio
-      gapRatioScore = Math.max(0.1, Math.min(0.9, gapRatioScore));
+      // Humans on content-heavy pages (CME, document review, policy reads) naturally
+      // produce 10-40% gap ratio — they're reading, not clicking. Active-mouse pages
+      // produce 5-20%. Bots produce either 0% (constant activity) or > 70% (the
+      // gapRatio > 0.7 sentinel above already excludes those).
+      // Calibration fix 2026-04-29: prior formula peaked at 15% and dropped to 0.1
+      // by 42% — engaged slow readers got penalized for natural pause behavior.
+      // Wide reading-friendly plateau across legitimate range; bot tails handled by
+      // sentinel and gated layers.
+      var gapRatioScore;
+      if (gapRatio < 0.05)        gapRatioScore = 0.35; // suspiciously constant activity
+      else if (gapRatio < 0.10)   gapRatioScore = 0.55;
+      else if (gapRatio <= 0.40)  gapRatioScore = 0.85; // wide reading-friendly plateau
+      else if (gapRatio <= 0.55)  gapRatioScore = 0.65; // pause-heavy but still engaged
+      else                        gapRatioScore = 0.40; // approaches the > 0.7 sentinel
       var cvScore = _ascore(cv, 0.5);
       return gapRatioScore * 0.5 + cvScore * 0.5;
     },
@@ -1155,14 +1166,21 @@
       var mean = intervals.reduce(function(a, b) { return a + b; }, 0) / intervals.length;
       var variance = intervals.reduce(function(a, b) { return a + Math.pow(b - mean, 2); }, 0) / intervals.length;
       var cv = Math.sqrt(variance) / mean;
-      // Humans: CV 0.15-0.50. Bots: CV < 0.05 or artificially high
-      // "In the zone" (low CV ~0.15) = deep focus. "Out of zone" (CV ~0.45) = distracted
-      // Ex-Gaussian tau approximation: skewness of the distribution
+      // Humans: CV 0.15-0.70. Bots: CV < 0.05 (perfectly regular) or > 1.2 (artificially noisy).
+      // Slow careful readers can legitimately produce CV > 0.5 (variable click intervals
+      // because of pauses to think between actions).
+      // Calibration fix 2026-04-29: prior formula collapsed to ~0.2 across cv > 0.55,
+      // penalizing slow readers. Same dead-zone shape as the curvature bug. Plateau
+      // widened across legitimate human range; bot-tell tails kept low.
       var sorted = intervals.slice().sort(function(a, b) { return a - b; });
       var median = sorted[Math.floor(sorted.length / 2)];
       var skewRatio = (mean - median) / (Math.sqrt(variance) || 1);
-      // Human attention: moderate CV with positive skew (occasional long lapses)
-      var cvScore = (cv >= 0.1 && cv <= 0.6) ? _ascore(1 - Math.abs(cv - 0.3) * 3, 0.8) : 0.2;
+      var cvScore;
+      if (cv < 0.05)      cvScore = 0.15;          // suspiciously regular (bot tell)
+      else if (cv > 1.2)  cvScore = 0.20;          // artificially noisy (bot tell)
+      else if (cv < 0.10) cvScore = 0.30;          // borderline-low — possibly very focused, possibly bot
+      else if (cv > 0.70) cvScore = _ascore(1 - (cv - 0.70) * 0.5, 0.8); // gentle falloff above 0.7
+      else                cvScore = _ascore(1 - Math.abs(cv - 0.35) * 0.7, 0.8); // wide plateau
       var skewScore = (skewRatio > 0 && skewRatio < 2) ? _ascore(skewRatio, 0.8) : 0.3;
       return cvScore * 0.6 + skewScore * 0.4;
     },

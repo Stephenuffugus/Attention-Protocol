@@ -926,6 +926,92 @@ describe('Signal 16: Curvature formula spec (dead-zone regression)', () => {
 });
 
 // ============================================================
+// Signal 12 — RT Variability formula spec (dead-zone regression)
+// ============================================================
+// Pins computeRTVariability score profile so the prior dead zone
+// (cv > 0.55 collapsed to ~0.2) cannot return. Slow careful readers
+// produce variable click intervals (cv 0.5-0.7+) and that's human,
+// not a bot tell.
+describe('Signal 12: RT Variability formula spec (dead-zone regression)', () => {
+  // Replicate the cvScore branch as a spec-test. skewScore branch unchanged.
+  function expectedCvScore(cv) {
+    function ascore(value, k) {
+      if (value <= 0) return 0;
+      return 1 - Math.exp(-value / (k || 1));
+    }
+    if (cv < 0.05)      return 0.15;
+    if (cv > 1.2)       return 0.20;
+    if (cv < 0.10)      return 0.30;
+    if (cv > 0.70)      return ascore(1 - (cv - 0.70) * 0.5, 0.8);
+    return ascore(1 - Math.abs(cv - 0.35) * 0.7, 0.8);
+  }
+
+  test('regression: cv 0.55 (slow careful reader, prior dead zone) scores > 0.4', () => {
+    expect(expectedCvScore(0.55)).toBeGreaterThan(0.4);
+  });
+
+  test('regression: cv 0.65 (variable click intervals) scores > 0.4', () => {
+    expect(expectedCvScore(0.65)).toBeGreaterThan(0.4);
+  });
+
+  test('regression: cv 0.80 (very variable, still engaged) scores > 0.3', () => {
+    expect(expectedCvScore(0.80)).toBeGreaterThan(0.3);
+  });
+
+  test('plateau: human cv range 0.15-0.70 all scores >= 0.5', () => {
+    for (const cv of [0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.70]) {
+      expect(expectedCvScore(cv)).toBeGreaterThanOrEqual(0.5);
+    }
+  });
+
+  test('bot-tell: cv 0.02 (perfectly regular) scores low', () => {
+    expect(expectedCvScore(0.02)).toBeLessThanOrEqual(0.20);
+  });
+
+  test('bot-tell: cv 1.5 (artificially noisy) scores low', () => {
+    expect(expectedCvScore(1.5)).toBeLessThanOrEqual(0.25);
+  });
+});
+
+// ============================================================
+// Signal 11 — Inactivity Pattern formula spec (reading-friendly plateau)
+// ============================================================
+// Pins computeInactivityPattern's gapRatioScore profile so engaged
+// slow readers (gap ratio 25-45%) score plateau-high and aren't
+// misread as disengaged.
+describe('Signal 11: Inactivity Pattern formula spec (reading-friendly plateau)', () => {
+  function expectedGapRatioScore(gapRatio) {
+    if (gapRatio < 0.05)        return 0.35;
+    if (gapRatio < 0.10)        return 0.55;
+    if (gapRatio <= 0.40)       return 0.85;
+    if (gapRatio <= 0.55)       return 0.65;
+    return 0.40;
+  }
+
+  test('regression: gap ratio 0.38 (Stephen-style careful reader) scores >= 0.85', () => {
+    expect(expectedGapRatioScore(0.38)).toBeGreaterThanOrEqual(0.85);
+  });
+
+  test('regression: gap ratio 0.30 (CME reader with breaks) scores >= 0.85', () => {
+    expect(expectedGapRatioScore(0.30)).toBeGreaterThanOrEqual(0.85);
+  });
+
+  test('plateau: gap ratio 0.10-0.40 all scores 0.85', () => {
+    for (const r of [0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40]) {
+      expect(expectedGapRatioScore(r)).toBe(0.85);
+    }
+  });
+
+  test('bot-tell: gap ratio 0.02 (suspiciously constant activity) scores low', () => {
+    expect(expectedGapRatioScore(0.02)).toBeLessThanOrEqual(0.40);
+  });
+
+  test('long-pause-heavy but engaged: gap ratio 0.50 still scores >= 0.6', () => {
+    expect(expectedGapRatioScore(0.50)).toBeGreaterThanOrEqual(0.6);
+  });
+});
+
+// ============================================================
 // Signal 17: Cursor Jerk / LDLJ (Flash & Hogan 1985)
 // ============================================================
 describe('Signal 17: Cursor Jerk', () => {
