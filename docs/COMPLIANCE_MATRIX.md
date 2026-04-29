@@ -63,7 +63,8 @@ The SWS Attention Protocol was designed from the ground up with classified envir
 | File names | NO | NO |
 | User location | NO | Opt-in GPS only for movement features |
 | Network identifiers | NO | NO |
-| Device fingerprints | NO | NO |
+| Stored / transmitted device fingerprint hashes | NO | NO |
+| FingerprintJS BotD verdict (bot-or-not + per-vector suspicion scores) | YES (transient, computed client-side) | Bot-decision only; underlying fingerprint hash never stored |
 
 ### Air-Gapped Operation
 

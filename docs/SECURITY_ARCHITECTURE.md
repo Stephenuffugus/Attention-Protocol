@@ -24,12 +24,12 @@ User Interaction → Client-Side Payload Construction → SHA-256 Hashing → lo
 ### What NEVER enters the payload
 - URLs or page identifiers
 - Content text or images
-- Keystroke content (count only)
+- Keystroke content (count only — characters never stored or transmitted)
 - App names or screen identifiers
 - User names, emails, or PII
-- IP addresses
-- Device fingerprints
-- Location data (unless opt-in GPS features enabled)
+- IP addresses (not logged)
+- Stored or transmitted browser/device fingerprint hashes (we run FingerprintJS BotD client-side and record only its bot-or-not verdict + per-vector suspicion scores; the underlying fingerprint hash is never stored or transmitted)
+- Geolocation (unless opt-in GPS features enabled by integrator)
 
 ---
 
