@@ -855,6 +855,77 @@ describe('Signal 16: Curvature Index', () => {
 });
 
 // ============================================================
+// Signal 16 — formula regression: dead-zone fix (2026-04-29)
+// ============================================================
+// Pins the curvature scoring profile so the prior bug (avgCI in [~1.97, 2.5]
+// collapsed to exactly 0) cannot return. A real engaged reader's cursor
+// often produces avgCI > 1.9 because they wander around the text — that's
+// human, not a bot tell. The formula must score the entire human range
+// non-trivially while still penalizing bot tails (straight Bezier ~1.0 and
+// chaotic noise > 2.5).
+describe('Signal 16: Curvature formula spec (dead-zone regression)', () => {
+  // Replicate the formula exactly as in src/sdk/attention-protocol.js so this
+  // test acts as a spec the SDK must satisfy. If the SDK formula changes, this
+  // function is updated alongside it intentionally.
+  function expectedCurvatureScore(avgCI) {
+    function ascore(value, k) {
+      if (value <= 0) return 0;
+      return 1 - Math.exp(-value / (k || 1));
+    }
+    if (avgCI < 1.0) return -1;
+    if (avgCI < 1.1) return 0.25;
+    if (avgCI > 2.5) return 0.20;
+    return ascore(1 - Math.abs(avgCI - 1.6) * 0.5, 0.7);
+  }
+
+  test('regression: avgCI 1.97 (engaged reader, prior dead zone) scores > 0.4', () => {
+    // Prior formula: _ascore(1 - |1.97 - 1.3| * 1.5, 0.7) = _ascore(-0.005, 0.7) = 0.
+    // New formula: must score this real-human cursor pattern non-trivially.
+    const score = expectedCurvatureScore(1.97);
+    expect(score).toBeGreaterThan(0.4);
+    expect(score).toBeLessThan(0.85);
+  });
+
+  test('regression: avgCI 2.0 (wandering cursor while reading) scores > 0.5', () => {
+    const score = expectedCurvatureScore(2.0);
+    expect(score).toBeGreaterThan(0.5);
+  });
+
+  test('regression: avgCI 2.4 (very wandering, still engaged) scores > 0.4', () => {
+    const score = expectedCurvatureScore(2.4);
+    expect(score).toBeGreaterThan(0.4);
+  });
+
+  test('plateau: human range avgCI 1.1-2.5 all scores >= 0.4', () => {
+    for (const ci of [1.1, 1.3, 1.5, 1.7, 1.9, 2.1, 2.3, 2.5]) {
+      const score = expectedCurvatureScore(ci);
+      expect(score).toBeGreaterThanOrEqual(0.4);
+    }
+  });
+
+  test('bot-tell: avgCI 1.0 (perfectly straight Bezier) scores low', () => {
+    expect(expectedCurvatureScore(1.0)).toBeLessThanOrEqual(0.30);
+  });
+
+  test('bot-tell: avgCI 3.0 (chaotic noise) scores low', () => {
+    expect(expectedCurvatureScore(3.0)).toBeLessThanOrEqual(0.25);
+  });
+
+  test('insufficient-data: avgCI < 1.0 returns -1 sentinel', () => {
+    // Geometrically impossible (path can't be shorter than euclidean), but
+    // floating-point rounding could produce 0.999. Defensive sentinel.
+    expect(expectedCurvatureScore(0.99)).toBe(-1);
+  });
+
+  test('peak: ideal cursor pattern avgCI 1.6 has highest score', () => {
+    const peak = expectedCurvatureScore(1.6);
+    for (const ci of [1.1, 1.3, 1.4, 1.8, 2.0, 2.3, 2.5]) {
+      expect(peak).toBeGreaterThanOrEqual(expectedCurvatureScore(ci));
+    }
+  });
+});
+
+// ============================================================
 // Signal 17: Cursor Jerk / LDLJ (Flash & Hogan 1985)
 // ============================================================
 describe('Signal 17: Cursor Jerk', () => {

@@ -1583,11 +1583,19 @@
       });
       if (indices.length < 3) return -1;
       var avgCI = indices.reduce(function(a,b){return a+b;},0) / indices.length;
-      // Human CI: 1.1-1.8. Bot CI: ~1.0 (straight lines) or >2.0 (random noise)
-      if (avgCI >= 1.0 && avgCI <= 2.5) {
-        return _ascore(1 - Math.abs(avgCI - 1.3) * 1.5, 0.7);
-      }
-      return 0.2;
+      // Human CI: typical 1.1-2.0, extends to ~2.5 for engaged readers whose
+      // cursor wanders around the text. Bot CI: ~1.0 (straight Bezier) or
+      // >2.5 (random noise).
+      // Calibration fix 2026-04-29: prior formula collapsed the score to exactly
+      // 0 across avgCI in [~1.97, 2.5] because |avgCI - 1.3| * 1.5 exceeded 1
+      // and _ascore clamps non-positive inputs to 0. That penalized real
+      // engaged readers (Stephen ran his own demo, hit this dead zone, scored
+      // 0.000 on a session he read carefully). Plateau widened across the
+      // legitimate human range; bot-tell tails kept low.
+      if (avgCI < 1.0) return -1;            // geometrically impossible — bad data
+      if (avgCI < 1.1) return 0.25;          // suspiciously straight (bot tell)
+      if (avgCI > 2.5) return 0.20;          // chaotic (bot tell / random noise)
+      return _ascore(1 - Math.abs(avgCI - 1.6) * 0.5, 0.7);
     },
 
     // Signal 17: Cursor Jerk (LDLJ — Log Dimensionless Jerk)
