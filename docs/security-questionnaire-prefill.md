@@ -4,10 +4,7 @@
 **Product:** SWS Proof-of-Attention Protocol (cryptographic attention receipts)
 **Stage:** Pre-revenue, patent-pending (USPTO provisional SWS-PROV-001 filed 2026-03-17), deployed to production
 **Production environment:** Firebase project `sws-attention-proofs` (US multi-region). Three Cloud Functions live since 2026-04-27: `signReceipt`, `publicKey`, `onSessionWritten`.
-**Authoritative source documents:**
-- `/workspaces/Attention-Protocol/docs/SECURITY_ARCHITECTURE.md`
-- `/workspaces/Attention-Protocol/docs/technical-faq.md`
-- `/workspaces/Attention-Protocol/docs/COMPLIANCE_MATRIX.md`
+**Authoritative sources:** `docs/SECURITY_ARCHITECTURE.md`, `docs/technical-faq.md`, `docs/COMPLIANCE_MATRIX.md`.
 
 ## How to read this document
 
@@ -53,8 +50,8 @@ This is a tier-2 procurement pre-fill. It maps the most-asked CSA CAIQ / CAIQ-Li
 
 ### AIS-01 — Secure SDLC
 - **Status:** PARTIAL
-- **Answer:** Every commit lands in a public Git repository with a 270+ test suite across 45 suites that runs locally and is intended to run in CI. Internal hostile-review rounds gate major releases. There is no formal SDLC document, no separate security-champion role, no documented threat-modeling cadence beyond the hostile-review rounds. The founder reviews and approves every commit personally.
-- **Evidence:** Public repo, test-suite output (`npm test`), `docs/technical-faq.md` §H2.
+- **Answer:** Every commit lands in a public Git repo with a 270+ test suite across 45 suites running locally and in CI. Internal hostile-review rounds gate major releases. No formal SDLC document, no separate security-champion role, no documented threat-modeling cadence beyond the hostile-review rounds. The founder reviews and approves every commit personally.
+- **Evidence:** Public repo, `npm test`, `docs/technical-faq.md` §H2.
 
 ### AIS-02 — Input validation
 - **Status:** IMPLEMENTED
@@ -194,7 +191,7 @@ This is a tier-2 procurement pre-fill. It maps the most-asked CSA CAIQ / CAIQ-Li
 
 ### DCS-01 — Physical datacenter security
 - **Status:** IMPLEMENTED (inherited)
-- **Answer:** All compute and storage runs on Google Cloud Platform datacenters. Physical security is inherited from Google Cloud's SOC 2 Type II, ISO 27001, and FedRAMP-Moderate-attested datacenter program. SWS does not own, operate, or maintain any physical datacenter or physical hardware. The founder's workstation is the only SWS-managed endpoint.
+- **Answer:** All compute and storage runs on Google Cloud Platform datacenters. Physical security is inherited from Google Cloud's SOC 2 Type II and ISO 27001 attestations, available directly from Google Cloud Compliance. SWS does not own, operate, or maintain any physical datacenter or physical hardware. The founder's workstation is the only SWS-managed endpoint.
 - **Evidence:** Google Cloud Compliance Reports Manager, `docs/SECURITY_ARCHITECTURE.md` §8.
 
 ### DCS-02 — Datacenter location and jurisdiction
@@ -369,7 +366,7 @@ This is a tier-2 procurement pre-fill. It maps the most-asked CSA CAIQ / CAIQ-Li
 
 ### IVS-01 — Multi-tenant isolation
 - **Status:** PARTIAL
-- **Answer:** Logical multi-tenancy is enforced by Firestore security rules (per-UID vault scoping) and per-client_id API-key scoping. Physical multi-tenancy hardening — separate Firebase projects per customer, separate Cloud Function instances, separate Secret Manager namespaces — has not been implemented because no paying customer has been onboarded yet. Single-tenant Firebase project today; per-tenant project isolation is available as scoped pilot work.
+- **Answer:** Logical multi-tenancy via Firestore security rules (per-UID vault scoping) and per-client_id API-key scoping. Physical multi-tenancy hardening — separate Firebase projects, Cloud Function instances, Secret Manager namespaces per customer — is not implemented; single-tenant Firebase project today. Per-tenant project isolation available as scoped pilot work.
 - **Evidence:** `docs/SECURITY_ARCHITECTURE.md` §4, `docs/technical-faq.md` §F3.
 
 ### IVS-02 — Network segmentation
@@ -432,8 +429,8 @@ This is a tier-2 procurement pre-fill. It maps the most-asked CSA CAIQ / CAIQ-Li
 
 ### MOS-02 — Mobile-browser support
 - **Status:** IMPLEMENTED
-- **Answer:** SDK runs in modern mobile browsers (iOS Safari, Chrome on Android). Touch-Events-API, Page-Visibility-API, and Wake-Lock-API are used where present. Behavioral-signal weighting reweights for mobile contexts where four mouse-only signals correctly read 0; the composite score does not penalize mobile sessions for the absent mouse signals (commit pending: per April-26 real-test findings, mobile reweighting was identified as a gap and has been queued).
-- **Evidence:** `docs/SECURITY_ARCHITECTURE.md` §8, user memory project_apr26_real_test_findings.md.
+- **Answer:** SDK runs in modern mobile browsers (iOS Safari, Chrome on Android). Touch-Events-API, Page-Visibility-API, and Wake-Lock-API are used where present. Behavioral-signal weighting reweights for mobile contexts where four mouse-only signals (curvature, cursor jerk, velocity profile, two-thirds power law) correctly read N/A — the UI displays "N/A (mobile)" via `matchMedia('(pointer: coarse)')` detection, and the composite redistributes weight across the 16 applicable mobile signals so users are not penalized for signals their device cannot produce.
+- **Evidence:** `proof/cme-demo.html:539-597` (deviceType detection + mobile reweighting), `proof/demo.html:416,954` (pointer: coarse + N/A rendering), `docs/SECURITY_ARCHITECTURE.md` §8.
 
 ### MOS-03 — Mobile data storage
 - **Status:** IMPLEMENTED
