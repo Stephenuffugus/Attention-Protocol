@@ -39,7 +39,7 @@
 
 ### What we make
 
-A cryptographic attention receipt — content-bound SHA-256, Ed25519-signed, optionally Bitcoin-anchored — that proves a real human paid attention to a screen. Not a bot, not an LLM, not a distracted scroller. Every receipt is a W3C Verifiable Credential carrying a 23-signal behavioral composite, a quality tier (Deep Focus / Active / Passive / Background), and a calibrated Bayesian P(human) with bootstrap 95% CI.
+A cryptographic attention receipt — content-bound SHA-256, Ed25519-signed, optionally Bitcoin-anchored — that proves a real human paid attention to a screen. Not a bot, not an LLM, not a distracted scroller. Every receipt is a W3C Verifiable Credential carrying a 23-signal behavioral composite, a quality tier (Deep Focus / Active / Passive / Background), and a calibrated Bayesian P(human) score with a bootstrap confidence interval.
 
 Buyers verify offline in any browser with WebCrypto. No SWS server involved. That property is what qualifies the receipt for pharma 21 CFR Part 11 audits and SCIF-eligible environments.
 
@@ -74,7 +74,7 @@ Now: Uniontown, OH. Post-YC: Mountain View / SF as the batch requires.
 - **Composition Integrity** layer (paste-burst + LLM honeypot canary).
 - **Content-bound SHA-256 receipt** — every displayed value is in a deeply key-sorted canonical JSON whose hash IS the receipt. Adversarial test runs **100/100 random tamper variations detected**, 27/27 pathological canonical-input cases (Unicode, RTL, CJK, deeply-nested objects, NaN/Infinity) produce deterministic valid hashes.
 - **Ed25519 issuer attestation** with public JWKS at `/.well-known/attention-pubkey.json`. Multi-key rotation path validated via dry-run.
-- **Calibrated Bayesian P(human)** with bootstrap 95% CI on every receipt. Vovk-Gammerman-Shafer 2005 conformal posterior. Calibration set v2: 5 humans + 28 bots, growing. Almost no behavioral-biometrics vendor publishes this.
+- **Calibrated Bayesian P(human)** score with a bootstrap confidence interval on every receipt. Class-conditional Gaussian likelihood ratio with flat prior; Efron-Tibshirani 1993 bootstrap. Calibration set v2: 5 humans + 28 bots, growing — every receipt carries an explicit small-N caveat until both classes reach n≥20. Almost no behavioral-biometrics vendor publishes uncertainty at all.
 
 ### Validation
 
@@ -212,7 +212,7 @@ Record LAST. Quiet room, decent light, phone or laptop at eye level, single take
 >
 > Everybody in analytics measures what happened. Nobody measures whether a human was actually there. That gap is where ad fraud lives, where compliance fails, where CME credentialing can be defeated by a script, and where the agentic web has no audit layer.
 >
-> We measure 23 behavioral signals — Fitts, Hick, prewhitened 1/f scaling, submovement count, twenty more — every one grounded in 50 to 70 years of peer-reviewed motor-control and cognitive research. The receipt is a SHA-256 hash of the entire session. Tested against a hundred random tamper attacks: every one detected. Every receipt includes a calibrated Bayesian probability the session was human, with a 95% confidence interval.
+> We measure 23 behavioral signals — Fitts, Hick, prewhitened 1/f scaling, submovement count, twenty more — every one grounded in 50 to 70 years of peer-reviewed motor-control and cognitive research. The receipt is a SHA-256 hash of the entire session. Tested against a hundred random tamper attacks: every one detected. Every receipt includes a calibrated Bayesian probability the session was human, with bootstrap uncertainty bounds.
 >
 > Patent filed at the USPTO March 17, 2026. The protocol is live right now, deployed on Firebase Cloud Functions. Anyone can verify a receipt in their browser using only WebCrypto — no SWS server involved.
 >
