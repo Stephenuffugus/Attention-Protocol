@@ -393,7 +393,10 @@
 
     // ---- STATE ----
     var urlParams = new URLSearchParams(window.location.search);
-    var sourceType = urlParams.get('source') || 'proof_gallery';
+    var sourceTypeRaw = urlParams.get('source') || 'proof_gallery';
+    // Sanitize to [a-z0-9_-] max 64 so URL-typo'd or hostile values can't
+    // poison the collection used by scripts/corpus-status.js for corpus pulls.
+    var sourceType = sourceTypeRaw.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 64) || 'proof_gallery';
     var sessionId = 'demo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
     var sessionStart = Date.now();
     var currentPhase = 1;

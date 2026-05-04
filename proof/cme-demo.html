@@ -296,6 +296,11 @@
     var activityId = document.getElementById('activity-id').textContent;
     var sessionId = 'cme_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
     var sessionStart = Date.now();
+    // Source tag matches demo.html convention: ?source=corpus_2026-05-04
+    // is queryable via scripts/corpus-status.js. Sanitized to [a-z0-9_-]
+    // max 64 so URL-typo'd or hostile values can't poison the collection.
+    var sourceTypeRaw = (new URLSearchParams(location.search)).get('source') || 'cme_demo';
+    var sourceType = sourceTypeRaw.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 64) || 'cme_demo';
     var currentSection = 1;
     var TOTAL_SECTIONS = 4;
     var sectionTimes = {};  // track dwell per section
@@ -1033,7 +1038,6 @@
         generated: new Date().toISOString(),
         duration_sec: elapsed,
         user_agent: navigator.userAgent,
-        source_type: 'cme_demo',
         vertical_profile: 'medical',
         medical_composite: medComposite,
         medical_verdict: verdict,
@@ -1055,6 +1059,7 @@
         active_signals: c.activeSignals,
         timeline: timeline || [],
         uid: fbUser ? fbUser.uid : 'anonymous',
+        source_type: sourceType,
         // Tamper-evident receipt: hash + canonical payload bound to every
         // displayed value on the receipt page. Verifiable offline against
         // /.well-known/attention-pubkey.json
