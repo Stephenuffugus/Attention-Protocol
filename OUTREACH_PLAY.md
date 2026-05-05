@@ -162,10 +162,10 @@ Read these BEFORE any conversation with the account. They equip you to answer "w
 
 | Artifact | Status | Path |
 |---|---|---|
-| Architecture 1-pager | **NEEDS WRITING** (4h) | derive from `docs/SECURITY_ARCHITECTURE.md` |
-| Security questionnaire pre-fill (CAIQ-Lite) | **NEEDS WRITING** (~1 day) | source from SEC_ARCH + COMPLIANCE_MATRIX + technical-faq |
-| Privacy DPIA | **NEEDS WRITING** (4h) | source from technical-faq §B |
-| Sub-processor list | **NEEDS WRITING** (1h) | trivial |
+| Architecture 1-pager | EXISTS | `docs/architecture-1pager.md` (audit log: 2026-05-05) |
+| Security questionnaire pre-fill (CAIQ-Lite) | EXISTS | `docs/security-questionnaire-prefill.md` (556 lines, by-control-family) |
+| Privacy DPIA | EXISTS | `docs/privacy-DPIA.md` (full Art. 35 risk assessment, 2026-05-05) |
+| Sub-processor list | EXISTS | `docs/sub-processor-list.md` (standalone, 2026-05-05) |
 | DPA template | **DOES NOT EXIST** | T1-5; counsel-drafted, $8-15K |
 | MSA template | **DOES NOT EXIST** | T1-5; counsel-drafted |
 | Pilot success criteria paste-block | EXISTS | `docs/pilot-success-criteria.md §2` |
@@ -183,7 +183,7 @@ Read these BEFORE any conversation with the account. They equip you to answer "w
 | SOC 2 Type 1 | DOES NOT EXIST | T3-6; $25-50K post-paid-pilot |
 | Delaware C-corp + IP assignment | DOES NOT EXIST | T1-5; $1.5-4K Stripe Atlas; **gates archetypes 2 + 5 specifically** |
 
-**Gate-of-gates:** archetypes 1, 3, 4 can open *today* on existing artifacts plus 2 days of writing (1-pager + questionnaire + DPIA + sub-processor list). Archetypes 2 and 5 cannot honestly open without legal/entity. **Practice rounds 1-3 are all archetype 1 — they need 2 days of doc writing, no external spend.**
+**Gate-of-gates:** archetypes 1, 3, 4 can open *today* — the 4 artifacts (1-pager + questionnaire + DPIA + sub-processor list) all now exist on disk as of 2026-05-05. Archetypes 2 and 5 cannot honestly open without legal/entity. **Practice rounds 1-3 are all archetype 1 — they need zero external spend and the artifacts are ready to send.**
 
 ---
 
