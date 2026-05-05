@@ -256,6 +256,15 @@
             <div style="font-size:9px;color:#475569;margin-top:4px;">This receipt is tamper-evident. Any modification to the session data invalidates the hash.</div>
           </div>
 
+          <!-- Prolific return block (hidden unless arrived from Prolific) -->
+          <div id="prolific-return" style="display:none;margin-top:16px;padding:14px;background:#0f172a;border:1px solid #06b6d4;border-radius:8px;text-align:center;">
+            <div style="font-size:13px;color:#06b6d4;font-weight:600;margin-bottom:10px;">Thank you — you have completed the study.</div>
+            <div style="font-size:12px;color:#94a3b8;margin-bottom:10px;">Returning you to Prolific in <span id="prolific-countdown" style="color:#e2e8f0;font-weight:700;">10</span> seconds&hellip;</div>
+            <a id="prolific-return-btn" href="#" class="btn btn-primary" style="display:inline-block;text-decoration:none;">Return to Prolific now</a>
+            <div style="font-size:10px;color:#64748b;margin-top:10px;">If the redirect fails, paste this completion code into Prolific:</div>
+            <div style="font-family:monospace;font-size:13px;color:#e2e8f0;letter-spacing:1px;margin-top:4px;" id="prolific-code">--</div>
+          </div>
+
           <div style="text-align:center;margin-top:16px;">
             <button class="btn btn-primary" onclick="location.reload()">Run Again</button>
             <a href="gallery.html" class="btn btn-secondary" style="text-decoration:none;display:inline-block;">View Full Proof Gallery</a>
@@ -397,6 +406,16 @@
     // Sanitize to [a-z0-9_-] max 64 so URL-typo'd or hostile values can't
     // poison the collection used by scripts/corpus-status.js for corpus pulls.
     var sourceType = sourceTypeRaw.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 64) || 'proof_gallery';
+    // Prolific integration: when a participant arrives via Prolific the URL
+    // includes a completion code (pcc) plus PROLIFIC_PID / STUDY_ID / SESSION_ID.
+    // Sanitize each to alphanumerics + underscore/hyphen so a hostile URL can
+    // never inject script or corrupt the submission redirect.
+    var sanitizeProlific = function(v) { return (v || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64); };
+    var prolificCC = sanitizeProlific(urlParams.get('pcc'));
+    var prolificPID = sanitizeProlific(urlParams.get('PROLIFIC_PID') || urlParams.get('pid'));
+    var prolificStudyID = sanitizeProlific(urlParams.get('STUDY_ID') || urlParams.get('study'));
+    var prolificSubID = sanitizeProlific(urlParams.get('SESSION_ID') || urlParams.get('ps'));
+    var isProlific = sourceType.indexOf('prolific') === 0 && prolificCC.length > 0;
     var sessionId = 'demo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
     var sessionStart = Date.now();
     var currentPhase = 1;
@@ -1048,6 +1067,27 @@
       });
     }
 
+    function showProlificReturn() {
+      var returnUrl = 'https://app.prolific.com/submissions/complete?cc=' + encodeURIComponent(prolificCC);
+      var block = document.getElementById('prolific-return');
+      var btn = document.getElementById('prolific-return-btn');
+      var code = document.getElementById('prolific-code');
+      var countdownEl = document.getElementById('prolific-countdown');
+      if (!block || !btn) return;
+      btn.href = returnUrl;
+      if (code) code.textContent = prolificCC;
+      block.style.display = 'block';
+      var seconds = 10;
+      var ticker = setInterval(function() {
+        seconds--;
+        if (countdownEl) countdownEl.textContent = seconds;
+        if (seconds <= 0) {
+          clearInterval(ticker);
+          window.location.href = returnUrl;
+        }
+      }, 1000);
+    }
+
     function saveSession(confidence, stats, elapsed, timeline, receipt) {
       if (!db) return;
 
@@ -1084,6 +1124,12 @@
         },
         uid: fbUser ? fbUser.uid : 'anonymous',
         source_type: sourceType,
+        prolific: isProlific ? {
+          pid: prolificPID,
+          study_id: prolificStudyID,
+          submission_id: prolificSubID,
+          completion_code: prolificCC
+        } : null,
         environmental: window.__swsEnvironmental || { loaded: false, error: 'not_yet_resolved', checked_at: new Date().toISOString() },
         composition_integrity: (typeof SWSCompositionIntegrity !== 'undefined')
           ? SWSCompositionIntegrity.readSnapshot({ scopeId: 'demo' })
@@ -1131,6 +1177,7 @@
             hashEl.textContent = 'SHA-256: ' + receipt.hash + ' — Saved to proof catalog (session: ' + sessionId + ')';
           }
           logEvent('SESSION SAVED to Firestore', '');
+          if (isProlific) showProlificReturn();
         })
         .catch(function(err) {
           console.warn('[Demo] Save failed:', err);
