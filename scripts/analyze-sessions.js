@@ -137,8 +137,15 @@ function fmt(n, digits) {
   summarize(mobile, 'MOBILE');
 
   // Bot reference (from the bot-harness Puppeteer runs that also write to demos/)
-  const botSessions = sessions.filter(s => (s.source_type || '').indexOf('bot') !== -1 ||
-    (s.environmental && s.environmental.bot));
+  // Harness runs are tagged source=harness_test; older runs may be in proof_gallery
+  // pre-fix and identifiable by HeadlessChrome user_agent.
+  const botSessions = sessions.filter(s => {
+    const src = s.source_type || '';
+    if (src.indexOf('bot') !== -1 || src === 'harness_test') return true;
+    if (s.environmental && s.environmental.bot) return true;
+    if (s.user_agent && /HeadlessChrome/i.test(s.user_agent)) return true;
+    return false;
+  });
   if (botSessions.length > 0) {
     const humanSessions = sessions.filter(s => !botSessions.includes(s));
     const botComposites = botSessions.map(s => (s.signals && s.signals.composite) || 0);

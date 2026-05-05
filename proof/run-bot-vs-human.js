@@ -92,7 +92,7 @@ async function runProfile(browser, profile) {
   // Forward page console to our terminal (muted — too noisy)
   // page.on('console', msg => console.log('  [page]', msg.text()));
 
-  await page.goto(`${BASE_URL}/demo.html`, { waitUntil: 'networkidle2', timeout: 30000 });
+  await page.goto(`${BASE_URL}/demo.html?source=harness_test`, { waitUntil: 'networkidle2', timeout: 30000 });
   await wait(2000); // let Firebase auth settle
 
   // ---- PHASE 1: READ ----

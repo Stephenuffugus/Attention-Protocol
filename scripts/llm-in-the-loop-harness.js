@@ -108,7 +108,7 @@ async function runOne(browser, runIndex) {
   console.log('\n━━━ LLM-driven run #' + runIndex + ' ━━━');
   const page = await browser.newPage();
   await page.setViewport({ width: 1280, height: 900 });
-  await page.goto(BASE_URL + '/demo.html', { waitUntil: 'networkidle2', timeout: 30000 });
+  await page.goto(BASE_URL + '/demo.html?source=harness_test', { waitUntil: 'networkidle2', timeout: 30000 });
   await wait(2500);
 
   const history = [];

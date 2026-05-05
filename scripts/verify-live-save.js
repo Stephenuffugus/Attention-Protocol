@@ -11,7 +11,7 @@
 'use strict';
 const puppeteer = require('puppeteer');
 
-const URL = 'https://sws-attention-proofs.web.app/demo.html';
+const URL = 'https://sws-attention-proofs.web.app/demo.html?source=harness_test';
 const wait = (ms) => new Promise(r => setTimeout(r, ms));
 
 (async () => {

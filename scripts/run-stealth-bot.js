@@ -42,7 +42,7 @@ async function runStealthBot() {
   const consoleErrors = [];
   page.on('pageerror', e => consoleErrors.push('pageerror: ' + e.message));
 
-  const url = BASE_URL + (TARGET === 'cme' ? '/cme-demo.html' : '/demo.html');
+  const url = BASE_URL + (TARGET === 'cme' ? '/cme-demo.html?source=harness_test' : '/demo.html?source=harness_test');
   await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
   await wait(2500); // let environmental gate run
 

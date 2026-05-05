@@ -1068,6 +1068,7 @@
         })(),
         active_signals: confidence.activeSignals,
         total_signals: confidence.totalSignals,
+        composite: confidence.composite,
         quality_tier: confidence.composite >= 0.7 ? 'deep' : confidence.composite >= 0.5 ? 'active' : confidence.composite >= 0.25 ? 'passive' : 'background',
         hashes_earned: stats.totalHashes,
         scroll_depth_pct: maxScrollDepth,
