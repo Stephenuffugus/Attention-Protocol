@@ -136,4 +136,24 @@ Hand this table to any reviewer who asks "where's the code." They can clone the 
 
 ---
 
+## Locked answers to the hardest sub-questions on the bypass-cost figure
+
+When a sophisticated reviewer (call him Marcus) asks: *"Walk me through that bypass-cost number — who measured it, when, against what threat model, and how do I know it isn't twenty bucks and a weekend?"* — they'll usually push three sub-questions before accepting the answer.
+
+### Sub-Q1: "Walk me through the specific adversarial scenario"
+
+> *"The figure came from a Round-2 hostile-review agent I role-conditioned as a sophisticated adversary. The setup: full public-repo access — because the source is on public GitHub anyway, that's not a privileged grant — plus a defined goal of 'design a bypass that sustains for 30 days at minimum cost; estimate engineering hours and recurring infrastructure spend.' Pre-Wall, the agent's output was $50 a month plus 56 engineering hours. After I shipped the Wall — server-side composite recompute plus trace-novelty fingerprint — I re-ran the same scenario against the new defense surface. The output was $5–20k a month plus 200–400 hours. The increase comes specifically from the additional layers: an attacker now has to replicate my scoring formula server-side AND produce novel trace fingerprints AND defeat the environmental gate AND defeat composition integrity. The cost shift is dominated by those four-simultaneous-capabilities requirements, not by the behavioral-signal layer alone."*
+
+### Sub-Q2: "Has any human reviewer validated that estimate?"
+
+> *"Not yet. I want to be direct about that. The figure is an AI-generated estimate, not a human-audited number. The honest version is: I'm planning to commission a Trail of Bits or NCC Group cryptographic audit post-first-paid-pilot — that's the $25–75k engagement that produces an audit-grade report. Today the public artifacts are: 980+ tests across 46 suites, 63+ explicit security-regression tests mapped to specific findings, the full source on public GitHub for line-by-line review, and the seven hostile-review rounds plus the May-7 production-tightening pass — all closed in version-controlled commits. The bypass-cost figure is a planning estimate, not a certification, and I'll cite it that way to your team."*
+
+### Sub-Q3: "What's the single worst finding any of those rounds produced?"
+
+> *"Several. The worst pre-Wall: a Round-2 critical where the bot-builder agent demonstrated that a fifty-dollar-a-month-and-fifty-six-hour budget could produce signed receipts above the score threshold. That's the finding that forced me to ship the Wall. The worst post-Wall: today, actually — May 7. I discovered my production signing endpoint had been failing 100% of the time for 10 days because of a Firebase IAM grant that didn't propagate after a deploy. Seventeen sessions silently failed; the bug was masked by a generic error string in Firestore while the real cause sat in Cloud Functions logs nobody was reading. Fixed within hours, deployed, verified end-to-end with 50 synthetic stress-test sessions plus a 9-session Claude Sonnet 4.6 run against the live demo. The methodology document that quoted a '<2% receipt-failure rate' had to be softened to 'target <2%, measured per-deployer' until I have post-fix production data. I'd rather hand you the production-incident story than pretend I haven't had one. The seven rounds are real because they keep finding things — including the things I'd rather they didn't."*
+
+**Why these answers work:** they trade defensive posturing for candor. A reviewer who has heard 30 vendor pitches in 2025 has already decided which ones are bluffing. Telling them about your 10-day silent outage today, with the exact root cause and the verified fix, makes you the vendor who isn't bluffing. The candor is the credibility.
+
+---
+
 **Status:** Version 1.0, released 2026-05-07. Companion to `docs/auditor-walkthrough.md` and `docs/adversary-analysis-2026-05-07.md`. Update when new defense layers ship or new bypass-cost numbers are measured.
