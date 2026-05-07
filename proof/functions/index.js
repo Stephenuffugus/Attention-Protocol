@@ -39,6 +39,10 @@
  */
 'use strict';
 
+// Deploy marker: 2026-05-07 — force redeploy to rebind SWS_SIGNING_KEY secret
+// after diagnosing 100% bad_signing_key failures across 17 production sessions
+// since 2026-04-27. Source unchanged; only the marker invalidates Firebase's
+// source-hash-based deploy skip.
 const { onRequest } = require('firebase-functions/v2/https');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { defineSecret } = require('firebase-functions/params');
