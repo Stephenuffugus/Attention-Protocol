@@ -1060,6 +1060,21 @@
         timeline: timeline || [],
         uid: fbUser ? fbUser.uid : 'anonymous',
         source_type: sourceType,
+        // R8-NEW-4 (2026-05-07): include the same top-level defense
+        // fields demo.html ships, so the Cloud Functions trigger
+        // (onSessionWritten) actually consults composition-integrity,
+        // environmental gate, and consent attestation on cme-demo
+        // sessions. Pre-this-commit, all three were silently inactive
+        // on real CME-demo users — receipts were issued without those
+        // gates being checked server-side.
+        environmental: window.__swsEnvironmental
+          || { loaded: false, error: 'not_yet_resolved', checked_at: new Date().toISOString() },
+        composition_integrity: (typeof SWSCompositionIntegrity !== 'undefined')
+          ? SWSCompositionIntegrity.readSnapshot({ scopeId: 'cme' })
+          : null,
+        consent: (typeof SWSPrivacy !== 'undefined' && SWSPrivacy.getReceiptAttestation)
+          ? SWSPrivacy.getReceiptAttestation({ policyUrl: 'https://sws-attention-proofs.web.app/privacy' })
+          : null,
         // Tamper-evident receipt: hash + canonical payload bound to every
         // displayed value on the receipt page. Verifiable offline against
         // /.well-known/attention-pubkey.json
