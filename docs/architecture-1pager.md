@@ -93,7 +93,7 @@ Independently checkable in any browser at `https://sws-attention-proofs.web.app/
 - 21 CFR Part 11 clause-by-clause mapping (`docs/COMPLIANCE_MATRIX.md` and `/part-11.html`); SWS addresses §11.10(a)(b)(c)(e), §11.50, §11.70, §11.200 partial. Operator controls (§11.10(d), §11.100-series) are buyer-side via SSO/MFA.
 - COPPA-safe by construction (no PII collected, no identity required).
 - SCIF-eligible by architecture (no content data stored, only behavioral metrics).
-- 270+ automated tests across 45 suites. 7 hostile-review rounds, ~93 findings closed.
+- 980+ automated tests across 46 suites. 7 hostile-review rounds, ~93 findings closed.
 - Server-side wall (composite recompute) enforces score authenticity.
 - Calibrated Bayesian P(human) with bootstrap 95% CI on every receipt (Vovk-Gammerman-Shafer 2005). Calibration set v2: 5 humans + 28 bots, growing.
 

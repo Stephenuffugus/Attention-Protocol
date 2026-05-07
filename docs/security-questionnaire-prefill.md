@@ -50,7 +50,7 @@ This is a tier-2 procurement pre-fill. It maps the most-asked CSA CAIQ / CAIQ-Li
 
 ### AIS-01 — Secure SDLC
 - **Status:** PARTIAL
-- **Answer:** Every commit lands in a public Git repo with a 270+ test suite across 45 suites running locally and in CI. Internal hostile-review rounds gate major releases. No formal SDLC document, no separate security-champion role, no documented threat-modeling cadence beyond the hostile-review rounds. The founder reviews and approves every commit personally.
+- **Answer:** Every commit lands in a public Git repo with a 980+ test suite across 46 suites running locally and in CI. Internal hostile-review rounds gate major releases. No formal SDLC document, no separate security-champion role, no documented threat-modeling cadence beyond the hostile-review rounds. The founder reviews and approves every commit personally.
 - **Evidence:** Public repo, `npm test`, `docs/technical-faq.md` §H2.
 
 ### AIS-02 — Input validation
@@ -118,7 +118,7 @@ This is a tier-2 procurement pre-fill. It maps the most-asked CSA CAIQ / CAIQ-Li
 
 ### CCC-01 — Change management process
 - **Status:** PARTIAL
-- **Answer:** All changes flow through a single Git main branch with commit-level review by the founder. The 270+ test suite must pass locally before any commit lands. There is no separate CAB, no formal change-advisory ticketing, no segregation of developer and approver roles — single-founder operation.
+- **Answer:** All changes flow through a single Git main branch with commit-level review by the founder. The 980+ test suite must pass locally before any commit lands. There is no separate CAB, no formal change-advisory ticketing, no segregation of developer and approver roles — single-founder operation.
 - **Evidence:** Public repo commit history.
 
 ### CCC-02 — Production deployment controls
@@ -541,7 +541,7 @@ This is a tier-2 procurement pre-fill. It maps the most-asked CSA CAIQ / CAIQ-Li
 
 ### TVM-06 — Internal security testing
 - **Status:** IMPLEMENTED
-- **Answer:** 270+ automated tests across 45 suites including 63+ explicit security-regression tests mapped one-to-one to the 2026-04-21 audit findings. Tests run on every commit locally. Seven hostile-review rounds with documented findings and tracked closing commits.
+- **Answer:** 980+ automated tests across 46 suites including 63+ explicit security-regression tests mapped one-to-one to the 2026-04-21 audit findings. Tests run on every commit locally. Seven hostile-review rounds with documented findings and tracked closing commits.
 - **Evidence:** `npm test` output, `docs/technical-faq.md` §D4.
 
 ### TVM-07 — Known CVEs

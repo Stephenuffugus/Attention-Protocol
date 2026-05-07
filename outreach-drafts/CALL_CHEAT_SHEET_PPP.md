@@ -56,7 +56,7 @@ That answer **flips the burden** from "Stephen has to be famous" to "here are th
 
 ## "Why aren't you certified / recognized / why should we trust an unknown vendor?"
 
-> *"Honest answer — nobody in this lane is certified yet because the lane is new. ACCME's December 2025 AI guidance explicitly says they don't have a position on cryptographic attestation. Recognition can't come before the first credible vendor exists. What I can offer instead is a stack: patent filed, 270+ tests, 7 rounds of hostile adversarial review, open verifier code, and a published threshold-derivation methodology any of your auditors can validate. None of that is 'certification' alone. Stacked, they're a multi-source legitimacy story no incumbent in this lane has either. I'd rather be transparent about where I am than fake a stamp."*
+> *"Honest answer — nobody in this lane is certified yet because the lane is new. ACCME's December 2025 AI guidance explicitly says they don't have a position on cryptographic attestation. Recognition can't come before the first credible vendor exists. What I can offer instead is a stack: patent filed, 980+ tests, 7 rounds of hostile adversarial review, open verifier code, and a published threshold-derivation methodology any of your auditors can validate. None of that is 'certification' alone. Stacked, they're a multi-source legitimacy story no incumbent in this lane has either. I'd rather be transparent about where I am than fake a stamp."*
 
 Pathways to formal certification, if she pushes for "what's the path":
 - **Cryptographic audit** by Trail of Bits / NCC Group / Cure53 ($25–75k, 2–6 weeks) — Stripe and Coinbase use this same pathway

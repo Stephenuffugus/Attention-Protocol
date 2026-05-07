@@ -22,7 +22,7 @@ The proposal is methodology-agnostic by design. It does not require ACCME to ble
 
 I am the solo founder and inventor of the SWS Attention Protocol (USPTO Provisional SWS-PROV-001, filed 2026-03-17). The protocol produces cryptographically-signed, offline-verifiable receipts attesting that a real human paid attention to a designated screen for a designated duration with measurable behavioral signals consistent with peer-reviewed cognitive-science thresholds.
 
-The protocol is deployed at sws-attention-proofs.web.app, with full source available for independent inspection, 270+ automated tests across 45 suites, and seven rounds of hostile adversarial review documented in version-controlled commits. The threshold-derivation methodology that any deploying organization would use to calibrate the protocol to its own population is published as a separate methodology document.
+The protocol is deployed at sws-attention-proofs.web.app, with full source available for independent inspection, 980+ automated tests across 46 suites, and seven rounds of hostile adversarial review documented in version-controlled commits. The threshold-derivation methodology that any deploying organization would use to calibrate the protocol to its own population is published as a separate methodology document.
 
 I am applying to Y Combinator Summer 2026 with this protocol as the central technical contribution. My commercial interest in this comment is therefore real and should be weighed accordingly. My professional interest, however, is broader: an AI-resilient CME ecosystem benefits every participant, including providers I may never sell to.
 

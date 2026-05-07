@@ -5,7 +5,7 @@
 
 **Honest framing:** every answer below names what SWS *can* demonstrate today versus what is aspirational. Compliance-by-overclaim is how vendors get into audit trouble — we'd rather you know exactly what you're buying. If an answer says "we cannot demonstrate this today," that is the honest current state and we are not hiding it.
 
-**Verify every claim against:** the public repo at `https://sws-attention-proofs.web.app`, the live JWKS at `https://sws-attention-proofs.web.app/.well-known/attention-pubkey.json`, `src/sdk/*`, and the 270+-test suite across 45 suites (`npm test`).
+**Verify every claim against:** the public repo at `https://sws-attention-proofs.web.app`, the live JWKS at `https://sws-attention-proofs.web.app/.well-known/attention-pubkey.json`, `src/sdk/*`, and the 980+-test suite across 46 suites (`npm test`).
 
 ---
 
@@ -154,7 +154,7 @@ Full SBOM available on request.
 
 **2026-04-21 internal security audit** closed 9 findings — all fixed in same-day commits. Findings covered input sanitization in Firebase Functions, TSA SSRF allowlist, credential-compress zip-bomb guard, JWT replay-audit verification, honeypot word XSS guard, server-side hardening (constant-time auth compare, rate limits, plan-escalation block), consent UI CSS-injection guard, and public verifier-page XSS. See `git log bba04db..7c8c025` for per-commit detail.
 
-63 of the 270+ regression tests are explicit security-regression tests mapped to the audit findings.
+63 of the 980+ regression tests are explicit security-regression tests mapped to the audit findings.
 
 No externally-reported CVEs to date (no public disclosures, no third-party audits yet).
 
@@ -259,4 +259,4 @@ If any of these are deal-breakers for your procurement, tell us which one — we
 
 ---
 
-**Last updated:** 2026-04-29 (test count + 7-layer wording reconciled to current state). Each answer cross-verifiable against the public repo, the live site, and the 270+-test suite across 45 suites.
+**Last updated:** 2026-04-29 (test count + 7-layer wording reconciled to current state). Each answer cross-verifiable against the public repo, the live site, and the 980+-test suite across 46 suites.
