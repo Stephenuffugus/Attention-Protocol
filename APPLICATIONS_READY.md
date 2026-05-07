@@ -199,6 +199,144 @@ Don't blast. Pace it. Each application is a real conversation that may turn into
 
 ---
 
+## ASSET 6: Web3-tailored cover letters (lead with Solidity + ECDSA + Ed25519)
+
+These three companies are in your Top 10 list and care specifically about cryptographic + on-chain experience. The general-audience cover letter undersells. These versions lead with the Web3-relevant artifacts.
+
+### To Coinbase (apply via coinbase.com/careers, plus position IDs from docx: 5948179, 7576755, 7728790, 7604203, verify still live first)
+
+Subject: Senior IC: cryptographic SaaS shipped + Solidity contract on Polygon + private quant on prediction markets
+
+> Hi team,
+>
+> I'm Stephen Furpahs, solo founder of SWS Attention Protocol (USPTO SWS-PROV-001 filed March 2026, YC S26 applicant). My recent shipping makes me think Coinbase is the right next step.
+>
+> Three artifacts that map to your stack:
+>
+> 1. SWS Attention Protocol. Production cryptographic SaaS with Ed25519 signing, JWKS rotation, OpenTimestamps Bitcoin anchoring. Verifier live at sws-attention-proofs.web.app/demo.html. 270+ tests across 45 suites green. 7 rounds of hostile adversarial review survived; ~85 findings closed.
+>
+> 2. Lucid Winds. 96k-line single-file Pi Network game. Includes a deployed Solidity smart contract (LucidWindsPlant.sol) on Polygon for one-of-one NFT minting. Submitting to Pi App Studio May 9.
+>
+> 3. SnapBinder. Deployed PWA with a 4-layer on-device content-provenance pipeline including Web Crypto API ECDSA P-256 signing for image authenticity. ~7,353 LOC.
+>
+> I also run an automated quantitative system on prediction markets that's been net-positive since launch. Happy to share more under NDA.
+>
+> I'm in Ohio (Eastern Time, flexible hours), available 10-25 hrs/week as fractional consultant or open to senior IC full-time, $140-200K + equity. Floor for fractional is $120/hr.
+>
+> Worth a 20-minute call?
+>
+> Live demo: sws-attention-proofs.web.app/demo.html
+> Direct: stephenfurpahs@gmail.com
+
+### To Magic Eden (apply via magiceden.io/careers)
+
+Subject: Senior Backend Engineer: multi-chain experience + Solidity + cryptographic SaaS shipped solo
+
+> Hi team,
+>
+> I'm Stephen Furpahs, solo founder of SWS Attention Protocol (patent filed March 2026, YC S26 applicant). Saw your Senior Backend role and the multi-chain (Solana / Eth / Polygon / BTC) requirements.
+>
+> What I shipped solo in the last 60 days that maps to your stack:
+>
+> - Solidity smart contract (LucidWindsPlant.sol) deployed on Polygon for one-of-one NFT minting in my Pi Network game (96k-line single-file game submitting to Pi App Studio May 9).
+> - Pi SDK + Polygon voucher signer integration as the dual-rail payment + minting architecture for that game.
+> - Production cryptographic SaaS using Ed25519, JWKS rotation, and OpenTimestamps Bitcoin anchoring (SWS Attention Protocol; verifier live at sws-attention-proofs.web.app/demo.html).
+> - 4-layer ECDSA P-256 content-provenance pipeline for image authenticity (SnapBinder, deployed PWA).
+>
+> I also run a private automated quantitative system on prediction markets, net-positive since launch.
+>
+> Available for fractional consulting at $120-150/hr or open to full-time senior IC at $140-200K + equity. Remote, Ohio (Eastern Time, flexible hours).
+>
+> Live demo: sws-attention-proofs.web.app/demo.html
+>
+> Stephen Furpahs
+> stephenfurpahs@gmail.com
+
+### To Polygon Labs (apply via polygon.technology/careers or whatever current jobs URL)
+
+Subject: Senior IC / founding-engineer: shipped a Polygon-anchored game contract solo + cryptographic SaaS in 60 days
+
+> Hi team,
+>
+> I'm Stephen Furpahs. Patent filed March 2026 (USPTO SWS-PROV-001). YC S26 applicant. The reason I'm writing to Polygon specifically:
+>
+> Last week I shipped a single-file 96k-LOC Pi Network ecosystem game (Lucid Winds) where every plant is a one-of-one NFT minted on Polygon via my own Solidity contract (LucidWindsPlant.sol). The full path runs Pi SDK on the front end, voucher-signer on the back, and the Polygon contract for issuance. The contract is part of a 1,568-file codebase, 2,927 commits, that I built solo in 60 days using Claude Code as roughly 60% of my coding velocity.
+>
+> Beyond Lucid Winds, my SWS Attention Protocol is a production cryptographic SaaS using Ed25519 + OpenTimestamps Bitcoin anchoring, with 270+ tests across 45 suites and 7 rounds of hostile review behind it.
+>
+> I also run a private automated quantitative system on prediction markets, net-positive since launch.
+>
+> Available for fractional ($120-150/hr) or full-time senior IC ($140-200K + equity), fully remote, Ohio (Eastern Time, flexible hours).
+>
+> Live demo: sws-attention-proofs.web.app/demo.html
+> Lucid Winds: lucidwinds.com
+>
+> Stephen Furpahs
+> stephenfurpahs@gmail.com
+
+---
+
+## ASSET 7: LinkedIn profile copy (paste into LinkedIn, 30 minutes to set up)
+
+### Headline (220 chars max)
+
+> Solo founder shipping production software fast with Claude Code. Patent-filed cryptographic SaaS (USPTO SWS-PROV-001), 96k-LOC Pi Network game, deployed PWAs. YC S26 applicant. Open to senior IC + founding-engineer roles.
+
+### About (2,000 chars max)
+
+> I'm a solo developer based in Ohio (Eastern Time, flexible hours). Over the last 60 days I built and shipped two production products plus a revenue-generating affiliate site, all solo, using Claude Code as roughly 60% of my coding velocity. I write or review every line of architecture; the keystroke-level work is delegated and audited.
+>
+> Two products that demonstrate the breadth:
+>
+> SWS Attention Protocol (USPTO SWS-PROV-001 filed March 17, 2026). A cryptographically-signed receipt that proves a real human (not a bot, not a GPT) actually paid attention during an online task. Production verifier live at sws-attention-proofs.web.app/demo.html. Stack: Firebase + Cloud Functions, Ed25519 with JWKS rotation, OpenTimestamps Bitcoin anchoring, 23 peer-reviewed behavioral signals. 270+ tests across 45 suites green. 7 rounds of hostile adversarial review survived; ~85 findings closed; attacker bypass cost shifted from ~$50/month to $5,000-20,000/month. YC Summer 2026 applicant.
+>
+> Lucid Winds. A 96,000-line single-file vanilla JS game living on Pi Network with 58 mini-games, server-validated economy, procedural one-of-one NFT plants minted on Polygon via my own Solidity contract (LucidWindsPlant.sol), real-world GPS planting mode, and a custom procedural haiku generator. 2,927 commits. Submitting to Pi App Studio May 9, 2026. Live: lucidwinds.com.
+>
+> Plus deployed PWAs (SnapBinder with a 4-layer ECDSA-signed content-provenance pipeline; Trackfit with a constraint-knapsack solver), a partially-working location-based mobile RPG (BarBrawl, deterministic combat engine, 338 tests), a patent-worthy AR multiplayer prototype (Blink, in pre-disclosure stealth), and a private automated quantitative system on prediction markets that's been net-positive since launch.
+>
+> Open to: senior IC, founding-engineer, or fractional CTO roles. Fully remote, Eastern Time with flexibility for European or Australian / NZ overlap. Floor $140K base / $120-150/hr fractional. Honest about AI-augmented workflow.
+>
+> Will not sign non-competes touching attention measurement, fraud detection, credentialing, or training compliance.
+
+### Experience entry (current role)
+
+```
+Founder & Solo Developer
+SWS Strategic Media LLC
+Mar 2026 - Present
+Remote, US
+
+Inventor and sole engineer of the SWS Attention Protocol (USPTO SWS-PROV-001
+filed March 17, 2026). Production cryptographic SaaS shipping signed Ed25519
+receipts proving real-human attention, verifiable offline against a public
+JWK. Y Combinator Summer 2026 applicant.
+
+Stack: Firebase + Cloud Functions, Ed25519, JWKS rotation, OpenTimestamps
+Bitcoin anchoring, 23 peer-reviewed behavioral signals.
+
+270+ tests across 45 suites. 7 rounds of hostile adversarial review survived;
+~85 findings closed; attacker bypass cost shifted from ~$50/month to
+$5,000-20,000/month.
+
+Live: sws-attention-proofs.web.app/demo.html
+```
+
+### Skills (paste-block; LinkedIn surfaces these in search)
+
+JavaScript, TypeScript, Firebase, Google Cloud Platform, Cloud Functions, Firestore, Ed25519, JWKS, Solidity, Polygon, Web3, Cryptography, Patent (USPTO SWS-PROV-001 filed March 2026), Y Combinator (S26 applicant), Multi-agent AI, Claude Code, Cursor, Vanilla JS, ES5, HTML5, React, Next.js, React Native, PWA, Service Worker, Three.js, React Three Fiber, TensorFlow.js, Tesseract.js, Web Crypto API, ECDSA, OpenTimestamps, Pi Network, Pi SDK, NFT, OpenBadges 3.0, W3C Verifiable Credentials, xAPI, Adversarial review, Test-driven development, Solo-founder engineering
+
+### Featured section (3 things to pin)
+
+1. SWS Attention Protocol live demo: sws-attention-proofs.web.app/demo.html
+2. Lucid Winds live: lucidwinds.com
+3. GitHub: github.com/Stephenuffugus
+
+### Connect blurb (template for the first 5-10 connection requests)
+
+> Hi [name], I'm a solo dev shipping cryptographic + Web3 work fast with Claude Code (patent filed March 2026, YC S26 applicant). I've been following your work on [specific thing if you can find it] and would love to connect.
+
+---
+
 ## What I have NOT verified
 
 - The X handles for the five founders are my best guess. Verify each one before sending.

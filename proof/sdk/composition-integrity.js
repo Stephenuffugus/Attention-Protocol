@@ -234,17 +234,37 @@
    * Compute a snapshot of the current composition-integrity state.
    * @param {Object} [opts]
    * @param {string} [opts.scopeId='default']
+   * @param {string} [opts.deviceClass] - 'mobile' or 'desktop'. When 'mobile'
+   *   (touch-only keyboards), iOS/Android autocomplete patterns are not
+   *   penalized: per-char input events at sub-60ms intervals (autocomplete
+   *   tap inserts), and zero-backspace text (autocomplete removes the typo
+   *   pressure that drives backspace ratio). Paste-burst detection — the
+   *   strongest signal — still applies on mobile, as does the 'pasted'
+   *   verdict path. Bot defense on touch devices rests on env gate +
+   *   paste_burst + behavioral composite; digraph timing on a virtual
+   *   keyboard adds no real signal.
    * @returns {Object} snapshot (see module docstring)
    */
   function readSnapshot(opts) {
     opts = opts || {};
     var scopeId = opts.scopeId || DEFAULT_SCOPE;
+    var deviceClass = opts.deviceClass || _detectDeviceClass();
     var t = TRACKERS[scopeId];
-    if (!t) return _emptySnapshot();
-    return _analyze(t);
+    if (!t) return _emptySnapshot(deviceClass);
+    return _analyze(t, deviceClass);
   }
 
-  function _emptySnapshot() {
+  // Auto-detect when caller doesn't pass deviceClass — keeps the lib
+  // self-contained for tests + non-demo embeds. Same logic as demo.html's
+  // IS_TOUCH_ONLY: pointer-coarse + no pointer-fine.
+  function _detectDeviceClass() {
+    if (typeof window === 'undefined' || !window.matchMedia) return 'desktop';
+    var coarse = window.matchMedia('(pointer: coarse)').matches;
+    var fine = window.matchMedia('(pointer: fine)').matches;
+    return (coarse && !fine) ? 'mobile' : 'desktop';
+  }
+
+  function _emptySnapshot(deviceClass) {
     return {
       chars_observed: 0,
       chars_typed: 0,
@@ -260,15 +280,23 @@
       },
       composition_integrity_score: null,
       composition_verdict: 'unknown',
+      device_class: deviceClass || 'desktop',
       detector: 'sws-composition-v1',
       checked_at: new Date().toISOString()
     };
   }
 
-  function _analyze(t) {
+  function _analyze(t, deviceClass) {
+    deviceClass = deviceClass || 'desktop';
+    var isMobile = (deviceClass === 'mobile');
+
     var charsObserved = t.chars_typed + t.chars_deleted + t.chars_pasted;
     var backspaceRatio = charsObserved > 0 ? t.chars_deleted / charsObserved : null;
-    var backspaceSuspicious = (t.chars_typed >= BACKSPACE_MIN_TEXT_LEN) &&
+    // Backspace-suspicious flag suppressed on mobile: autocomplete eliminates
+    // typo pressure, so 0% backspace ratio is normal on touch keyboards.
+    // Was producing a false positive on every careful iPhone user.
+    var backspaceSuspicious = !isMobile &&
+                              (t.chars_typed >= BACKSPACE_MIN_TEXT_LEN) &&
                               (backspaceRatio !== null) &&
                               (backspaceRatio < BACKSPACE_MIN_RATIO) &&
                               (t.paste_burst_count === 0);
@@ -281,7 +309,8 @@
       backspaceSuspicious: backspaceSuspicious,
       cv: stats.cv,
       subhumanCount: stats.subhuman_interval_count,
-      totalIntervals: stats.total_intervals
+      totalIntervals: stats.total_intervals,
+      isMobile: isMobile
     });
 
     var verdict = _verdict({
@@ -289,7 +318,8 @@
       pasteBursts: t.paste_burst_count,
       cv: stats.cv,
       totalIntervals: stats.total_intervals,
-      score: score
+      score: score,
+      isMobile: isMobile
     });
 
     return {
@@ -305,6 +335,7 @@
       digraph_stats: stats,
       composition_integrity_score: score,
       composition_verdict: verdict,
+      device_class: deviceClass,
       detector: 'sws-composition-v1',
       checked_at: new Date().toISOString()
     };
@@ -344,24 +375,34 @@
 
     var score = 1.0;
 
-    // Paste bursts are the strongest negative signal.
+    // Paste bursts are the strongest negative signal. STILL applies on mobile
+    // — explicit insertFromPaste inputType + 50-char delta thresholds catch
+    // copy/paste regardless of keyboard type.
     if (f.pasteBursts > 0) score -= 0.6;
     if (f.pasteBursts >= 3) score -= 0.2;    // multiple pastes = more damning
 
-    // Backspace absence on long text.
+    // Backspace absence on long text. Suppressed for mobile in _analyze
+    // (autocomplete eliminates typo pressure → 0% backspace is normal).
     if (f.backspaceSuspicious) score -= 0.2;
 
-    // Digraph CV outside the human band (only if we have enough intervals).
-    if (f.cv !== null && f.totalIntervals >= MIN_INTERVALS_FOR_CV) {
-      if (f.cv < CV_HUMAN_MIN) score -= 0.25;       // too mechanical
-      else if (f.cv > CV_HUMAN_MAX) score -= 0.15;  // suspiciously erratic
-    }
+    // Digraph CV + subhuman-interval penalties: desktop-only. iOS/Android
+    // virtual keyboards fire per-char input events at autocomplete-tap
+    // speeds (sub-60ms), which look identical to bot timing on a physical
+    // keyboard. The bot defense on touch devices comes from env gate +
+    // paste_burst + behavioral composite — not from digraph timing.
+    if (!f.isMobile) {
+      // Digraph CV outside the human band (only if we have enough intervals).
+      if (f.cv !== null && f.totalIntervals >= MIN_INTERVALS_FOR_CV) {
+        if (f.cv < CV_HUMAN_MIN) score -= 0.25;       // too mechanical
+        else if (f.cv > CV_HUMAN_MAX) score -= 0.15;  // suspiciously erratic
+      }
 
-    // Physically implausible intervals.
-    if (f.totalIntervals > 0) {
-      var subhumanRatio = f.subhumanCount / f.totalIntervals;
-      if (subhumanRatio >= 0.05) score -= 0.15;
-      if (subhumanRatio >= 0.20) score -= 0.15;
+      // Physically implausible intervals.
+      if (f.totalIntervals > 0) {
+        var subhumanRatio = f.subhumanCount / f.totalIntervals;
+        if (subhumanRatio >= 0.05) score -= 0.15;
+        if (subhumanRatio >= 0.20) score -= 0.15;
+      }
     }
 
     if (score < 0) score = 0;
@@ -372,7 +413,9 @@
   function _verdict(f) {
     if (f.charsObserved < MIN_CHARS_FOR_VERDICT) return 'unknown';
     if (f.pasteBursts > 0) return 'pasted';
-    if (f.cv !== null && f.totalIntervals >= MIN_INTERVALS_FOR_CV && f.cv < CV_HUMAN_MIN) {
+    // 'mechanical' verdict is desktop-only — virtual-keyboard CV is too noisy
+    // (autocomplete-tap rates) to support a mechanical-typing call on mobile.
+    if (!f.isMobile && f.cv !== null && f.totalIntervals >= MIN_INTERVALS_FOR_CV && f.cv < CV_HUMAN_MIN) {
       return 'mechanical';
     }
     if (f.score === null) return 'unknown';
@@ -432,7 +475,27 @@
             tr.paste_burst_count++;
             tr.chars_pasted += delta;
             if (delta > tr.longest_paste_chars) tr.longest_paste_chars = delta;
+          } else {
+            // Mobile fallback: virtual keyboards fire input events without a
+            // matching keydown. Mirrors _onInput so test fixtures faithfully
+            // reproduce the iPhone autocomplete pattern.
+            var keyRecent = tr.last_keystroke_ts !== null &&
+                            (now2 - tr.last_keystroke_ts) < 120;
+            if (!keyRecent) {
+              tr.chars_typed += delta;
+              if (tr.last_input_ts !== null) {
+                var interval2 = now2 - tr.last_input_ts;
+                if (interval2 >= 0 && interval2 < 10000) {
+                  tr.intervals.push(interval2);
+                  if (interval2 < SUBHUMAN_INTERVAL_MS) tr.subhuman_interval_count++;
+                }
+              }
+            }
           }
+        } else if (delta < 0 && (ev.inputType === 'deleteContentBackward' ||
+                                  ev.inputType === 'deleteContent' ||
+                                  ev.inputType === 'deleteByCut')) {
+          tr.chars_deleted += Math.abs(delta);
         }
         tr.last_input_ts = now2;
         tr.last_input_length = newLen;

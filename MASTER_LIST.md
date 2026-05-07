@@ -223,24 +223,35 @@ You don't need to copy anything to Google Docs. The repo IS your master file sys
 
 ---
 
-## What I'll do for you between now and Tuesday morning
+## What's already prepared for you (DONE, ready in repo)
 
-You don't need to ask. By Tuesday May 13, all of the following will be in this repo:
+You don't need to ask, you don't need to ping me. Everything I committed to having ready by Tuesday is already in the repo and pushed to GitHub. All phone-readable. Tap each link from your phone:
 
-**Workstream A (Career):**
-- Three Web3-tailored cover letters (Coinbase, Magic Eden, Polygon Labs)
-- Updated APPLICATIONS_READY.md with the 6-projects receipts paragraph
-- LinkedIn profile copy block
+**Workstream A (Career), all in APPLICATIONS_READY.md:**
+- ASSET 1: In The Loop email (subject `HN - Human`)
+- ASSET 2: Form AI cover letter (deadline May 18)
+- ASSET 3: Brainscape application paste-block
+- ASSET 4: Five founder DMs (Amjad, Karri, Guillermo, Flo, Aravind)
+- ASSET 5: GitHub Profile README scaffold
+- ASSET 6: Three Web3-tailored cover letters (Coinbase, Magic Eden, Polygon Labs)
+- ASSET 7: LinkedIn profile copy (headline, about, experience entry, skills, featured, connect template)
 
-**Workstream B (SWS):**
-- CME 101 cheat sheet (phone-readable, 5 minutes to read)
-- CME / IME / ACCME glossary (phone-readable)
-- Competitive-landscape cheat sheet (BioCatch / Roundtable / Imperium)
-- PPP briefing converted to phone-readable one-pager
-- CEC briefing in same format
-- Prova briefing in same format
+**Workstream B (SWS), separate files:**
+- CME_101.md: 5-things-to-know to NOT sound dumb (5 min read)
+- CME_GLOSSARY.md: every term, alphabetical, tap-to-find on phone
+- COMPETITIVE_LANDSCAPE.md: BioCatch / Roundtable / Imperium / Worldcoin / Captchas / OpenBadges / Proctoring + bridge phrases
+- BRIEFING_PPP.md: phone-readable one-pager for the PPP discovery call
+- BRIEFING_CEC.md: phone-readable one-pager for the CEC discovery call
+- BRIEFING_PROVA.md: phone-readable one-pager for the Prova discovery call
 
-That's roughly 8 docs. They'll all be in this repo, all readable from your phone, all linked from MASTER_LIST.md.
+**SWS prospect intel (already existed):**
+- OUTREACH_PLAY.md: Top 10 prospects with full pitch + 12 expected questions + mock call + post-call discipline
+- PROSPECTS_2026-05-06.md: 70+ prospects beyond the Top 10
+- outreach-drafts/01-ppp-SEND-THIS.md: PPP cold email already drafted (the actual email you send Tuesday)
+
+That's 14 docs total. All in this repo. All phone-readable. All committed and pushed before you went to sleep tonight.
+
+If you need anything else once you're back at the keyboard Tuesday, message me. Until then you're self-sufficient.
 
 ---
 

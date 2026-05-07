@@ -200,6 +200,120 @@ describe('composition-integrity — mechanical stream', () => {
 });
 
 // ============================================================
+// MOBILE / TOUCH KEYBOARD — autocomplete patterns
+// ============================================================
+//
+// Reproduces the iPhone autocomplete failure mode that flagged a real
+// 2026-05-06 corpus session as 'suspicious' despite being clean:
+//   - 237 chars typed, 0 backspaces (autocomplete eliminates typos)
+//   - 75% of inter-input intervals < 60ms (autocomplete fires per-char
+//     input events at sub-human-keyboard speeds)
+//   - cv ~ 2.6 (wild variance from mixed manual + tap-suggestion typing)
+// On desktop these would each subtract penalty points → score 0.35
+// → 'suspicious'. On a touch keyboard they're normal user behavior.
+
+// Generate the iPhone-autocomplete pattern: input events without keydowns,
+// with mixed slow (manual tap) and fast (autocomplete burst) intervals.
+function mobileAutocompleteStream(charCount) {
+  const events = [];
+  let ts = 1000;
+  let valueLen = 0;
+  while (valueLen < charCount) {
+    // Manual tap: ~150-300ms gap, then 1 char input.
+    ts += 150 + Math.round(Math.random() * 150);
+    valueLen += 1;
+    events.push({ type: 'input', valueLen: valueLen, ts: ts });
+    // 30% chance of autocomplete burst — 5-10 chars at sub-60ms intervals.
+    if (Math.random() < 0.3) {
+      const wordLen = 5 + Math.floor(Math.random() * 6);
+      for (let j = 0; j < wordLen && valueLen < charCount; j++) {
+        ts += 20 + Math.round(Math.random() * 30); // 20-50ms = subhuman
+        valueLen += 1;
+        events.push({ type: 'input', valueLen: valueLen, ts: ts });
+      }
+    }
+  }
+  return events;
+}
+
+describe('composition-integrity — mobile (touch keyboard)', () => {
+  beforeEach(() => CI._resetForTests());
+
+  test('autocomplete pattern with deviceClass=mobile scores authored', () => {
+    CI._feedEventsForTests('default', mobileAutocompleteStream(240));
+    const snap = CI.readSnapshot({ deviceClass: 'mobile' });
+    expect(snap.chars_observed).toBeGreaterThanOrEqual(200);
+    // Expect the structural signature to match the real-world iPhone session:
+    expect(snap.backspace_ratio).toBe(0);
+    expect(snap.digraph_stats.subhuman_interval_count).toBeGreaterThan(20);
+    // ...but on mobile the verdict must be authored, not suspicious.
+    expect(snap.composition_verdict).toBe('authored');
+    expect(snap.composition_integrity_score).toBeGreaterThanOrEqual(0.75);
+    expect(snap.device_class).toBe('mobile');
+    expect(snap.backspace_suspicious).toBe(false);
+  });
+
+  test('same pattern with deviceClass=desktop is still flagged suspicious', () => {
+    // Regression guard: we can't loosen detection on desktop, only on mobile.
+    // A bot replaying input events on desktop must still be caught.
+    CI._feedEventsForTests('default', mobileAutocompleteStream(240));
+    const snap = CI.readSnapshot({ deviceClass: 'desktop' });
+    expect(snap.composition_integrity_score).toBeLessThan(0.6);
+    expect(snap.composition_verdict).not.toBe('authored');
+  });
+
+  test('paste burst on mobile is STILL flagged pasted', () => {
+    // Bot defense regression: even on mobile, a 200-char paste must produce
+    // verdict=pasted. The mobile loosening only suppresses CV/subhuman/
+    // backspace heuristics — paste detection is preserved.
+    CI._feedEventsForTests('default', pasteStream(200));
+    const snap = CI.readSnapshot({ deviceClass: 'mobile' });
+    expect(snap.paste_burst_detected).toBe(true);
+    expect(snap.composition_verdict).toBe('pasted');
+    expect(snap.composition_integrity_score).toBeLessThan(0.5);
+  });
+
+  test('rate-based paste on mobile (≥25 chars at ≥200/s) is STILL flagged', () => {
+    const events = [
+      { type: 'input', valueLen: 5, ts: 1000 },
+      { type: 'input', valueLen: 50, ts: 1100 }   // 45 chars in 100ms = 450 c/s
+    ];
+    CI._feedEventsForTests('default', events);
+    const snap = CI.readSnapshot({ deviceClass: 'mobile' });
+    expect(snap.paste_burst_detected).toBe(true);
+  });
+
+  test('mobile session with zero backspaces does not trigger backspace_suspicious', () => {
+    // Direct guard against the original bug. backspace_suspicious must be
+    // false on mobile regardless of backspace_ratio.
+    CI._feedEventsForTests('default', mobileAutocompleteStream(200));
+    const snap = CI.readSnapshot({ deviceClass: 'mobile' });
+    expect(snap.backspace_ratio).toBe(0);
+    expect(snap.backspace_suspicious).toBe(false);
+  });
+
+  test('mechanical bot stream on mobile no longer claims mechanical verdict', () => {
+    // Documented behavior change: 'mechanical' verdict is desktop-only
+    // because virtual-keyboard CV is dominated by autocomplete patterns.
+    // On mobile the same uniform-interval stream falls through to score-
+    // based verdicts. Bot defense relies on env gate + paste_burst on
+    // mobile, not on digraph CV.
+    CI._feedEventsForTests('default', mechanicalStream(100, 80));
+    const snap = CI.readSnapshot({ deviceClass: 'mobile' });
+    expect(snap.composition_verdict).not.toBe('mechanical');
+  });
+
+  test('readSnapshot defaults to desktop when matchMedia unavailable (Node)', () => {
+    // In Jest/Node there is no window.matchMedia, so _detectDeviceClass
+    // falls through to 'desktop' — confirming we don't accidentally treat
+    // server-side calls as mobile.
+    CI._feedEventsForTests('default', humanStream(150, { backspaceRate: 0.08 }));
+    const snap = CI.readSnapshot();
+    expect(snap.device_class).toBe('desktop');
+  });
+});
+
+// ============================================================
 // EDGE CASES
 // ============================================================
 

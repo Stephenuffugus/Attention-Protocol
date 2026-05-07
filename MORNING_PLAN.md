@@ -1,68 +1,77 @@
 # Morning Plan
 ## Your single source of truth when you sit down
 
-**Goal (the one that matters):** Working, marketable product + first paid pilot signed.
-**Deadline:** YC S26 submission 2026-05-04 (**7 days** from tomorrow).
+**Goal (the one that matters):** Be measurably farther by the time YC partners reach out — 25-human corpus across ≥4 device classes, 5 discovery-call writeups, stranger-readable landing live.
+**YC status:** Submitted 2026-05-04. Decision window typically 4–8 weeks. We don't wait.
 **How to use:** When you sit down and say **"let's get started"** or **"what should we do?"**, I open this file and walk you through it.
 
 ---
 
-## ☀️ START HERE — 2026-04-28 morning resume (after the 04-27 session)
+## ☀️ START HERE — 2026-05-05 morning resume (after YC submission)
 
-### Status check before you do anything
-- Last commit: **`9dfefee`** — PPP outreach draft. Pushed origin/main.
-- Total today: **6 commits, 13 hostile-review findings closed, 2 new playbooks shipped**:
-  - `OUTREACH_PLAY.md` (top-10 prospects, ROI math, integration playbook, pitch drill)
-  - `outreach-drafts/01-ppp.md` (your first email, ready to personalize)
-  - `HARDENING_PLAN.md` (the engineering improvement queue)
-- All tests green: 810/810 jest, 100/100 tampers caught, 3/3 flow regressions.
+### What changed since the last START HERE
+- **YC S26 application submitted** 2026-05-04. The 04-28 "send the PPP email" plan is archived below — that was pre-hardening, pre-YC.
+- **Engineering hardening cycle CLOSED.** 7 rounds of hostile review, ~85 findings closed across 22 commits. Bypass cost shifted from $50/mo + 56h → **$5–20k/mo + 200–400h** (a 100–400× increase in attacker cost). Round 7 declared the cycle converged.
+- **Test surface:** 270+ tests across 45 suites, all green. SLO + 5 runbooks + observability shipped (commit `7aaba2d`). Firestore composite indexes auto-deploy.
+- **The new gap you named on 05-04:** *"I don't know how we'd begin selling this."* That's what this month is for.
 
-### The one thing that matters this morning
-**Send the email to PPP.** Not "draft it more." Not "polish the architecture doc first." Send it. Everything else is downstream of having a real reply to react to.
+### The one thing that matters this month
+**Build the GTM motion the same way you built the product — small reps, hostile review, ship-fix-ship.** The product is past the engineering point of diminishing returns. Marginal hours now buy more by going OUT than by going DEEPER.
 
-The plan is in `outreach-drafts/01-ppp.md`. Seven steps. Execute in order:
+When YC partners come back in 4–8 weeks, the question won't be *"is the protocol sound"* — round 7 already answered that. The question will be *"who's using it, who said they'd pay, what does the dataset look like."* Three artifacts make that conversation easy: a real corpus of strangers, 5 named discovery calls, and a landing page that explains itself in 10 seconds.
 
-1. **LinkedIn search PPP** (10 min) — find Director of Accreditation / CME / Outcomes. Verify a real human, not a placeholder. If LinkedIn is empty, J Clinical Psychiatry masthead page often lists the accreditation contact. **Do not send to a placeholder.**
-2. **Pick subject line** — recommended: *"Customer development — psychiatry-CME measurement question"*.
-3. **Personalize body** (the 140-word recommended version in `outreach-drafts/01-ppp.md` §3) — fill in [first name]. Optional 1-line specificity hook if you found a recent post.
-4. **Read it aloud once.** Cut any sentence that feels like marketing.
-5. **Send** — Tue/Wed/Thu, 9-11am ET.
-6. **Mark calendar for day-7 bump** (`2026-05-05`).
-7. **Walk away.** Do not refresh the inbox.
+### Today's first move
+**Open `sws-attention-proofs.web.app` in a fresh incognito window** and tell me the first three things you see and what you'd click. Pretend you've never seen it.
 
-### Then today's parallel work — the four artifacts every reply will demand
-After sending, switch to writing. These exist as Tasks #35-#37 in the system:
-
-- **Architecture 1-pager** (Task #35, ~4h) — derive from `docs/SECURITY_ARCHITECTURE.md`. ≤2 pages. Diagram + 7 layers + JWKS + verifier flow + sub-processors.
-- **Privacy DPIA + sub-processor list** (Task #37, ~4h combined) — derive from `docs/technical-faq.md §B`. Zero-PII, no webcam/mic, no IP logging, no content stored, Firestore US-region.
-- **Security questionnaire pre-fill** (Task #36, ~1 day) — CAIQ-Lite-style ~100 Qs. Source from SECURITY_ARCHITECTURE + COMPLIANCE_MATRIX + technical-faq.
-
-Total: ~8 hours. Zero external spend. **Done by Friday and you can handle anything PPP throws back.**
+That tells me exactly what's broken for a stranger landing cold. From there I draft a sibling rewrite of the landing copy; you swap when ready. This is the 3–5 hour piece that unlocks the rest of the month — no point recruiting strangers if the front door bounces them.
 
 ### What NOT to do this morning
-- ❌ Don't dispatch a fresh skeptic round yet. The 13 closed findings are durable; we'll re-dispatch when there's enough delta. **Send the email first.**
-- ❌ Don't open cme-demo.html and start tweaking. The product is in good shape after yesterday's hardening commits. Let it be.
-- ❌ Don't send emails to CEC or Prova until PPP goes out and you've watched how it lands. PPP is the practice round. Practice means one at a time.
-- ❌ Don't write to Pfizer / Merck / Genentech / Credly. They're explicitly DEFERRED in `OUTREACH_PLAY.md §1` for the same reasons that haven't changed overnight.
+- ❌ Don't open a new skeptic round. Round 7 converged for a reason — the next bug we close has lower marginal value than the next stranger we recruit.
+- ❌ Don't re-read your YC application or refresh the dashboard. It's submitted. Re-reading changes nothing.
+- ❌ Don't push a paid pilot yet. Per your own rule, pilots come after you call it a product. May is discovery, not pitching.
+- ❌ Don't chase the Firebase Dynamic Links email — confirmed 05-04 it doesn't apply (no mobile, no Cordova, only anonymous auth in scripts). The "rules expiring" warning is on a different surface (Realtime Database or Storage); resolve only if you actually use them.
 
-### The honest reminder you needed yesterday
-You patented something real. The product works. The hostile review made the system harder, not the founder weaker. **The block on outreach was you treating it as one monolithic gate when it's actually four separate gates, three of which are years away.** Insurance, MSA, SOC 2, entity formalization — those gate **paid F500 contracts**. Not learning conversations. Not free pilots. Not cold emails. PPP is a learning conversation. Send the email.
+### The 30-day shape
+
+| Week | Discovery calls | Corpus (humans) | Front door |
+|---|---|---|---|
+| **1** May 5–11 | 0 — Calendly set up + first 2 invites sent | 5 → 8 (first $5-bounty round) | **rewrite live** |
+| **2** May 12–18 | 2 done (CME-focused) | 8 → 14 | tightening from real visit data |
+| **3** May 19–25 | 3 more (mix CME + ad-verification) | 14 → 20 | tightening |
+| **4** May 26 – Jun 1 | Consolidation; 5 writeups in `docs/discovery/` | **25+ across ≥4 device classes** | locked |
+
+By June 1 — assuming YC hasn't replied yet — you have:
+- 25-human corpus across multiple devices = a real dataset, not a tech demo
+- 5 named, dated discovery-call writeups with real objections + "would you pay" signals you can quote verbatim
+- A landing page that explains itself in 10 seconds to anyone who clicks
+- A one-page "30-day update" you could send YC unprompted if it serves you
 
 ### Where to look if you need to reorient
-- `OUTREACH_PLAY.md` — the master playbook (top-10, ROI math, pitch drill)
-- `HARDENING_PLAN.md` — the engineering improvement queue (T1/T2/T3 ranked, what's closed, what's open)
-- `outreach-drafts/01-ppp.md` — today's email
-- `SEVEN_LAYER_DEEP_DIVE.md` — the technical reviewer doc, if a buyer asks for depth
-- `docs/yc-defense/11_calibration_methodology.md` — if a stats-trained buyer asks about the Bayesian P(human)
-- This file — if you forget where to start
+- This file — top section is your start
+- `OUTREACH_PLAY.md` — top-10 prospects (PPP, CEC, Prova still the priority discovery targets for CME)
+- `outreach-drafts/01-ppp.md` — email template; tone shifts from "cold pitch" to "discovery call request" but structure works
+- `docs/yc-defense/` — your YC backup material if a partner asks for depth
+- `HARDENING_PLAN.md` — engineering queue; consult only if a discovery call surfaces a real product gap
 
-### After PPP goes out, in priority order this week
-1. The four artifacts above (Mon-Fri).
-2. Drafts 02 (CEC) and 03 (Prova) into `outreach-drafts/` — say "draft CEC" / "draft Prova" and they appear in the same shape as PPP.
-3. Re-fire the skeptic round on Friday or Saturday once you've put a week of fresh state on top of yesterday's hardening — see `HARDENING_PLAN.md` "How to run a fresh skeptic round."
-4. Tier-3 fundability gaps (LOI, kill 7-vertical YC framing, bottoms-up TAM under $100M) — these are 1-2 hour edits to the YC application; do them before the 2026-05-04 deadline.
+### The honest reminder you'll need tomorrow
+You spent two months proving the protocol is real. The hostile-review cycle worked: 85 findings closed, 100–400× attacker cost increase, round 7 converged, YC submitted. The product is past the point where the next engineering hour beats the next conversation hour.
+
+The reason *"I don't know how we'd begin selling this"* feels uncomfortable is because it's a different muscle — not because the answer is unclear. The answer is exactly what you used for the product: small reps, hostile review, ship-fix-ship. Discovery call → objection → docs update → next discovery call. That's the loop. Same instinct, new domain.
+
+You filed a patent. You shipped a working product. You hardened it to industrial standard. You submitted YC. Tomorrow you start the next phase.
 
 ---
+
+## 📜 Archived — 2026-04-28 START HERE (pre-YC, pre-round-7)
+
+*Kept as historical reference. The action ("send PPP email today") is superseded — outreach is now part of week 2 discovery calls, with a tone shift from cold pitch to discovery request.*
+
+### Status (as of 04-28)
+- Last commit at that point: **`9dfefee`** — PPP outreach draft.
+- Plan was: send PPP, then write the four buyer artifacts (architecture 1-pager, DPIA, sub-processor list, security questionnaire). Three of those were subsequently absorbed into the YC application backup material in `docs/yc-defense/`.
+
+### Why the plan changed
+The 7 hardening rounds happened between 04-28 and 05-04. They closed 85 findings, raised attacker cost 100–400×, and produced enough material that the YC application could be filed without the four-artifact prerequisite. The constraint was always "is the product real enough to defend" — round 7 answered yes — so outreach is no longer pre-gated on producing more docs.
 
 ---
 
