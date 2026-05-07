@@ -12,6 +12,21 @@
   var HASHES_KEY = 'sws_attention_hashes';
   var BALANCE_KEY = 'sws_hash_balance';
 
+  // In-memory fallback when localStorage is unavailable (iOS Safari
+  // Private Mode throws QuotaExceededError on setItem; some enterprise
+  // browser policies disable storage entirely). Without this, the consent
+  // click handler would throw before container.remove() ran — banner
+  // never closed, "Accept" silently did nothing on retry.
+  var _memoryStore = {};
+  function _safeGet(key) {
+    try { return localStorage.getItem(key); }
+    catch (_e) { return _memoryStore[key] != null ? _memoryStore[key] : null; }
+  }
+  function _safeSet(key, value) {
+    _memoryStore[key] = value;
+    try { localStorage.setItem(key, value); } catch (_e) { /* storage disabled */ }
+  }
+
   // ============================================================
   // CONSENT MANAGEMENT
   // ============================================================
@@ -31,7 +46,7 @@
    */
   function getConsent() {
     try {
-      var stored = JSON.parse(localStorage.getItem(CONSENT_KEY) || '{}');
+      var stored = JSON.parse(_safeGet(CONSENT_KEY) || '{}');
       return {
         attention_tracking: stored.attention_tracking || false,
         behavioral_analysis: stored.behavioral_analysis || false,
@@ -73,11 +88,11 @@
     current.timestamp = Date.now();
     current.version = '1.0';
 
-    localStorage.setItem(CONSENT_KEY, JSON.stringify(current));
+    _safeSet(CONSENT_KEY, JSON.stringify(current));
 
     // Sync consent to Firestore if authenticated and cloud_sync is approved
     if (current.cloud_sync && typeof firebase !== 'undefined') {
-      _syncConsentToCloud(current);
+      try { _syncConsentToCloud(current); } catch (_e) { /* non-blocking */ }
     }
 
     return current;
@@ -90,7 +105,7 @@
     var revoked = _defaultConsent();
     revoked.timestamp = Date.now();
     revoked.version = '1.0';
-    localStorage.setItem(CONSENT_KEY, JSON.stringify(revoked));
+    _safeSet(CONSENT_KEY, JSON.stringify(revoked));
     return revoked;
   }
 
@@ -408,8 +423,11 @@
       '<div id="sws-consent-banner" role="dialog" aria-modal="true" aria-labelledby="sws-consent-heading" style="' +
         'position:fixed;' + position + ':0;left:0;right:0;z-index:99999;' +
         'background:' + bg + ';border-top:1px solid ' + dim + ';' +
-        'padding:20px 24px;font-family:-apple-system,sans-serif;color:' + text + ';' +
-        'box-shadow:0 -4px 20px rgba(0,0,0,0.3);">' +
+        'padding:20px 24px calc(20px + env(safe-area-inset-bottom,0px)) 24px;' +
+        'font-family:-apple-system,sans-serif;color:' + text + ';' +
+        'box-shadow:0 -4px 20px rgba(0,0,0,0.3);' +
+        'max-height:90vh;overflow-y:auto;-webkit-overflow-scrolling:touch;' +
+        'box-sizing:border-box;">' +
         '<div style="max-width:900px;margin:0 auto;">' +
           '<h2 id="sws-consent-heading" style="margin:0 0 8px;font-size:15px;font-weight:600;color:' + text + ';">Consent to attention tracking</h2>' +
           '<p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:' + dim + ';">' +
@@ -466,17 +484,19 @@
     }
 
     acceptBtn.addEventListener('click', function() {
-      setConsent({
-        attention_tracking: document.getElementById('sws-consent-tracking').checked,
-        behavioral_analysis: document.getElementById('sws-consent-behavioral').checked,
-        cloud_sync: document.getElementById('sws-consent-sync').checked
-      });
-      container.remove();
+      try {
+        setConsent({
+          attention_tracking: document.getElementById('sws-consent-tracking').checked,
+          behavioral_analysis: document.getElementById('sws-consent-behavioral').checked,
+          cloud_sync: document.getElementById('sws-consent-sync').checked
+        });
+      } catch (_e) { /* in-memory fallback handles persistence */ }
+      try { container.remove(); } catch (_e) { /* already detached */ }
     });
 
     rejectBtn.addEventListener('click', function() {
-      revokeAllConsent();
-      container.remove();
+      try { revokeAllConsent(); } catch (_e) { /* in-memory fallback */ }
+      try { container.remove(); } catch (_e) { /* already detached */ }
     });
   }
 

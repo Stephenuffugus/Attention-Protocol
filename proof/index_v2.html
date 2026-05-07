@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-5JFFYEJ6XP"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-5JFFYEJ6XP');</script>
+  <title>SWS — Take the live attention test. Prove you're human. Cryptographically.</title>
+  <meta name="description" content="A 3-minute browser test that measures your attention with 23 behavioral signals and issues you a cryptographically signed receipt. No signup. No payment. See your own attention fingerprint.">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0e17; color: #e2e8f0; min-height: 100vh; line-height: 1.6; }
+    :root { --bg:#0a0e17; --panel:#111827; --panel2:#0b1425; --line:#1e293b; --line2:#334155;
+            --text:#e2e8f0; --dim:#94a3b8; --accent:#06b6d4; --accent2:#22d3ee;
+            --warn:#eab308; --ok:#10b981; }
+
+    .topbar { display:flex; justify-content:space-between; align-items:center; padding:18px 32px; border-bottom:1px solid var(--line); background:rgba(10,14,23,0.9); backdrop-filter:blur(8px); position:sticky; top:0; z-index:50; }
+    .topbar .brand { font-weight:700; color:var(--accent); font-size:15px; letter-spacing:0.3px; }
+    .topbar nav { display:flex; gap:20px; font-size:13px; align-items:center; }
+    .topbar nav a { color:var(--dim); text-decoration:none; }
+    .topbar nav a:hover { color:var(--text); }
+    .topbar nav .nav-cta { background:var(--accent); color:#001016; padding:8px 14px; border-radius:6px; font-weight:600; }
+    .topbar nav .nav-cta:hover { background:var(--accent2); color:#001016; }
+
+    .hero { padding: 88px 24px 56px; text-align:center; background: radial-gradient(ellipse at top, rgba(6,182,212,0.10), transparent 70%); }
+    .hero .eyebrow { display:inline-block; padding:6px 14px; border-radius:20px; background:rgba(6,182,212,0.10); border:1px solid rgba(6,182,212,0.3); color:var(--accent); font-size:11px; font-weight:600; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:24px; }
+    .hero h1 { font-size: 48px; color: var(--text); margin-bottom: 22px; letter-spacing: -1px; line-height:1.15; max-width: 880px; margin-left:auto; margin-right:auto; }
+    .hero h1 em { color: var(--accent); font-style:normal; }
+    .hero .tagline { font-size: 18px; color: var(--dim); max-width: 680px; margin: 0 auto 12px; line-height:1.6; }
+    .hero .patent { font-size: 12px; color: #475569; margin-top: 28px; font-family: ui-monospace, Menlo, monospace; letter-spacing:0.3px; }
+
+    .cta-row { display: flex; gap: 12px; justify-content: center; margin-top: 36px; flex-wrap: wrap; }
+    .cta { display: inline-block; padding: 15px 32px; border-radius: 8px; font-size: 15px; font-weight: 600; text-decoration: none; transition: all 0.15s; }
+    .cta-primary { background: var(--accent); color: #001016; box-shadow: 0 0 24px rgba(6,182,212,0.25); }
+    .cta-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+    .cta-secondary { background: transparent; color: var(--accent); border: 1px solid var(--line2); padding: 14px 26px; }
+    .cta-secondary:hover { border-color: var(--accent); }
+    .trust-line { font-size:13px; color:var(--dim); margin-top:18px; }
+    .trust-line span { color:var(--text); }
+    .trust-line .dot { color:#475569; margin:0 8px; }
+
+    .container { max-width: 1040px; margin: 0 auto; padding: 56px 24px; }
+
+    .section-title { font-size: 28px; color: var(--text); margin-bottom: 10px; letter-spacing:-0.4px; }
+    .section-sub { font-size: 15px; color: var(--dim); margin-bottom: 32px; max-width:720px; line-height:1.6; }
+
+    /* "What you'll do" steps */
+    .steps { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin: 28px 0 8px; }
+    @media (max-width:780px) { .steps { grid-template-columns:1fr; } }
+    .step { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:22px 24px; position:relative; }
+    .step .num { display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; border-radius:50%; background:rgba(6,182,212,0.15); color:var(--accent); font-weight:700; font-size:13px; margin-bottom:12px; }
+    .step h3 { font-size:15px; color:var(--text); margin-bottom:8px; }
+    .step p { font-size:13px; color:var(--dim); line-height:1.6; }
+
+    /* "Why I'm asking" creator block — for strangers from Reddit/social */
+    .creator-note { background: linear-gradient(90deg, rgba(6,182,212,0.05), transparent); border-left: 3px solid var(--accent); padding: 22px 26px; border-radius: 6px; margin: 36px 0; }
+    .creator-note h3 { font-size:15px; color:var(--text); margin-bottom:10px; letter-spacing:0.2px; }
+    .creator-note p { font-size:14px; color:var(--dim); line-height:1.7; }
+
+    .pain-point { background: linear-gradient(90deg, rgba(239,68,68,0.06), transparent); border-left: 3px solid #ef4444; padding: 20px 24px; border-radius: 6px; margin: 24px 0; }
+    .pain-point strong { color: var(--text); }
+    .pain-point .stat { font-size: 26px; font-weight: 700; color: #ef4444; margin-right: 6px; letter-spacing:-0.5px; }
+
+    .layer-stack { display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin: 28px 0 48px; }
+    .layer { background: var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px; position:relative; }
+    .layer .num { position:absolute; top:14px; right:16px; font-family:ui-monospace,Menlo,monospace; color:var(--dim); font-size:11px; }
+    .layer h3 { font-size:15px; color:var(--accent); margin-bottom:8px; }
+    .layer p { font-size:13px; color:var(--dim); line-height:1.6; }
+
+    .buyers { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:16px; margin:28px 0 48px; }
+    .buyer { background: var(--panel); border:1px solid var(--line); border-radius:10px; padding:22px 24px; }
+    .buyer h3 { font-size:16px; color:var(--text); margin-bottom:6px; }
+    .buyer .who { font-size:11px; color:var(--warn); text-transform:uppercase; letter-spacing:0.7px; font-weight:600; margin-bottom:10px; }
+    .buyer p { font-size:13px; color:var(--dim); line-height:1.6; }
+    .buyer .hook { font-size:13px; color:var(--text); font-style:italic; margin-top:10px; padding-top:10px; border-top:1px solid var(--line); }
+
+    .proof-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin: 24px 0 48px; }
+    .proof-card { background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:16px 18px; text-align:left; }
+    .proof-card h4 { font-size:13px; color:var(--accent); margin-bottom:6px; font-weight:600; letter-spacing:0.3px; }
+    .proof-card p { font-size:12px; color:var(--dim); margin-bottom:10px; line-height:1.5; }
+    .proof-card a { font-size:12px; color:var(--text); text-decoration:none; font-weight:600; }
+    .proof-card a:hover { color:var(--accent); }
+
+    .sig-grid { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; margin: 24px 0 48px; }
+    @media (max-width:700px) { .sig-grid { grid-template-columns:repeat(2,1fr); } }
+    .sig { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:12px 14px; }
+    .sig .name { font-size:12px; color:var(--accent); font-weight:600; margin-bottom:4px; }
+    .sig .ref { font-size:10px; color:#64748b; font-family:ui-monospace,Menlo,monospace; }
+
+    .bottom-cta { text-align:center; padding:72px 24px; background:linear-gradient(180deg, transparent, rgba(6,182,212,0.06)); border-top:1px solid var(--line); }
+    .bottom-cta h2 { font-size: 30px; color: var(--text); margin-bottom: 12px; letter-spacing:-0.4px; }
+    .bottom-cta p { font-size: 16px; color: var(--dim); margin-bottom: 28px; max-width:600px; margin-left:auto; margin-right:auto; line-height:1.6; }
+    .bottom-cta .row { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+
+    .footer { text-align:center; padding:28px; color:#475569; font-size:11px; border-top:1px solid var(--line); }
+    .footer a { color: var(--accent); text-decoration:none; margin: 0 8px; }
+    code { font-family: ui-monospace, Menlo, monospace; background: var(--panel2); padding: 1px 6px; border-radius:3px; font-size:12px; color:var(--text); }
+
+    /* Anchor section for buyers, separated visually so strangers can scroll past comfortably */
+    .for-buyers-divider { text-align:center; margin: 56px 0 28px; color:var(--dim); font-size:12px; letter-spacing:1px; text-transform:uppercase; }
+    .for-buyers-divider::before, .for-buyers-divider::after { content:''; display:inline-block; width:80px; height:1px; background:var(--line); vertical-align:middle; margin:0 12px; }
+
+    @media (max-width:780px) {
+      .hero { padding: 56px 20px 40px; }
+      .hero h1 { font-size: 32px; line-height:1.2; }
+      .hero .tagline { font-size: 16px; }
+      .topbar { padding:14px 18px; }
+      .topbar nav { gap:12px; }
+      .topbar nav a:not(.nav-cta) { display:none; }
+    }
+  </style>
+</head>
+<body>
+  <a href="#main" style="position:absolute;top:-40px;left:8px;background:#06b6d4;color:#001016;padding:8px 14px;border-radius:6px;font-weight:600;z-index:1000;text-decoration:none;transition:top 0.15s" onfocus="this.style.top='8px'" onblur="this.style.top='-40px'">Skip to content</a>
+  <header class="topbar" role="banner">
+    <div class="brand">SWS Proof of Attention Protocol</div>
+    <nav role="navigation">
+      <a href="/verify.html">Verify</a>
+      <a href="/prove-humanness.html">Proof of Humanness</a>
+      <a href="/part-11.html">21 CFR Part 11</a>
+      <a href="#for-buyers">For buyers</a>
+      <a href="/demo.html" class="nav-cta">Take the test</a>
+    </nav>
+  </header>
+
+  <main id="main" tabindex="-1">
+  <div class="hero">
+    <div class="eyebrow">Live in your browser · 3 minutes · no signup</div>
+    <h1>See what your attention <em>actually</em> looks like.</h1>
+    <div class="tagline">
+      A 3-minute test that measures your attention with 23 behavioral signals — Fitts' Law, keystroke rhythm, scroll pattern, and 20 more — and issues you a cryptographic receipt that proves a real human (you, not a bot, not a GPT) actually did the work.
+    </div>
+    <div class="cta-row">
+      <a href="/demo.html" class="cta cta-primary">Take the live test &rarr;</a>
+      <a href="#how-it-works" class="cta cta-secondary">How does it work?</a>
+    </div>
+    <div class="trust-line">
+      <span>3 minutes</span><span class="dot">·</span>
+      <span>no signup</span><span class="dot">·</span>
+      <span>no payment</span><span class="dot">·</span>
+      <span>no personal data stored</span>
+    </div>
+    <div class="patent">Patent Pending SWS-PROV-001 · Filed 2026-03-17 · SWS Strategic Media LLC</div>
+  </div>
+
+  <div class="container">
+
+    <!-- "What you'll do" — stranger-first explainer -->
+    <div id="how-it-works"></div>
+    <div class="section-title">What you'll do</div>
+    <div class="section-sub">Five small tasks. About 3 minutes total. Everything runs in your browser — nothing is sent anywhere personal, and you'll see your own results at the end.</div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="num">1</div>
+        <h3>Read, decide, click, type</h3>
+        <p>Five short tasks: read a short policy, answer a few questions, hit some targets, type what you remember. Designed to take ~3 minutes.</p>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <h3>23 signals measured silently</h3>
+        <p>While you work, the protocol measures things like how your mouse curves, how your keystrokes time, how you scroll, and how your reading paces — 23 published behavioral signals from cognitive science. No clicks tracked, no content recorded.</p>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <h3>You get a signed receipt</h3>
+        <p>At the end, you see your own attention score, your quality tier, and a cryptographic receipt anyone can verify offline using only our public key. The receipt proves <em>a human did this session</em> — not a bot, not a GPT.</p>
+      </div>
+    </div>
+
+    <!-- Honest creator note for strangers from Reddit / social -->
+    <div class="creator-note">
+      <h3>Why I'm asking you to take it</h3>
+      <p>I'm building this protocol as one person and need real human sessions across real devices to keep calibrating it honestly. Your test helps me see where the system is solid, where it's fooled, and where the math needs work — especially on phones, where most of the world actually lives. If you take it, I see your score (anonymized — no name, no email, no IP) and that becomes a tuning datapoint. Nothing more is asked of you. Thank you for trying.</p>
+    </div>
+
+    <!-- "Why this exists" — bot problem framing -->
+    <div class="section-title">Why this exists</div>
+    <div class="section-sub">Bots and LLMs can now click through online training, complete checkouts, file applications, and write essays at scale. Every existing "are you human" defense — captchas, mouse tracks, fingerprints — has been broken by automation that costs $50/month. SWS doesn't ask "are you a robot." It measures the things only an actual human nervous system produces.</div>
+
+    <div class="pain-point">
+      <span class="stat">+73%</span>
+      <strong>YoY increase in 21 CFR Part 11 warning letters (H2 2025: 327 letters).</strong> Data-integrity and audit-trail deficiencies are the most-cited findings. "Click-through completion" in pharma training records is no longer passing FDA inspection — and LLMs just made every existing cheating defense obsolete overnight.
+    </div>
+
+    <!-- Seven layers — preserved from v1 -->
+    <div class="section-title">A seven-layer signed receipt</div>
+    <div class="section-sub">Each layer is attached to the same record, covered by the same signature, and disclosed separately. A buyer combines them per their policy — strict, lenient, or regulatory.</div>
+
+    <div class="layer-stack">
+      <div class="layer"><span class="num">01</span><h3>Environmental</h3><p>7-vector multi-detector: BotD v2 + WebGL renderer (cloud-VM signature) + WebGPU adapter info (ACM WiSec 2025) + Function.toString consistency + iframe-frontier comparison + chrome.runtime presence + AudioContext prototype-shape. Naive Puppeteer caught at suspicion 0.750. Disclosed separately from behavioral data.</p></div>
+      <div class="layer"><span class="num">02</span><h3>Behavioral</h3><p>23 peer-reviewed signals (20 weighted + 3 diagnostic-only) — Fitts' Law, Hick's Law, prewhitened DFA-1 1/f scaling (Torre-Delignières 2008), two-thirds power law, reading-speed coherence, keystroke digraph timing, micro-pause cadence, Crossman-Goodeve / Meyer 1988 submovement count, Engbert-Kliegl 2003 microsaccades — produce a composite engagement score plus a calibrated Bayesian P(human), not a bot/not-bot verdict.</p></div>
+      <div class="layer"><span class="num">03</span><h3>Composition Integrity</h3><p>Paste-burst + no-backspace + digraph-interval detector. Catches LLM-assisted answers that survive the other layers. Research basis: arxiv 2511.12468 (97-99% F1).</p></div>
+      <div class="layer"><span class="num">04</span><h3>Consent</h3><p>Explicit user authorization recorded with ISO-8601 timestamp, version, and category list. Covered by the integrity hash — tampering breaks verification. GDPR Article 7, CCPA &sect;1798.120 compliant by schema.</p></div>
+      <div class="layer"><span class="num">05</span><h3>Ed25519 Signature</h3><p>RFC 8032 digital signature over the full VC-JWT. Public key at <code>/.well-known/attention-pubkey.json</code>. Verifiable offline in any language, any browser, forever.</p></div>
+      <div class="layer"><span class="num">06</span><h3>OpenTimestamps</h3><p>Bitcoin blockchain anchor via public calendar servers. Once confirmed, the receipt is provably as-old-as a specific Bitcoin block. Backdating requires re-mining Bitcoin.</p></div>
+    </div>
+
+    <!-- Verify-it-yourself proof row -->
+    <div class="section-title">Verify truth for yourself</div>
+    <div class="section-sub">Don't trust our description — click through. Every layer is live right now.</div>
+
+    <div class="proof-row">
+      <div class="proof-card">
+        <h4>Browser-side verification</h4>
+        <p>Paste any SWS receipt JWT, watch your own browser verify the Ed25519 signature against our public JWKS via WebCrypto. No SWS server involved.</p>
+        <a href="/verify.html">Open verify.html &rarr;</a>
+      </div>
+      <div class="proof-card">
+        <h4>21 CFR Part 11 mapping</h4>
+        <p>Clause-by-clause: &sect;11.10, &sect;11.30, &sect;11.50, &sect;11.70, &sect;11.100, &sect;11.200, &sect;11.300. Honest TECH / MIXED / PROC labeling — no overclaiming.</p>
+        <a href="/part-11.html">Read the mapping &rarr;</a>
+      </div>
+      <div class="proof-card">
+        <h4>Live proof gallery</h4>
+        <p>Real sessions from real users, rendered on a live public page. Sample IDs, hashes, and composite scores visible.</p>
+        <a href="/gallery.html">Open gallery.html &rarr;</a>
+      </div>
+      <div class="proof-card">
+        <h4>Run the demo yourself</h4>
+        <p>Five-phase interactive session. 3-4 minutes. Get your own signed, Bitcoin-anchored receipt at the end.</p>
+        <a href="/demo.html">Open demo.html &rarr;</a>
+      </div>
+      <div class="proof-card">
+        <h4>Public key (JWKS)</h4>
+        <p>Standards-compliant JWK set at <code>/.well-known/attention-pubkey.json</code>. Load once, verify forever, any language.</p>
+        <a href="/.well-known/attention-pubkey.json">Fetch JWKS &rarr;</a>
+      </div>
+      <div class="proof-card">
+        <h4>Compliance report (PDF-ready)</h4>
+        <p>Lawyer/regulator-ready one-pager with audit trail, method summary, and patent reference.</p>
+        <a href="/compliance-report.html">Open report &rarr;</a>
+      </div>
+    </div>
+
+    <!-- Buyer pitch — clearly demarcated, scrollable past for strangers -->
+    <div class="for-buyers-divider" id="for-buyers">— for buyers —</div>
+
+    <div class="section-title">Who buys this</div>
+    <div class="section-sub">Same receipt format. Three distinct buyer personas, three distinct wedges.</div>
+
+    <div class="buyers">
+      <div class="buyer">
+        <div class="who">Pharma Training &amp; GxP</div>
+        <h3>Part 11 audit-ready records</h3>
+        <p>After the +73% YoY spike in 2025 Part 11 warning letters, "learner clicked through the slides" is no longer a defensible training record. SWS issues a tamper-evident, signature-bound receipt that drops directly into your existing validation package.</p>
+        <div class="hook">Buyer: VP Compliance / QA systems lead · ACV: $50k–$150k</div>
+      </div>
+      <div class="buyer">
+        <div class="who">Medical Education Companies</div>
+        <h3>Proof for accreditation + grant RFPs</h3>
+        <p>Pfizer, Merck, and Genentech IME RFPs increasingly score "measurement of learner progression." A signed attention receipt turns "we think they read it" into "here is the cryptographic proof the grantor can verify offline."</p>
+        <div class="hook">Buyer: VP Accreditation / Outcomes · ACV: $40k–$100k</div>
+      </div>
+      <div class="buyer">
+        <div class="who">Credentialing &amp; Licensure</div>
+        <h3>OpenBadges 3.0 on a defensible base</h3>
+        <p>Credly, Accredible, Sertifier, and Digital Promise issue badges; they don't measure attention. SWS is the layer underneath the badge — same W3C VC, now backed by behavioral-signal analysis + LLM-integrity detection.</p>
+        <div class="hook">Partnership / channel · Per-credential pricing</div>
+      </div>
+      <div class="buyer">
+        <div class="who">Web platforms &amp; civic infrastructure</div>
+        <h3>Proof of humanness — without doxxing</h3>
+        <p>AI agents are flooding sign-ups, comments, reviews, and bids. Worldcoin wants your iris. Pi wants your phone identity. SWS wants a 3-minute behavioral session that produces a renewable, 24-hour, unlinkable credential revealing only "human, quality tier, expiry."</p>
+        <div class="hook">Per-credential pricing · B2B2C via platforms · <a href="/prove-humanness.html">See the live verifier &rarr;</a></div>
+      </div>
+    </div>
+
+    <!-- The science underneath — preserved from v1 -->
+    <div class="section-title">The science underneath</div>
+    <div class="section-sub">The behavioral composite uses 20 peer-reviewed signals. None of them individually solve the problem; together, they're the hardest thing in the world to fake consistently.</div>
+
+    <div class="sig-grid">
+      <div class="sig"><div class="name">Fitts' Law</div><div class="ref">Fitts 1954</div></div>
+      <div class="sig"><div class="name">Hick's Law</div><div class="ref">Hick 1952</div></div>
+      <div class="sig"><div class="name">Timing Entropy</div><div class="ref">Shannon 1948</div></div>
+      <div class="sig"><div class="name">Fractal 1/f Scaling</div><div class="ref">Gilden 2001</div></div>
+      <div class="sig"><div class="name">Two-Thirds Power Law</div><div class="ref">Lacquaniti 1983</div></div>
+      <div class="sig"><div class="name">Cursor Jerk (LDLJ)</div><div class="ref">Flash &amp; Hogan 1985</div></div>
+      <div class="sig"><div class="name">Velocity Profile</div><div class="ref">Morasso 1981</div></div>
+      <div class="sig"><div class="name">Scroll Saccade</div><div class="ref">Rayner 1998</div></div>
+      <div class="sig"><div class="name">RT Variability</div><div class="ref">Esterman 2013</div></div>
+      <div class="sig"><div class="name">Scroll Backtracking</div><div class="ref">Khaokaew 2024</div></div>
+      <div class="sig"><div class="name">Cross-Signal Correlation</div><div class="ref">BeCAPTCHA 2021</div></div>
+      <div class="sig"><div class="name">Composition Integrity</div><div class="ref">arxiv 2511.12468</div></div>
+    </div>
+
+    <div class="section-title">Integrations already shipped</div>
+    <div class="section-sub">You don't have to rebuild your stack. You bolt SWS onto what's already there.</div>
+
+    <div class="proof-row">
+      <div class="proof-card">
+        <h4>W3C Verifiable Credentials 2.0</h4>
+        <p>Every receipt is a fully-formed W3C VC. Compatible with any VC-aware wallet or verifier.</p>
+      </div>
+      <div class="proof-card">
+        <h4>xAPI 1.0.3 (ADL)</h4>
+        <p>Ingestable by Moodle, Canvas, Articulate Storyline, D2L Brightspace, Cornerstone, Degreed — the full CME/LMS stack.</p>
+      </div>
+      <div class="proof-card">
+        <h4>OpenBadges 3.0 (1EdTech)</h4>
+        <p>Same receipt issues as a portable achievement credential. Credly, Accredible, and LinkedIn Learning all accept OB 3.0.</p>
+      </div>
+      <div class="proof-card">
+        <h4>OpenTimestamps / Bitcoin</h4>
+        <p>Receipt hashes anchor to the Bitcoin blockchain via public calendar servers. One Bitcoin anchor, thousands of receipts.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="bottom-cta">
+    <h2>Ready when you are.</h2>
+    <p>Take the live test in your browser — 3 minutes, no signup, no payment. You'll get your own cryptographic receipt at the end. If you're a buyer, the pilot conversation is one click away.</p>
+    <div class="row">
+      <a class="cta cta-primary" href="/demo.html">Take the live test &rarr;</a>
+      <a class="cta cta-secondary" href="mailto:stephenfurpahs@gmail.com?subject=SWS%20pilot%20-%20%5Byour%20org%5D&body=Hi%20Stephen%2C%0A%0AI%27m%20with%20%5Byour%20org%5D%20and%20we%27d%20like%20to%20discuss%20a%20pilot.%0A%0AOur%20use%20case%3A%20%5Bbrief%5D%0AOur%20timeline%3A%20%5Bbrief%5D%0A%0AThanks.">Start a pilot conversation</a>
+    </div>
+  </div>
+
+  <div class="footer">
+    (c) 2026 SWS Strategic Media LLC &nbsp;·&nbsp; Patent Pending SWS-PROV-001<br>
+    <a href="/part-11.html">21 CFR Part 11</a> ·
+    <a href="/verify.html">Verify a receipt</a> ·
+    <a href="/demo.html">Take the test</a> ·
+    <a href="https://stevieweedseed.com">stevieweedseed.com</a>
+  </div>
+  </main>
+</body>
+</html>

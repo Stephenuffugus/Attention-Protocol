@@ -975,6 +975,52 @@
       _tabVisLog.push({ visible: visible, t: Date.now() });
     },
 
+    // Session interruption stats — distinct from the tabVisibility *signal*.
+    // The signal scores tab-switching patterns for human-vs-bot inference.
+    // This stats accessor gives the demo / receipt UI a plain count of how
+    // much of the session was spent with the tab hidden (phone asleep,
+    // Safari backgrounded, OS sleep, etc) so we can flag interrupted
+    // sessions HONESTLY at receipt-finalize time instead of pretending
+    // they're clean baselines. Discovered 2026-05-06 when iPhone testers
+    // let phones sleep for minutes; their composites looked plausible
+    // because they had real-but-sparse data, not because they were paying
+    // attention. Truthful tagging > silent contamination.
+    getInterruptionStats: function() {
+      var sessionMs = Date.now() - _sessionStartTime;
+      var totalHiddenMs = 0;
+      var hiddenPeriods = 0;
+      var longestHiddenMs = 0;
+      var hiddenAt = null;
+      for (var i = 0; i < _tabVisLog.length; i++) {
+        var ev = _tabVisLog[i];
+        if (!ev.visible && hiddenAt === null) {
+          hiddenAt = ev.t;
+        } else if (ev.visible && hiddenAt !== null) {
+          var dur = ev.t - hiddenAt;
+          totalHiddenMs += dur;
+          if (dur > longestHiddenMs) longestHiddenMs = dur;
+          hiddenPeriods++;
+          hiddenAt = null;
+        }
+      }
+      // Open period — tab is currently hidden when stats are read. Count
+      // the elapsed-but-still-hidden time so a session being saved while
+      // the tab is hidden (e.g. iOS pagehide save path) isn't undercounted.
+      if (hiddenAt !== null) {
+        var openDur = Date.now() - hiddenAt;
+        totalHiddenMs += openDur;
+        if (openDur > longestHiddenMs) longestHiddenMs = openDur;
+        hiddenPeriods++;
+      }
+      return {
+        sessionMs: sessionMs,
+        totalHiddenMs: totalHiddenMs,
+        hiddenPeriods: hiddenPeriods,
+        longestHiddenMs: longestHiddenMs,
+        hiddenFraction: sessionMs > 0 ? totalHiddenMs / sessionMs : 0
+      };
+    },
+
     // Window blur/focus is orthogonal to document visibility:
     // - visibilitychange fires when the tab is hidden/shown
     // - blur/focus fires when the window loses OS-level focus (alt-tab, click
@@ -2146,16 +2192,25 @@
       };
 
       // Identify active signals (returned real data, not -1 sentinel)
+      // NaN-safety: a signal that returns NaN/undefined/Infinity is treated
+      // exactly like the -1 "insufficient data" sentinel. Without this guard
+      // a single corrupt signal would propagate NaN through the composite
+      // sum, the field would serialize as undefined, and Firestore would
+      // silently drop it — producing the (none)-composite docs we saw in
+      // the 2026-05-06 batch when iPhone screen-sleep starved certain
+      // signals of input. composite must always be a finite number 0..1.
       var activeSignals = {};
       var inactiveWeight = 0;
       var activeWeight = 0;
       var activeCount = 0;
 
       for (var key in rawScores) {
-        if (rawScores[key] === -1) {
-          // Signal had insufficient data — exclude from scoring
+        var v = rawScores[key];
+        var isFiniteNumber = typeof v === 'number' && isFinite(v);
+        if (v === -1 || !isFiniteNumber) {
+          // Signal had insufficient or corrupt data — exclude from scoring
           inactiveWeight += baseWeights[key];
-          rawScores[key] = 0; // display as 0, not -1
+          rawScores[key] = 0; // display as 0, not -1/NaN/undefined
         } else {
           activeSignals[key] = true;
           activeWeight += baseWeights[key];
@@ -2173,6 +2228,11 @@
           }
         }
       }
+      // Final NaN-safety: even with per-signal guards, defend the contract
+      // that composite is always a finite number in [0, 1].
+      if (!isFinite(composite) || isNaN(composite)) composite = 0;
+      if (composite < 0) composite = 0;
+      if (composite > 1) composite = 1;
 
       // Confidence floor: scaled for 19 signals
       if (activeCount < 4) composite = Math.min(composite, 0.30);
@@ -2595,10 +2655,12 @@
       Behavioral.recordInteraction();
       Behavioral.recordActivity();
       Behavioral.recordFirstInteractionAfterRender();
-      if (event.type === 'touchstart') {
+      // Defensive: one internal caller passes no argument. Skip the
+      // event-typed branches rather than throwing on event.type.
+      if (event && event.type === 'touchstart') {
         Behavioral.recordTap(event);
         Behavioral.recordTouch(event);
-      } else if (event.type === 'click' || event.type === 'mousedown') {
+      } else if (event && (event.type === 'click' || event.type === 'mousedown')) {
         Behavioral.recordTap(event);
         Behavioral.recordClick(event);
         if (event.clientX !== undefined) {
@@ -2769,7 +2831,7 @@
     document.addEventListener('touchstart', _trackInteraction, { passive: true });
     document.addEventListener('mousedown', _trackInteraction, { passive: true });
     document.addEventListener('click', function(e) {
-      _trackInteraction();
+      _trackInteraction(e);
       if (_eventLog && e.clientX !== undefined) _eventLog.click(e.clientX, e.clientY, Date.now());
     }, { passive: true });
     document.addEventListener('keydown', function(e) {
@@ -2914,6 +2976,7 @@
     getDigraphStats: function() { return Behavioral.computeDigraphStats(); },
     getReadingCoherence: function() { return Behavioral.computeReadingCoherence(); },
     getFocusStats: function() { return Behavioral.getFocusStats(); },
+    getInterruptionStats: function() { return Behavioral.getInterruptionStats(); },
 
     // Tier 1 features
     startAmbient: startAmbientMode,

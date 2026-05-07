@@ -968,6 +968,47 @@
       _tabVisLog.push({ visible: visible, t: Date.now() });
     },
 
+    // Session interruption stats — distinct from the tabVisibility *signal*.
+    // Plain count of how much of the session was spent with the tab hidden
+    // (phone asleep, Safari backgrounded, OS sleep, etc) so the demo can
+    // flag interrupted sessions HONESTLY at receipt-finalize time instead
+    // of pretending they're clean baselines. Discovered 2026-05-06 when
+    // iPhone testers let phones sleep for minutes; their composites looked
+    // plausible because they had real-but-sparse data, not because they
+    // were paying attention.
+    getInterruptionStats: function() {
+      var sessionMs = Date.now() - _sessionStartTime;
+      var totalHiddenMs = 0;
+      var hiddenPeriods = 0;
+      var longestHiddenMs = 0;
+      var hiddenAt = null;
+      for (var i = 0; i < _tabVisLog.length; i++) {
+        var ev = _tabVisLog[i];
+        if (!ev.visible && hiddenAt === null) {
+          hiddenAt = ev.t;
+        } else if (ev.visible && hiddenAt !== null) {
+          var dur = ev.t - hiddenAt;
+          totalHiddenMs += dur;
+          if (dur > longestHiddenMs) longestHiddenMs = dur;
+          hiddenPeriods++;
+          hiddenAt = null;
+        }
+      }
+      if (hiddenAt !== null) {
+        var openDur = Date.now() - hiddenAt;
+        totalHiddenMs += openDur;
+        if (openDur > longestHiddenMs) longestHiddenMs = openDur;
+        hiddenPeriods++;
+      }
+      return {
+        sessionMs: sessionMs,
+        totalHiddenMs: totalHiddenMs,
+        hiddenPeriods: hiddenPeriods,
+        longestHiddenMs: longestHiddenMs,
+        hiddenFraction: sessionMs > 0 ? totalHiddenMs / sessionMs : 0
+      };
+    },
+
     // Window blur/focus is orthogonal to document visibility:
     // - visibilitychange fires when the tab is hidden/shown
     // - blur/focus fires when the window loses OS-level focus (alt-tab, click
@@ -2139,16 +2180,25 @@
       };
 
       // Identify active signals (returned real data, not -1 sentinel)
+      // NaN-safety: a signal that returns NaN/undefined/Infinity is treated
+      // exactly like the -1 "insufficient data" sentinel. Without this guard
+      // a single corrupt signal would propagate NaN through the composite
+      // sum, the field would serialize as undefined, and Firestore would
+      // silently drop it — producing the (none)-composite docs we saw in
+      // the 2026-05-06 batch when iPhone screen-sleep starved certain
+      // signals of input. composite must always be a finite number 0..1.
       var activeSignals = {};
       var inactiveWeight = 0;
       var activeWeight = 0;
       var activeCount = 0;
 
       for (var key in rawScores) {
-        if (rawScores[key] === -1) {
-          // Signal had insufficient data — exclude from scoring
+        var v = rawScores[key];
+        var isFiniteNumber = typeof v === 'number' && isFinite(v);
+        if (v === -1 || !isFiniteNumber) {
+          // Signal had insufficient or corrupt data — exclude from scoring
           inactiveWeight += baseWeights[key];
-          rawScores[key] = 0; // display as 0, not -1
+          rawScores[key] = 0; // display as 0, not -1/NaN/undefined
         } else {
           activeSignals[key] = true;
           activeWeight += baseWeights[key];
@@ -2166,6 +2216,11 @@
           }
         }
       }
+      // Final NaN-safety: defend the contract that composite is always a
+      // finite number in [0, 1].
+      if (!isFinite(composite) || isNaN(composite)) composite = 0;
+      if (composite < 0) composite = 0;
+      if (composite > 1) composite = 1;
 
       // Confidence floor: scaled for 19 signals
       if (activeCount < 4) composite = Math.min(composite, 0.30);
@@ -2845,6 +2900,7 @@
     getDigraphStats: function() { return Behavioral.computeDigraphStats(); },
     getReadingCoherence: function() { return Behavioral.computeReadingCoherence(); },
     getFocusStats: function() { return Behavioral.getFocusStats(); },
+    getInterruptionStats: function() { return Behavioral.getInterruptionStats(); },
 
     // Tier 1 features
     startAmbient: startAmbientMode,

@@ -59,8 +59,12 @@ function stats(arr) {
 
 async function main() {
   const sourceType = process.argv[2];
+  // Pass --include-tagged to override the default of skipping docs that
+  // were manually tagged contaminated/incomplete (quality_review field).
+  // Default behavior excludes them so corpus stats reflect usable data.
+  const includeTagged = process.argv.includes('--include-tagged');
   if (!sourceType) {
-    console.error('usage: node scripts/corpus-status.js <source_type>');
+    console.error('usage: node scripts/corpus-status.js <source_type> [--include-tagged]');
     console.error('example: node scripts/corpus-status.js corpus_2026-04-21_batch1');
     process.exit(1);
   }
@@ -86,8 +90,39 @@ async function main() {
     process.exit(0);
   }
 
+  const allSessions = [];
+  snap.forEach(doc => allSessions.push(doc.data()));
+
+  // Split out manually-tagged contaminated/incomplete sessions. Also flag
+  // sessions auto-tagged at write time as session_interrupted (>30s with
+  // tab hidden) so they don't poison the baseline.
+  const tagged = [];
   const sessions = [];
-  snap.forEach(doc => sessions.push(doc.data()));
+  for (const s of allSessions) {
+    const isManuallyTagged = !!s.quality_review;
+    const isAutoInterrupted = s.interruption && s.interruption.session_interrupted === true;
+    if (!includeTagged && (isManuallyTagged || isAutoInterrupted)) {
+      tagged.push({
+        composite: s.composite,
+        reason: s.quality_review || 'session_interrupted_auto'
+      });
+    } else {
+      sessions.push(s);
+    }
+  }
+  if (tagged.length > 0) {
+    console.log('Excluded ' + tagged.length + ' tagged session(s) from stats below:');
+    const counts = {};
+    tagged.forEach(t => { counts[t.reason] = (counts[t.reason] || 0) + 1; });
+    for (const [reason, n] of Object.entries(counts)) {
+      console.log('  ' + reason.padEnd(40) + n);
+    }
+    console.log('  (run with --include-tagged to include them)\n');
+    if (sessions.length === 0) {
+      console.log('No untagged sessions remain — nothing to summarize.');
+      process.exit(0);
+    }
+  }
 
   const composites = sessions.map(s => Number(s.composite || 0)).filter(n => !isNaN(n));
   const durations = sessions.map(s => Number(s.duration_ms || 0) / 1000).filter(n => !isNaN(n));

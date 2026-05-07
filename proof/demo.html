@@ -16,6 +16,10 @@
     .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
 
     .dual-panel { display: grid; grid-template-columns: 1fr 340px; gap: 16px; }
+    /* When the live panel is hidden (phases 1–4), collapse the right
+       column so the test content takes full width instead of leaving
+       a 340px empty gap on desktop. */
+    .dual-panel.dual-panel--solo { grid-template-columns: 1fr; }
     @media (max-width: 800px) { .dual-panel { grid-template-columns: 1fr; } .live-panel { position: static !important; } }
 
     .task-panel { background: #111827; border: 1px solid #1e293b; border-radius: 12px; padding: 20px; }
@@ -110,6 +114,15 @@
   </style>
 </head>
 <body>
+  <!-- Tester-facing disclaimer: makes it impossible to mistake this for a
+       real product, signup, contract, or paid offering. Reading-task content
+       in Phase 1 is fake test prose; testers were getting confused by the
+       legal-sounding language. -->
+  <div style="background:#fef3c7;color:#78350f;border-bottom:2px solid #f59e0b;padding:14px 20px;font-size:14px;line-height:1.5;font-family:-apple-system,sans-serif;">
+    <strong style="font-size:15px;">This is a research test — not a real product.</strong><br>
+    You are <strong>not</strong> signing up for anything, paying anything, or agreeing to any contract. The content you're about to read in Task 1 is just there for you to read so we can measure your natural reading pattern. No one is selling, buying, or charging for anything here.
+  </div>
+
   <div class="header">
     <h1>SWS Attention Verification — Live Demo</h1>
     <div class="subtitle">Complete 5 tasks. 20 weighted + 3 diagnostic behavioral signals from 5 research domains measuring your attention in real time.</div>
@@ -125,7 +138,7 @@
       <div class="phase-btn" id="nav-5">5. Results</div>
     </div>
 
-    <div class="dual-panel">
+    <div class="dual-panel dual-panel--solo" id="dual-panel">
       <div>
         <!-- Phase 1: Reading -->
         <div class="task-panel" id="phase-1">
@@ -146,8 +159,30 @@
             <p>Premiums are calculated based on: total monthly verified attention events, average quality tier distribution (policies with higher deep-focus ratios receive preferred rates), historical claim frequency, and the policyholder's session integrity score. Policyholders maintaining a 95%+ session integrity score for 12 consecutive months qualify for the Verified Attention Discount of 15%.</p>
             <p><strong>Section 5: Renewal and Cancellation</strong></p>
             <p>This policy automatically renews annually unless cancelled in writing 60 days prior to the renewal date. The insurer may cancel this policy with 30 days written notice if the policyholder's session integrity score falls below 70% for three consecutive months, or if the policyholder is found to have generated fraudulent attention receipts.</p>
+            <div style="text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid #1e293b;">
+              <button class="btn btn-primary" onclick="completePhase(1)" style="width:100%;font-size:14px;">Done Reading &rarr; Next Task</button>
+            </div>
           </div>
-          <button class="btn btn-primary" onclick="completePhase(1)">Done Reading &rarr; Next Task</button>
+          <!-- Alternative reading content for casual recruitment (?content=fun).
+               Octopus topic: short, surprising, content-agnostic for measurement
+               purposes — the 23 behavioral signals don't care what's read, only
+               how the eye/scroll/timing pattern unfolds. Hidden until init swap. -->
+          <div class="reading-area" id="reading-area-fun" style="display:none">
+            <p><strong>Section 1: Nine Brains</strong></p>
+            <p>Octopuses have one central brain plus eight smaller "arm-brains" — one in each tentacle. About two-thirds of an octopus's neurons live in its arms, not its head. In laboratory experiments, an octopus arm separated from the central brain has been observed continuing to solve problems on its own — opening jars, feeling out a maze, reaching for food. This is unlike anything in the vertebrate world.</p>
+            <p><strong>Section 2: Color-blind, but masters of color</strong></p>
+            <p>Octopuses are technically color-blind. Their eyes contain only one type of photoreceptor. And yet they're champions of color-changing camouflage, blending into reefs, sand, and even mimicking other animals. Recent research suggests their skin contains photoreceptors of its own, meaning octopuses may "see" with their entire body, not just their eyes.</p>
+            <p><strong>Section 3: 600 million years apart from us</strong></p>
+            <p>The last common ancestor between humans and octopuses lived around 600 million years ago. It was a small, flat, brainless worm. Octopus intelligence — problem-solving, tool use, individual recognition — evolved completely separately from vertebrate intelligence. Two independent paths to a thinking nervous system. They are arguably the closest thing on Earth to alien intelligence.</p>
+            <p><strong>Section 4: Brilliant, but brief</strong></p>
+            <p>Despite their cognitive complexity, most octopuses live only one to two years. Females typically die shortly after their eggs hatch, often refusing to eat while guarding them. The lifespan paradox is real: an octopus has roughly the cognitive abilities of a three-year-old human child, packed into the lifespan of a goldfish. Researchers don't fully understand why.</p>
+            <p><strong>Section 5: Documented behavior</strong></p>
+            <p>Octopuses have been observed unscrewing jar lids, navigating unfamiliar mazes, escaping aquariums and returning to the water through hidden routes, recognizing and consistently squirting specific human handlers they dislike, using coconut shells as portable shelter, and manipulating objects with all eight arms simultaneously through coordinated nerve signals.</p>
+            <div style="text-align:center;margin-top:14px;padding-top:10px;border-top:1px solid #1e293b;">
+              <button class="btn btn-primary" onclick="completePhase(1)" style="width:100%;font-size:14px;">Done Reading &rarr; Next Task</button>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="completePhase(1)" style="margin-top:10px;">Done Reading &rarr; Next Task</button>
         </div>
 
         <!-- Phase 2: Decisions -->
@@ -254,6 +289,7 @@
             </div>
             <div class="hash-display" id="r-hash">Generating receipt...</div>
             <div style="font-size:9px;color:#475569;margin-top:4px;">This receipt is tamper-evident. Any modification to the session data invalidates the hash.</div>
+            <div id="r-save-status" style="font-size:11px;margin-top:8px;padding:6px 10px;border-radius:6px;display:none;"></div>
           </div>
 
           <!-- Prolific return block (hidden unless arrived from Prolific) -->
@@ -272,8 +308,13 @@
         </div>
       </div>
 
-      <!-- RIGHT: Live signal panel -->
-      <div class="live-panel">
+      <!-- RIGHT: Live signal panel.
+           Hidden during phases 1–4 because the live-updating score numbers
+           were distracting/off-putting to non-technical testers (2026-05-06
+           feedback). Revealed only on phase 5 (results) where the numbers
+           are the actual point of the screen. The signals still record in
+           the background; only the *display* is hidden. -->
+      <div class="live-panel" id="live-panel" style="display:none">
         <div class="live-card">
           <h3 class="sws">SWS — 20 Live Signals</h3>
           <div class="metric-row"><span class="metric-name">Composite</span><span class="metric-val green" id="live-composite">0.000</span></div>
@@ -373,10 +414,10 @@
        receipts to legacy-escape via _eventLog=null → trust_tier
        'client_attested_no_event_log'. -->
   <script src="sdk/event-log.js?v=20260428"></script>
-  <script src="sdk/attention-protocol.js?v=20260426f"></script>
+  <script src="sdk/attention-protocol.js?v=20260506b"></script>
   <script src="sdk/economy-engine.js?v=20260421e"></script>
   <script src="sdk/environmental-gate.js?v=20260421e"></script>
-  <script src="sdk/composition-integrity.js?v=20260421e"></script>
+  <script src="sdk/composition-integrity.js?v=20260506a"></script>
   <script src="sdk/privacy-compliance.js?v=20260421e"></script>
   <script src="sdk/honeypot-canary.js?v=20260421e"></script>
 
@@ -391,14 +432,110 @@
       appId: "1:420661886092:web:a4c79cd07fc804428f4fa9"
     });
     var db = firebase.firestore(fbApp);
+    var fbAuth = firebase.auth(fbApp);
     var fbUser = null;
+    var fbAuthError = null;
 
-    firebase.auth(fbApp).signInAnonymously().catch(function(err) {
-      console.warn('[Demo] Auth failed:', err.code);
+    fbAuth.signInAnonymously().catch(function(err) {
+      console.warn('[Demo] Auth failed:', err.code, err.message);
+      fbAuthError = err;
     });
-    firebase.auth(fbApp).onAuthStateChanged(function(user) {
-      if (user) fbUser = user;
+    fbAuth.onAuthStateChanged(function(user) {
+      if (user) {
+        fbUser = user;
+        // Drain any sessions stranded in localStorage from a prior visit
+        // where auth raced with save (the dad-on-old-iPhone failure mode).
+        flushPendingSessions();
+      }
     });
+
+    // ---- LOCAL FALLBACK QUEUE ----
+    // The Firestore rule requires request.auth.uid == data.uid. If anonymous
+    // auth races with the user finishing the demo (slow network, old WebKit,
+    // tab discarded mid-session), saveSession would silently fail with
+    // PERMISSION_DENIED. We buffer every receipt to localStorage before the
+    // Firestore write so we can retry on the next page load. Cap at 5 to
+    // avoid hogging storage.
+    var PENDING_KEY = 'sws_demo_pending_sessions';
+    var PENDING_CAP = 5;
+
+    function bufferPendingSession(sessionData) {
+      try {
+        var pending = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+        // Replace any existing entry with the same id (re-buffer on retry).
+        pending = pending.filter(function(p) { return p.id !== sessionData.session_id; });
+        if (pending.length >= PENDING_CAP) pending = pending.slice(-(PENDING_CAP - 1));
+        pending.push({ id: sessionData.session_id, data: sessionData, queuedAt: Date.now() });
+        localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+        return true;
+      } catch (e) {
+        // iOS Safari Private Mode throws on setItem. Nothing we can do — the
+        // session will only persist if the immediate Firestore write succeeds.
+        return false;
+      }
+    }
+
+    function removePendingSession(id) {
+      try {
+        var pending = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]');
+        pending = pending.filter(function(p) { return p.id !== id; });
+        localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+      } catch (e) { /* noop */ }
+    }
+
+    function flushPendingSessions() {
+      if (!fbUser) return;
+      var pending;
+      try { pending = JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); }
+      catch (e) { return; }
+      pending.forEach(function(p) {
+        // Patch uid to current authenticated uid so Firestore rule passes.
+        var data = p.data; data.uid = fbUser.uid;
+        db.collection('demos').doc(p.id).set(data)
+          .then(function() { removePendingSession(p.id); })
+          .catch(function(err) { console.warn('[Demo] Stranded retry failed:', p.id, err.code); });
+      });
+    }
+
+    // Wait for Firebase auth to settle before saving. Resolves with the user
+    // (or null on auth failure / timeout). Avoids the race that silently
+    // dropped dad's iPhone session when auth hadn't propagated by save time.
+    function awaitAuth(timeoutMs) {
+      return new Promise(function(resolve) {
+        if (fbUser) return resolve(fbUser);
+        if (fbAuthError) return resolve(null);
+        var elapsed = 0;
+        var poll = setInterval(function() {
+          if (fbUser) { clearInterval(poll); resolve(fbUser); }
+          else if (fbAuthError) { clearInterval(poll); resolve(null); }
+          else if ((elapsed += 100) >= timeoutMs) { clearInterval(poll); resolve(null); }
+        }, 100);
+      });
+    }
+
+    function setSaveStatus(level, msg) {
+      var el = document.getElementById('r-save-status');
+      if (!el) return;
+      el.style.display = 'block';
+      if (level === 'ok') {
+        el.style.background = 'rgba(16,185,129,0.10)';
+        el.style.color = '#10b981';
+        el.style.border = '1px solid #10b981';
+      } else if (level === 'warn') {
+        el.style.background = 'rgba(245,158,11,0.10)';
+        el.style.color = '#f59e0b';
+        el.style.border = '1px solid #f59e0b';
+      } else if (level === 'error') {
+        el.style.background = 'rgba(239,68,68,0.10)';
+        el.style.color = '#ef4444';
+        el.style.border = '1px solid #ef4444';
+      } else {
+        el.style.background = '#0f172a';
+        el.style.color = '#94a3b8';
+        el.style.border = '1px solid #334155';
+      }
+      el.textContent = msg;
+    }
 
     // ---- STATE ----
     var urlParams = new URLSearchParams(window.location.search);
@@ -416,6 +553,12 @@
     var prolificStudyID = sanitizeProlific(urlParams.get('STUDY_ID') || urlParams.get('study'));
     var prolificSubID = sanitizeProlific(urlParams.get('SESSION_ID') || urlParams.get('ps'));
     var isProlific = sourceType.indexOf('prolific') === 0 && prolificCC.length > 0;
+    // Content variant — ?content=fun loads the octopus reading task instead
+    // of the policy text. Same 5 phases, same 23 signals, same scoring; only
+    // the rendered text + Phase 2 questions + Task 1/4 copy differ. Lets us
+    // recruit casual testers (Reddit, friends, bar) without scaring them off
+    // with insurance-policy framing. Score is comparable across variants.
+    var contentVariant = urlParams.get('content') === 'fun' ? 'fun' : 'policy';
     var sessionId = 'demo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
     var sessionStart = Date.now();
     var currentPhase = 1;
@@ -730,11 +873,19 @@
       if (currentPhase === 2) setupDecisions();
       if (currentPhase === 3) setupTargets();
       if (currentPhase === 4) { /* typing phase — already rendered */ }
-      if (currentPhase === 5) showResults();
+      if (currentPhase === 5) {
+        // Reveal the live signal panel only on results — hidden during the
+        // test itself (numbers were distracting per 2026-05-06 feedback).
+        var lp = document.getElementById('live-panel');
+        if (lp) lp.style.display = '';
+        var dp = document.getElementById('dual-panel');
+        if (dp) dp.classList.remove('dual-panel--solo');
+        showResults();
+      }
     }
 
     // ---- PHASE 2: DECISIONS (more questions, varying option counts) ----
-    var questions = [
+    var questionsPolicy = [
       { q: 'What does this policy primarily cover?', opts: ['Auto insurance', 'Attention verification services'], correct: 'Attention verification services' },
       { q: 'What is the per-occurrence liability limit?', opts: ['$500,000', '$1,000,000', '$2,000,000', '$5,000,000'], correct: '$2,000,000' },
       { q: 'Which of these is excluded from coverage?', opts: ['Hash generation', 'Quality tier classification', 'Surveillance without disclosure', 'Receipt issuance'], correct: 'Surveillance without disclosure' },
@@ -745,6 +896,43 @@
       { q: 'What is the aggregate annual liability limit?', opts: ['$1,000,000', '$2,000,000', '$5,000,000', '$10,000,000'], correct: '$5,000,000' },
       { q: 'How long do you have to file a claim after an incident?', opts: ['30 days', '60 days', '90 days', '120 days', '180 days'], correct: '90 days' },
     ];
+    // Octopus-variant questions — same option-count progression (2, 3, 4, 5,
+    // 6, 7) so Hick's Law signal still has the same spread.
+    var questionsFun = [
+      { q: 'About how many brains does an octopus have?', opts: ['One', 'Nine'], correct: 'Nine' },
+      { q: 'Where do most of an octopus’s neurons live?', opts: ['In its head', 'Spread evenly across its body', 'Mostly in its arms', 'Only in its eyes'], correct: 'Mostly in its arms' },
+      { q: 'Which of these is something octopuses have been observed doing?', opts: ['Building tools out of metal', 'Forming long-term colonies', 'Unscrewing jar lids', 'Hibernating for a year'], correct: 'Unscrewing jar lids' },
+      { q: 'When did humans and octopuses last share a common ancestor?', opts: ['About 6 million years ago', 'About 60 million years ago', 'About 600 million years ago'], correct: 'About 600 million years ago' },
+      { q: 'What kind of creature was the last common ancestor between humans and octopuses?', opts: ['A small lizard', 'A jellyfish', 'A flat, brainless worm', 'A fish', 'A primate', 'A coral'], correct: 'A flat, brainless worm' },
+      { q: 'About how long do most octopuses live?', opts: ['A few months', '1 to 2 years', '5 years', '10 years', '20 years', '50 years', 'More than a century'], correct: '1 to 2 years' },
+      { q: 'What is notable about octopus vision?', opts: ['Superhuman color perception', 'Color-blind, but their skin may contain photoreceptors', 'They can only see infrared', 'Their eyes work like cameras'], correct: 'Color-blind, but their skin may contain photoreceptors' },
+      { q: 'What do female octopuses typically do after their eggs hatch?', opts: ['Migrate to deeper water', 'Eat the eggs', 'Die shortly after, often refusing to eat while guarding them', 'Live another decade', 'Lay another batch immediately', 'Move to a new ocean'], correct: 'Die shortly after, often refusing to eat while guarding them' },
+      { q: 'What is one thing octopuses have been observed doing that suggests social recognition?', opts: ['Singing', 'Squirting specific human handlers they dislike', 'Holding hands with mates', 'Building monuments', 'Migrating in herds'], correct: 'Squirting specific human handlers they dislike' },
+    ];
+    var questions = contentVariant === 'fun' ? questionsFun : questionsPolicy;
+
+    // Apply the content-variant content swap once the DOM is ready: hide the
+    // policy reading area, show the octopus one, and swap Task 1 + Task 4 copy
+    // so the test taker sees consistent framing throughout.
+    (function applyContentVariant() {
+      if (contentVariant !== 'fun') return;
+      var policyArea = document.getElementById('reading-area');
+      var funArea = document.getElementById('reading-area-fun');
+      if (policyArea) policyArea.style.display = 'none';
+      if (funArea) funArea.style.display = '';
+      var phase1 = document.getElementById('phase-1');
+      if (phase1) {
+        var h2 = phase1.querySelector('h2');
+        if (h2) h2.textContent = 'Task 1: Read This Article';
+      }
+      var phase4 = document.getElementById('phase-4');
+      if (phase4) {
+        var desc = phase4.querySelector('.desc');
+        if (desc) desc.textContent = 'In your own words, describe what the article covered. Don’t worry about getting it exactly right — we’re measuring your natural typing rhythm, not your memory. Type at least 20 words.';
+        var ta = document.getElementById('typing-area');
+        if (ta) ta.setAttribute('placeholder', 'Start typing what you remember from the article...');
+      }
+    })();
 
     // Shuffle questions and randomize answer positions each time
     function shuffleArray(arr) {
@@ -1091,6 +1279,18 @@
     function saveSession(confidence, stats, elapsed, timeline, receipt) {
       if (!db) return;
 
+      setSaveStatus('warn', 'Saving session…');
+
+      // Wait up to 8 seconds for anonymous auth to complete. The Firestore
+      // rule requires the document's uid to match request.auth.uid, so we
+      // can't ship the session under 'anonymous' if auth hasn't settled —
+      // the rule rejects it silently (this is what dropped dad's iPhone
+      // sessions twice).
+      awaitAuth(8000).then(function(user) {
+        finishSave(user);
+      });
+
+      function finishSave(user) {
       var sessionData = {
         session_id: sessionId,
         timestamp: Date.now(),
@@ -1122,8 +1322,9 @@
           behavioral_signals: 'none',
           crypto_receipt: 'none'
         },
-        uid: fbUser ? fbUser.uid : 'anonymous',
+        uid: user ? user.uid : null,
         source_type: sourceType,
+        content_variant: contentVariant,
         prolific: isProlific ? {
           pid: prolificPID,
           study_id: prolificStudyID,
@@ -1131,8 +1332,33 @@
           completion_code: prolificCC
         } : null,
         environmental: window.__swsEnvironmental || { loaded: false, error: 'not_yet_resolved', checked_at: new Date().toISOString() },
+        interruption: (function() {
+          // Capture how much of the session was spent with the tab hidden
+          // (phone asleep, Safari backgrounded, OS sleep). Tag the receipt
+          // honestly so contaminated sessions don't get treated as baselines.
+          // Threshold (30s) chosen from 2026-05-06 batch where iPhone testers
+          // let phones sleep for minutes at a time — anything below that is
+          // normal context-switching, anything above is genuine interruption.
+          try {
+            var s = (typeof SWSAttention !== 'undefined' && SWSAttention.getInterruptionStats)
+              ? SWSAttention.getInterruptionStats() : null;
+            if (!s) return null;
+            var INTERRUPTED_MS = 30000;
+            return {
+              session_ms: s.sessionMs,
+              total_hidden_ms: s.totalHiddenMs,
+              hidden_periods: s.hiddenPeriods,
+              longest_hidden_ms: s.longestHiddenMs,
+              hidden_fraction: s.hiddenFraction,
+              session_interrupted: s.totalHiddenMs > INTERRUPTED_MS
+            };
+          } catch (_e) { return null; }
+        })(),
         composition_integrity: (typeof SWSCompositionIntegrity !== 'undefined')
-          ? SWSCompositionIntegrity.readSnapshot({ scopeId: 'demo' })
+          ? SWSCompositionIntegrity.readSnapshot({
+              scopeId: 'demo',
+              deviceClass: IS_TOUCH_ONLY ? 'mobile' : 'desktop'
+            })
           : null,
         consent: (typeof SWSPrivacy !== 'undefined')
           ? SWSPrivacy.getReceiptAttestation({ policyUrl: 'https://sws-attention-proofs.web.app/privacy' })
@@ -1170,19 +1396,43 @@
         });
       }
 
+      // Buffer to localStorage BEFORE the Firestore write so a network
+      // hiccup, browser crash, or PERMISSION_DENIED from a future rule
+      // change can't silently drop the receipt — flushPendingSessions()
+      // retries on the next page load.
+      var buffered = bufferPendingSession(sessionData);
+
+      if (!user) {
+        setSaveStatus('error',
+          'Could not authenticate to save your receipt. ' +
+          (buffered
+            ? 'Session is held on this device — please refresh and it will retry.'
+            : 'Please refresh and try again.'));
+        logEvent('Save aborted: no auth', '');
+        return;
+      }
+
       db.collection('demos').doc(sessionId).set(sessionData)
         .then(function() {
+          removePendingSession(sessionId);
           var hashEl = document.getElementById('r-hash');
           if (hashEl && receipt) {
             hashEl.textContent = 'SHA-256: ' + receipt.hash + ' — Saved to proof catalog (session: ' + sessionId + ')';
           }
+          setSaveStatus('ok', 'Receipt saved to proof catalog.');
           logEvent('SESSION SAVED to Firestore', '');
           if (isProlific) showProlificReturn();
         })
         .catch(function(err) {
           console.warn('[Demo] Save failed:', err);
+          setSaveStatus('error',
+            'Save failed (' + (err.code || 'unknown') + '). ' +
+            (buffered
+              ? 'Session is held on this device — refresh to retry.'
+              : 'Please refresh and try again.'));
           logEvent('Save failed: ' + err.code, '');
         });
+      } // end finishSave
     }
   </script>
 </body>
