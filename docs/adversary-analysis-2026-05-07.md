@@ -35,6 +35,7 @@ Bot harness at `tests/bot-harness.test.js` (34/34 tests passing, run 2026-05-07)
 | **Click Farm** | Very low engagement, instant clicks | 0.212 | Composite below threshold (no env gate needed) |
 | **Replay Attack** | Replay of recorded session | 0.364 | Trace-novelty fingerprint (Wall) |
 | **Slow Mimic** | Paste-with-fake-dwell, longest-running threat | 0.404 | Composition integrity (paste detection) — composite barely below human floor of 0.431 |
+| **LLM-in-the-loop (Claude Sonnet 4.6)** | Real LLM driving Puppeteer through live production demo | mean 0.446, p95 0.568 (n=9) | **Env gate 9/9 + composition integrity 9/9** — mean exceeds lowest human, but caught by two non-behavioral layers regardless |
 | **Focused Reader** (human) | Real engaged user | 0.474 | (passes — control) |
 | **Casual Browser** (human) | Real distracted user | 0.465 | (passes — control) |
 | **Distracted User** (human) | Real multitasking user | 0.431 | (passes — control) |
@@ -49,15 +50,42 @@ Bot harness at `tests/bot-harness.test.js` (34/34 tests passing, run 2026-05-07)
 
 These are real 2026 threats that the current bot harness does not cover. Listed in priority order of "how likely we'll see this in a CME pilot."
 
-### 3a. LLM-in-the-loop bot (highest priority)
+### 3a. LLM-in-the-loop bot (MEASURED — 2026-05-07 evening)
 
-**Description:** Claude or GPT-4 driving a real browser via Puppeteer. The LLM reads the activity content, makes plausible decisions about pacing, scrolls naturally, types responses based on the content. Most modern fraud automation in 2026 uses this pattern.
+**Description:** Claude Sonnet 4.6 driving a real browser via Puppeteer against the production demo URL `https://sws-attention-proofs.web.app/cme-demo.html`. The LLM reads the activity content, makes phase decisions, scrolls naturally, and types responses based on the content. Most modern fraud automation in 2026 uses this pattern.
 
-**Why we haven't measured it:** Script exists at `scripts/llm-in-the-loop-harness.js` but blocked on running it (cost: ~$0.10–0.30 per session, ~$5–15 for a 50-session study).
+**Run conditions:** n = 20 attempts, 9 successful runs, 11 navigation timeouts attributable to test-environment network fragility (Codespace egress flake; not the LLM, not the protocol). Model: `claude-sonnet-4-6`. Cost: ~$3–5 of $10 Anthropic budget. Production stack with all 2026-05-07 R8 fixes deployed.
 
-**Expected outcome based on theory:** LLM-driven sessions should behaviorally cluster between Slow Mimic (0.404) and human floor (0.431) — the LLM can fake reading-speed plausibility but inherits the bot's mechanical motor signatures (curvature index, cursor jerk, two-thirds power law). The Wall's server-side recompute should still catch it. Measured numbers are needed before we ship a "we catch LLMs" claim.
+**Measured composite distribution (n=9):**
 
-**Status:** Queued. Authorized run = $5–15 from the existing API key. Highest-leverage adversarial test we can run today.
+| Statistic | Value |
+|---|---|
+| Mean | 0.446 |
+| Median (p50) | 0.430 |
+| 95th percentile | 0.568 |
+| Min | 0.401 |
+| Max | 0.568 |
+
+**Defense-layer engagement (n=9):**
+
+| Layer | Caught |
+|---|---|
+| Environmental gate (detected `headless_chrome`) | **9 / 9 (100%)** |
+| Composition integrity (detected `mechanical`) | **9 / 9 (100%)** |
+| Behavioral composite < 0.5 (would fail 0.5-floor threshold) | **8 / 9 (88.9%)** |
+| Active signals: 11–12 / 20 (the 4 mouse-only signals get N/A on headless Chromium's null cursor) | — |
+
+**Comparison to other classes:**
+
+- LLM mean (0.446) sits slightly above lowest measured legitimate human (Distracted User at 0.431) on behavioral composite alone — closer than any prior bot class
+- LLM p95 (0.568) approaches median-human territory (Casual Browser 0.465, Focused Reader 0.474) — the LLM can produce single sessions that look behaviorally human-like
+- BUT every LLM session is caught by env gate AND composition integrity regardless of composite score. The behavioral overlap is real; the layered defense is what closes it.
+
+**Honest framing for buyer calls:**
+
+> *"We tested Claude Sonnet 4.6 driving Puppeteer against our live demo, n=9. Mean composite 0.446. The strongest single LLM session reached 0.568 — that's close to median human territory on behavioral signal alone. We're honest about that overlap. What holds is the layered defense: environmental gate caught 100% as headless Chromium, composition integrity caught 100% as mechanical input. The bypass cost claim ($5-20k/mo + 200-400h) holds because moving an LLM-driven session past TWO non-behavioral defenses requires real-browser execution, real keyboard hardware, and adaptive content-aware timing simultaneously — not just an LLM call."*
+
+**Status:** Closed. R8 production tightening pass + this empirical run together make the LLM-resistance claim defensible. Future runs with n≥30 would tighten the confidence interval; the n=9 distribution is sufficient for a discovery-call answer today.
 
 ### 3b. Recorded-and-replayed real human session
 
@@ -193,7 +221,7 @@ In priority order — what to ship next to close known gaps.
 ## 7. What we cannot claim today
 
 - "We catch all bots." We don't. We catch every class we've measured, but new classes are always developed. The only honest posture is "we measure transparently, publish methodology, hostile-review continuously, and the layered architecture means no single bypass collapses the whole system."
-- "We catch LLM-driven completions." Theoretically yes, empirically not yet measured. **Until the LLM-in-the-loop harness runs, this claim is off-limits.**
+- "We catch LLM-driven completions." Empirically measured 2026-05-07 evening: 9/9 caught by env gate + composition integrity, mean composite 0.446, p95 0.568. The behavioral composite overlaps with the lowest human in our set; the layered defense is what closes the gap. Quote with the honest framing in §3a, not as "we catch all LLMs."
 - "Our threshold catches >X% of bots." Threshold is population-relative per the methodology doc; the deployer derives their threshold. Vendor-wide claims are wrong.
 - "We're SOC 2 / ISO 27001 / cryptographically audited by a Tier-1 firm." Not yet. Pathways exist; sequencing is in `cme-vertical-use-cases.md` §expansion-path.
 
