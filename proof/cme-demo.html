@@ -1057,6 +1057,12 @@
           return s;
         })(),
         active_signals: c.activeSignals,
+        // R8-NEW-5 (2026-05-07): hashes_earned propagates into the JWT
+        // credentialSubject.engagement.interactionCount via the trigger.
+        // Pre-this-commit, every cme-demo JWT had interactionCount=0
+        // because the field wasn't on the top-level session document.
+        // Caught by tests/cross-tier-field-audit.test.js.
+        hashes_earned: stats ? stats.totalHashes : 0,
         timeline: timeline || [],
         uid: fbUser ? fbUser.uid : 'anonymous',
         source_type: sourceType,
