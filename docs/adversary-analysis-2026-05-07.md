@@ -43,6 +43,8 @@ Bot harness at `tests/bot-harness.test.js` (34/34 tests passing, run 2026-05-07)
 
 **Production stress test (2026-05-07 17:21 UTC):** 50/50 sessions across 5 device classes signed cleanly, JWTs verify against live JWKS, 100% production receipt-issuance rate.
 
+**Important correction (2026-05-07 evening, commit `68e3db9`, R8-NEW-3):** Until this commit, the Wall's server-recompute and trace-novelty defenses were *silently inactive on real users.* The trigger read `session.event_log` (top-level), but the production demo flow ships `event_log` nested at `session.receipt_payload.event_log` via the SDK's signed canonical payload. Synthetic and harness sessions used the top-level path, which is why our tests reported the Wall as engaging — they were testing an alternate-shaped session. The fix is a one-line fallback to the nested path, deployed and verified: a synthetic production-shape session now returns `trust_tier: server_attested` with computed fingerprint and active server recompute. Bypass-cost claims in the table above ($5k–20k post-Wall) only become operationally true after this commit.
+
 ## 3. Adversary classes — known but not yet measured
 
 These are real 2026 threats that the current bot harness does not cover. Listed in priority order of "how likely we'll see this in a CME pilot."

@@ -126,7 +126,9 @@ async function verifyJwt(jwt, jwks) {
       }
     } else if (d.signing_error) {
       failed++;
-      failureReasons['sign_' + d.signing_error] = (failureReasons['sign_' + d.signing_error] || 0) + 1;
+      // R8-NEW-1: signing_error is now { class, detail, at_iso } object
+      const cls = (d.signing_error && d.signing_error.class) || d.signing_error;
+      failureReasons['sign_' + cls] = (failureReasons['sign_' + cls] || 0) + 1;
     } else {
       pending++;
     }
