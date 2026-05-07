@@ -1,237 +1,272 @@
-# Master List: Stephen, Read This From Your Phone
+# Master Plan: Two Workstreams, Coordinated
 **For:** Stephen Furpahs
 **Compiled:** 2026-05-07 evening
 **Read on phone via:** github.com/Stephenuffugus/Attention-Protocol/blob/main/MASTER_LIST.md
 
-This is the one file. It tells you what's done, what's left, when each piece happens, and what you can ignore until later. No other file is required reading. The detailed files exist for reference if you want depth, but this one is the index.
+This is the single source of truth. Read it from your phone via the URL above.
 
 ---
 
-## Calendar (calmly, with birthday plans respected)
+## The two workstreams
 
-| Day | What happens | Time required |
-|---|---|---|
-| **Wed May 7 (tonight)** | REST. Nothing must happen. | 0 minutes |
-| **Thu May 8** | Pi App Studio submission. Optional: In The Loop email. | 2-4 hours |
-| **Fri May 9** | Birthday plans with Jessie. Off. | 0 |
-| **Sat May 10** | Birthday plans with Jessie. Off. | 0 |
-| **Sun May 11** | Light work day. Catch-up. | 1-3 hours if you want |
-| **Mon May 12 (birthday, home alone)** | Heavy work day if you want it. Blink provisional draft + filing. LinkedIn. GitHub README. Brainscape + Form AI applications. | 4-6 hours if you want |
-| **Tue May 13** | Phase 2 outreach launches: Web3 cover letters + founder DMs. | 2-3 hours |
-| **Wed May 14** | Daily 30-90 min outreach rhythm starts | 30-90 min/day |
-| **Onwards** | Same daily rhythm through end of May | 30-90 min/day |
+You are running two parallel tracks. They share infrastructure (this repo, my context, your time) but they have different goals, different audiences, and different timelines. Both have to move forward through May.
 
-The actually-mandatory item this week is one: ship Pi to App Studio by Thursday night. Friday-Saturday is fully off. Sunday and Monday are work-if-you-want days, not work-if-you-must days; treat them like productive recovery, not crunch.
+**Workstream A: Career Pivot (job hunt for bridge income)**
+- Goal: Land a $140-200K remote founding-engineer or senior-IC role within 6 weeks. Failing that, a $80-150/hr fractional-contract role within 2-3 weeks.
+- Audience: AI-tools companies, YC seed-stage startups, fractional consulting clients
+- Files: CAREER_PIVOT_PLAN.md, APPLICATIONS_READY.md, PROJECTS_TRIAGE_AND_CARDS.md, PORTFOLIO_DRAFTS.md, PARTTIME_KIT.md
+
+**Workstream B: SWS Attention Protocol Customer Development**
+- Goal: 5 discovery-call writeups + 1 LOI or paid pilot conversation by June 1. Long-term: SWS becomes the work, not the side thing.
+- Audience: CME boutique providers, allied-health CE, credentialing platforms, identity / proof-of-humanness vendors
+- Files: OUTREACH_PLAY.md, PROSPECTS_2026-05-06.md, outreach-drafts/01-ppp-SEND-THIS.md
+
+These are not in tension. Both keep moving with about 30-60 min/day each starting May 13. The coordination section below explains how you and I and the other Claudes split the work.
 
 ---
 
-## What's already done (so you see progress)
+## Calendar (two-track, with birthday plans respected)
 
-You shipped a lot today. Don't lose track.
+| Day | Workstream A: Career | Workstream B: SWS | Time |
+|---|---|---|---|
+| **Wed May 7 (tonight)** | REST | REST | 0 |
+| **Thu May 8** | Pi App Studio submission. Optional: send In The Loop email. | Optional: read OUTREACH_PLAY.md once. | 2-4 hr |
+| **Fri May 9** | Off. Birthday plans with Jessie. | Off. | 0 |
+| **Sat May 10** | Off. Birthday plans with Jessie. | Off. | 0 |
+| **Sun May 11** | Light catch-up: send Brainscape application | Light: skim OUTREACH_PLAY pitch scripts | 1-2 hr |
+| **Mon May 12 (birthday, home all day)** | Heavy: file Blink provisional, build GitHub README + LinkedIn, send Form AI | Heavy: read OUTREACH_PLAY 12-questions section, prep PPP outreach | 4-6 hr |
+| **Tue May 13** | Send 5 cover letters / DMs (Web3 Top 10) | Send PPP email (practice round 1) | 2-3 hr |
+| **Wed May 14** | 30 min: 3 cover letters | 30 min: send CEC email (practice round 2) | 60 min |
+| **Thu May 15** | 30 min: 3 cover letters | 30 min: send Prova email (practice round 3) | 60 min |
+| **Fri May 16-onwards** | 30-min daily: 3 outreach touches | 30-min daily: discovery-call prep + follow-ups as replies land | 60 min/day |
 
-**Production deploys today (Tuesday May 6 + Wednesday May 7):**
-- iPhone consent banner safe-area fix
-- iOS Private Mode localStorage fallback
-- NaN-safe composite computation (fixed the silent-fail bug)
-- Auto interruption tagging (screen-sleep honesty)
+The mandatory item this week is one: ship Pi to App Studio by Thursday night. Sunday and Monday are work-if-you-want days framed as productive recovery, not crunch. After Tuesday May 13 the daily rhythm splits across both workstreams: 30 min A, 30 min B.
+
+---
+
+## What's already done (you have more leverage than you feel)
+
+**Production deploys today (May 6-7):**
+- iPhone consent banner safe-area fix, iOS Private Mode localStorage fallback
+- NaN-safe composite (fixed the silent-fail bug, 4 of 9 sessions)
+- Auto interruption tagging (screen-sleep honesty in receipts)
 - Octopus content variant for the demo
 - Disclaimer banner + hidden live-panel during the test
 - Homepage CTA reorder (Take the test as primary)
 - index_v2.html sibling rewrite (stranger-first hero)
-- corpus-status.js auto-filtering of tagged docs
+- corpus-status.js auto-filtering of contaminated docs
 - Realtime DB locked down
 
-**Strategy and application package files committed (commit 517354b):**
+**Strategy + application package (committed):**
 - PROSPECTS_2026-05-06.md (70+ SWS customer-development prospects, organized by access tier)
-- CAREER_PIVOT_PLAN.md (full-time job hunt plan, salary expectations, Top 10 companies, founder DM list)
-- PARTTIME_KIT.md (lower-tier $40-150/hr contract bridge with bios + cover letter templates)
-- PORTFOLIO_DRAFTS.md (Saturday portfolio-weekend assets: landing page, demo videos, GitHub README)
-- APPLICATIONS_READY.md (3 cover letters ready to send + 5 founder DMs ready for X + GitHub README scaffold)
-- PROJECTS_TRIAGE_AND_CARDS.md (IP triage on all 8 projects + resume cards)
+- CAREER_PIVOT_PLAN.md (full-time job hunt plan, salary expectations, Top 10 + Tier 2 companies)
+- PARTTIME_KIT.md (lower-tier $40-150/hr contract bridge)
+- PORTFOLIO_DRAFTS.md (Saturday portfolio assets)
+- APPLICATIONS_READY.md (3 cover letters + 5 founder DMs + GitHub Profile README)
+- PROJECTS_TRIAGE_AND_CARDS.md (IP triage on 8 projects + resume cards)
 - MASTER_LIST.md (this file)
 
-**Project breakdowns gathered (8 projects):**
-- SWS Attention Protocol: working, patent filed, production
-- Lucid Winds: 96k LOC, 58 mini-games, Solidity contract, ~ready for Pi App Studio
-- SnapBinder: working, deployed PWA, 4-layer ECDSA-signed pipeline
-- Trackfit: live PWA, 19k LOC, knapsack solver
-- BarBrawl: partially working, 7k LOC + 338 tests, deterministic combat engine
-- Blink: prototype, AR staring contest, patent-worthy protocol (UNFILED)
-- stevieweedseed.com: live revenue site, not actively maintained
-- Sport bet machine: stealth, $1k profit in 2 months, selective mention only
+**Project breakdowns gathered (8 projects, full IP triage):**
+- SWS Attention Protocol (working, patent filed, production)
+- Lucid Winds (96k LOC, 58 mini-games, Solidity contract, ~ready for Pi App Studio)
+- SnapBinder (working, deployed PWA, 4-layer ECDSA-signed pipeline)
+- Trackfit (live PWA, 19k LOC monorepo, knapsack solver)
+- BarBrawl (partially working, 7k LOC + 338 tests, deterministic combat engine)
+- Blink (prototype, AR staring contest, patent-worthy protocol — Blink Claude is filing)
+- stevieweedseed.com (live revenue site)
+- Sport bet machine (stealth, $1k profit in 2 months, selective mention)
 
-**Patent strategy locked in:**
-- SWS-PROV-001 already filed (March 2026)
-- Blink: $65 provisional recommended this week. Files on the multi-game P2P AR protocol, not the staring-contest mechanic. RPS, eye-tracking duels, etc. all ride under the same filing.
+**Existing SWS outreach intel (from before today):**
+- OUTREACH_PLAY.md: Top 10 ranked CME prospects + per-account financial case + 3 pitch openings + 12 expected questions with honest answers + mock call transcript + post-call discipline
+- outreach-drafts/01-ppp-SEND-THIS.md: PPP cold email already drafted
 
 That's a lot of leverage already in the can.
 
 ---
 
-## What's left, sorted by date
+## WORKSTREAM A: Career Pivot
 
-### Thursday May 8 (the only working day before the break)
+### What you study (in order, ~60 min total reading)
+1. APPLICATIONS_READY.md — the actual emails and DMs you'll send
+2. CAREER_PIVOT_PLAN.md Top 10 Companies section — the table
+3. PROJECTS_TRIAGE_AND_CARDS.md — the resume cards (so you can talk to them in interviews)
 
-**Mandatory:**
-1. Finish Lucid Winds adversarial self-testing.
-2. Submit Lucid Winds to Pi App Studio.
+### What you send (timing)
+- **Thursday May 8 (optional):** In The Loop email + Brainscape application
+- **Tuesday May 13:** Form AI cover letter, 5 founder DMs (Amjad, Karri, Guillermo, Flo, Aravind)
+- **Wednesday May 14 onwards:** 3 outreach touches per day from CAREER_PIVOT_PLAN.md Top 10 + Tier 2
 
-**Optional but good if you have energy:**
-3. Send the In The Loop email. It is fully drafted in APPLICATIONS_READY.md ASSET 1. Subject `HN - Human` to humans@intheloop.engineering. Five minutes of work.
-4. Send the Brainscape application. Drafted in APPLICATIONS_READY.md ASSET 3. Five minutes.
-
-That's it. Nothing else has to happen Thursday. The In The Loop email lands fine if sent Tuesday May 13 instead.
-
-### Friday May 9 - Saturday May 10: Birthday plans with Jessie. Off the clock.
-
-### Sunday May 11: Light catch-up day if you want.
-
-If you have energy, this is a good day for the things that don't need a fresh brain:
-- Send the Brainscape application (5-min copy-paste from APPLICATIONS_READY.md ASSET 3)
-- Send the In The Loop email if you didn't on Thursday (5-min copy-paste from ASSET 1)
-- Read through the project breakdowns once more on your phone
-
-If you don't have energy, do nothing. Both are fine.
-
-### Monday May 12 (your birthday, home alone, said you want to work hard): the heavy day
-
-This is when the bulk of the prep work happens, since you have the day to yourself and the focus.
-
-**Morning (60-90 min):**
-- Review the Blink provisional spec the other Claude drafted for you. Edit, finalize, file via USPTO.gov EFS-Web. $65 microentity fee. Should take 30-45 minutes once spec is reviewed.
-
-**Afternoon (90-120 min):**
-- Make the public GitHub repo `Stephenuffugus/Stephenuffugus`.
-- Drop the GitHub Profile README in. Template is APPLICATIONS_READY.md ASSET 5.
-- Replace `[handle]` placeholders. Drop in the project cards from PROJECTS_TRIAGE_AND_CARDS.md.
-- Now that Blink is patent-pending, include it on the README as Card 6.
-- Push, verify it renders.
-
-**Evening (60-90 min):**
-- LinkedIn profile. Use the bio from PARTTIME_KIT.md ASSET 1B. Add the project cards. Connect 5-10 people you know.
-- Send Form AI cover letter (deadline May 18, comfortable buffer).
-
-That's a real day's work but it ALL pays off Tuesday morning when outreach launches.
-
-### Tuesday May 13: Phase 2 outreach launches.
-
-**The morning (60-90 min):**
-1. Make a public GitHub repo named `Stephenuffugus/Stephenuffugus`.
-2. Drop the GitHub Profile README into it. Template is in APPLICATIONS_READY.md ASSET 5. Replace `[handle]` with your real handles. Replace the bracketed projects with the cards from PROJECTS_TRIAGE_AND_CARDS.md.
-3. (Decision: include Blink? Yes only if the provisional has been filed by then. Otherwise omit.)
-
-**The afternoon (60-90 min):**
-4. Make a LinkedIn profile. Use the bio from PARTTIME_KIT.md ASSET 1B. Add the project cards. Connect 5-10 people you know.
-5. Outline the Blink provisional patent (I'll write this for you on Tuesday, you draft + file Wednesday).
-
-**The evening (optional):**
-6. Send the In The Loop email if you didn't on Thursday.
-7. Send the Form AI cover letter. Deadline is May 18, so this is a 5-day buffer, comfortable.
-
-### Wednesday May 14 onwards: Daily outreach rhythm
-
-30-90 minutes per day, 5 days a week:
-- 5 cover letters / DMs sent per day from APPLICATIONS_READY.md and CAREER_PIVOT_PLAN.md
-- Track responses in a simple spreadsheet (just: company, role, status, next-step)
-- Weekly check-in with me on what landed, what didn't, what to adjust
-
-This is the calm sustainable rhythm. Not a 4-hour binge.
+### What I'll have ready for you by Tuesday morning
+- Three Web3-tailored cover letters (Coinbase, Magic Eden, Polygon Labs) leading with Solidity + ECDSA + Ed25519
+- Updated APPLICATIONS_READY.md with the stronger 6-projects receipts paragraph
+- LinkedIn profile copy block (paste into LinkedIn, 30-min setup)
 
 ---
 
-## What to study (in order)
+## WORKSTREAM B: SWS Attention Protocol Customer Development
 
-You don't need to read every file. Read these three on your phone in order:
+### Why this matters
+The career pivot pays the bills. SWS is the long-term thing. By June 1 you want 5 named discovery-call writeups + 1 LOI or paid pilot conversation. That's the artifact YC partners will care about when they reply to your application in 4-8 weeks. "We have 3 named buyer conversations with quoted objections" beats "we have a demo" every time.
 
-1. **MASTER_LIST.md** (this file). Twenty-minute read. The whole map.
-2. **APPLICATIONS_READY.md.** Twenty-minute read. The exact emails and DMs you'll send.
-3. **CAREER_PIVOT_PLAN.md** Top 10 Companies section. Ten-minute read. Just the table of who and why.
+### What you study (in order, to NOT sound dumb in CME conversations)
 
-Skip everything else for now. They're reference material, not study material. PROSPECTS_2026-05-06.md is for SWS customer-development outreach which doesn't start until May 12. PORTFOLIO_DRAFTS.md is for Saturday but Saturday is now blocked, so push it.
+These five things are the minimum to hold a credible 20-minute conversation with a Director of Accreditation or VP Outcomes at a CME provider. Read each on your phone over the next week.
+
+**1. ACCME basics (10 min)** — accme.org has a clear "About Accreditation" page. Memorize: ACCME accredits CME providers; providers issue credit; the new pressure is the December 2025 ACCME AI guidance about learner-integrity in AI-augmented assessments. **Reference: accme.org/accreditation**
+
+**2. The IME grant cycle (15 min)** — Independent Medical Education grants are how pharma funds CE without controlling content. Pfizer/Merck/Genentech write RFPs; MECs (Medical Education Companies) write proposals. The "measurement of learner progression" rubric is the line that explicitly opens the door for SWS. **Reference: search "Pfizer IME RFP measurement of learner progression" for the public sample.**
+
+**3. The MEC ecosystem (10 min)** — read OUTREACH_PLAY.md sections 1 and 2 in this repo. It already has the Top 10 + financial case. That's enough to talk to any of them.
+
+**4. The 12 questions they will ask (20 min)** — OUTREACH_PLAY.md section 5. Read the honest / wrong / bridge-phrase format three times. These are the questions every Director will ask in the first 20 minutes. Knowing the bridge phrases is the difference between sounding green and sounding seasoned.
+
+**5. Competitive landscape (10 min)** — your existing memory has it: BioCatch (best-in-class behavioral fraud detection, ~2000 features, classifier not receipt), Roundtable (YC-backed proof-of-humanness), Imperium (panel-fraud incumbent). When asked "how is this different from BioCatch?" the honest answer is in OUTREACH_PLAY.md Q1.
+
+That's 65 minutes of reading. Spread across Sunday and Monday it's nothing. Read once, refer back during calls.
+
+### What you send (timing, follows OUTREACH_PLAY.md Top 10)
+
+The smart play per OUTREACH_PLAY: practice rounds first, strategic accounts second. The first three are PPP, CEC, Prova. They are right-sized, founder-or-Director-discretionary, and the worst case is you botch the open and learn for the strategic accounts.
+
+- **Tuesday May 13:** Send PPP email (already drafted at outreach-drafts/01-ppp-SEND-THIS.md). Practice round 1.
+- **Wednesday May 14:** Send CEC email. Practice round 2.
+- **Thursday May 15:** Send Prova email. Practice round 3.
+- **Week of May 19:** Send DKBmed, PeerView, Global Education Group as replies start landing.
+- **Week of May 26:** Strategic accounts (PlatformQ, Haymarket, Medscape) once 1-3 sharpen the pitch.
+
+### Per-call briefing protocol (the "data ready while talking" piece)
+
+When a prospect agrees to a call, here is what happens:
+
+1. **You tell me:** *"Discovery call with [name] at [company] on [date/time]"*
+2. **I prepare:** A one-page briefing (in this repo, mobile-readable on your phone) with:
+   - Who they are, what their company does, recent news / signals
+   - The hook for this specific company (already in OUTREACH_PLAY.md for Top 10)
+   - The 12 expected questions with honest answers, customized to this company's context
+   - The hardest question for them specifically (e.g., for cardiology specialists, the "behavioral surveillance" objection lands hardest)
+   - First-meeting ask language (already in OUTREACH_PLAY.md for Top 10)
+   - "Never-say" reminders specific to this audience
+3. **During the call:** You have the briefing pulled up on your phone. If they ask a question that's covered, glance and answer. If they ask something off-script, take notes.
+4. **After the call:** You tell me what happened. I help draft the same-day follow-up. (OUTREACH_PLAY.md section 8 has the post-call discipline.)
+
+For the Top 10 prospects, the briefings are already 80% drafted in OUTREACH_PLAY.md. I'll customize and condense to phone-readable one-pagers as you book the calls.
+
+### What I'll have ready for you by Tuesday morning
+- A one-page CME 101 cheat sheet (the 5-things-to-study above, condensed for phone)
+- A one-page glossary of CME / IME / ACCME terms (so you have the vocabulary at hand)
+- A one-page competitive-landscape cheat sheet (BioCatch vs Roundtable vs Imperium, when to invoke which name)
+- The PPP briefing converted to phone-readable format
 
 ---
 
-## What you can completely ignore for now
+## Multi-Claude Coordination Protocol
 
-- The whole SWS Attention Protocol customer-development outreach (PROSPECTS file, ~70 companies). That's a separate goal that starts May 12 at the earliest.
-- The portfolio weekend assets in PORTFOLIO_DRAFTS.md (landing page copy, demo video scripts, etc.). Saturday is now off the table; this work moves to next weekend at earliest.
-- The 60+ Tier 2 / Tier 3 prospects in CAREER_PIVOT_PLAN.md. Those are weeks 2-4 of the outreach rhythm. Not now.
-- Buying stephenfurpahs.com. The GitHub Profile README replaces it for free.
-- Recording demo videos. Optional. Live URLs are the demo.
+You are running 4-5 parallel Claude sessions. Here's how they fit:
 
----
+| Claude session | Domain | What they own |
+|---|---|---|
+| **This one (Attention-Protocol codespace)** | Strategy, synthesis, decision-making | Master plan, both workstreams, briefings, follow-ups, status. The brain. |
+| **Lucid Winds Claude** | Lucid Winds codebase | Pi App Studio prep, final tweaks, submission. Pi-specific decisions. |
+| **Blink Claude** | Blink codebase | RPS integration, multi-game protocol refactor, provisional patent draft. |
+| **SnapBinder Claude (if needed)** | SnapBinder codebase | Bug fixes, deployment, any updates if you decide to ship more |
+| **Trackfit Claude (if needed)** | Trackfit codebase | Same |
 
-## What to send (in priority order, when ready)
+### How to coordinate without splitting your brain
+- **This Claude (me) is the brain.** Strategy, status, synthesis, briefings, drafts.
+- **Other Claudes are limbs.** They do domain-specific work. They report status back to you.
+- **You relay decisions between sessions.** Example: Blink Claude says "the protocol refactor is done." You tell me. I update the status in MASTER_LIST.md and adjust the patent-pending mention in APPLICATIONS_READY.md. You then go back to Blink Claude with "ok, now draft the provisional spec."
+- **You don't need to keep me in sync with every other Claude's progress.** Just tell me when a milestone happens (e.g., "Blink provisional filed," "Pi submitted to App Studio," "GitHub README is live"). I update the master plan accordingly.
 
-The email and DM templates are all in APPLICATIONS_READY.md. Each is copy-paste-ready.
-
-**Tier 1 (week of May 13):**
-1. In The Loop Engineering: humans@intheloop.engineering, subject `HN - Human` (highest fit, time-sensitive)
-2. Brainscape AI Prompt Engineer: through their breezy.hr form (lowest-friction bridge income)
-3. Form AI Full-Stack Contract: by May 18 deadline (TS + Python + Claude + RAG match)
-
-**Tier 2 (week of May 19):**
-4. Founder DMs to Amjad Masad, Karri Saarinen, Guillermo Rauch, Flo Crivello, Aravind Srinivas (one per day, with Loom of Lucid Winds attached)
-5. YC Work at a Startup applications (filter Founding Engineer + Remote, apply to 20)
-6. Coinbase / Magic Eden / Polygon Labs cover letters (I'll write Web3-tailored versions Tuesday)
-
-**Tier 3 (week of May 26):**
-7. Tier 2 companies in CAREER_PIVOT_PLAN.md table (Raycast, Hex, Mistral, Canva, ElevenLabs, etc.)
-8. SWS customer-development emails to PPP, CEC, Prova (separate goal, separate file)
-
-That's 30+ touches across 3 weeks at a sustainable pace.
+### When to use which Claude
+- **Code work in a specific repo:** that repo's Claude
+- **Strategy or planning question:** me
+- **"What do I do next?":** me, then I'll route you to the right Claude if it's a code task
+- **"Draft this email / DM / cover letter":** me
+- **"Prepare a briefing for tomorrow's call":** me
+- **"What's a good answer to this objection?":** me, with reference to OUTREACH_PLAY.md
+- **"Help me understand [CME term / pharma concept / Web3 concept]":** me
 
 ---
 
 ## Reading from your phone
 
-This file (and all others) live in your GitHub repo. To read on phone:
+This file (and all others) live in this repo. To read on phone:
 
 1. Open phone browser.
 2. Go to: github.com/Stephenuffugus/Attention-Protocol
 3. Tap any `.md` file in the root.
-4. GitHub renders it cleanly on mobile.
-5. Use Ctrl-F (or your mobile browser's Find on Page) to jump to sections.
+4. GitHub renders it cleanly on mobile. Use Find on Page to jump to sections.
 
-If GitHub mobile isn't enough, install the GitHub mobile app. Same content, slightly nicer reading.
+You don't need to copy anything to Google Docs. The repo IS your master file system. Everything I draft is auto-pushed (commit and push commands run after each write).
 
-You don't need to copy anything to Google Docs. The repo is your master file system. Everything I drafted is already there.
+### Files indexed by use case
+
+**Read first:** MASTER_LIST.md (this file)
+
+**During job-search outreach:**
+- APPLICATIONS_READY.md — copy/paste emails and DMs
+- CAREER_PIVOT_PLAN.md — Top 10 companies + cold email template
+- PROJECTS_TRIAGE_AND_CARDS.md — the resume cards
+
+**During SWS customer-development calls:**
+- OUTREACH_PLAY.md — Top 10 prospects + 12 expected questions + mock call
+- PROSPECTS_2026-05-06.md — extended 70+ list for after Top 10
+- outreach-drafts/01-ppp-SEND-THIS.md — PPP cold email
+- (CME 101 cheat sheet, glossary, competitive landscape — coming Tuesday)
+
+**For portfolio weekend (deferred to next weekend at earliest):**
+- PORTFOLIO_DRAFTS.md
+- PARTTIME_KIT.md (the alternative low-tier bio)
+
+**For strategy reference:**
+- MORNING_PLAN.md (the bigger 30-day vision)
 
 ---
 
-## What I'll do for you between now and Tuesday
+## What I'll do for you between now and Tuesday morning
 
-You don't need to ask. I'll have the following ready by Tuesday morning when you start work again:
+You don't need to ask. By Tuesday May 13, all of the following will be in this repo:
 
-1. Three Web3-tailored cover letters (Coinbase, Magic Eden, Polygon Labs) leading with Solidity + ECDSA + Ed25519
-2. The Blink provisional patent spec outline (you fill in technical detail, file Wednesday)
-3. A LinkedIn profile copy block (paste into LinkedIn, takes 30 minutes)
-4. Updated APPLICATIONS_READY.md with the stronger 6-projects receipts paragraph
+**Workstream A (Career):**
+- Three Web3-tailored cover letters (Coinbase, Magic Eden, Polygon Labs)
+- Updated APPLICATIONS_READY.md with the 6-projects receipts paragraph
+- LinkedIn profile copy block
 
-You return Tuesday to a fully-loaded package. You don't have to do any of that now.
+**Workstream B (SWS):**
+- CME 101 cheat sheet (phone-readable, 5 minutes to read)
+- CME / IME / ACCME glossary (phone-readable)
+- Competitive-landscape cheat sheet (BioCatch / Roundtable / Imperium)
+- PPP briefing converted to phone-readable one-pager
+- CEC briefing in same format
+- Prova briefing in same format
+
+That's roughly 8 docs. They'll all be in this repo, all readable from your phone, all linked from MASTER_LIST.md.
 
 ---
 
-## The calm method
+## The calm method (calibrated)
 
-This is the method. Read it once.
+This is the method. Read once. It's the answer to "how do I get through all this without burning out."
 
-1. **Tonight, you stop.** Drink water. Sleep. Nothing has to happen.
-2. **Thursday, you ship Pi.** That's the only must-happen thing this week. Optional: send the In The Loop email and the Brainscape application. Both are 5-minute copy-pastes from a file that already exists.
-3. **Friday-Monday, you live your life.** Birthday plans with Jessie. No work. No checking email. No tweaking code.
-4. **Tuesday May 13, you come back.** I have the Web3 cover letters, the Blink provisional outline, and the LinkedIn copy ready. You spend 60-90 minutes on each of the three things on Tuesday's list. Done by lunch.
-5. **Wednesday May 14 onwards, you run the daily rhythm.** 30-90 minutes a day, 5 days a week. 5 outreach touches a day. By June 8 you've sent 100+ touches. Reply rate of 5% gives 5 conversations. Reply rate of 10% gives 10. The math works.
+1. **Tonight, you stop.** Drink water. Sleep. Nothing has to happen tonight.
+2. **Thursday, you ship Pi.** That's the only must-happen this week. Optional sends if you have energy: In The Loop email, Brainscape application. Both are 5-minute copy-pastes.
+3. **Friday-Saturday, you live your birthday plans with Jessie.** No work.
+4. **Sunday, light catch-up if you want.** Maybe send Brainscape if you didn't on Thursday. Maybe skim OUTREACH_PLAY.md once.
+5. **Monday (your birthday, home alone, said you want to work hard):** the heavy day. Blink provisional review and filing. GitHub Profile README live. LinkedIn live. Form AI sent. Read CME 101 cheat sheet.
+6. **Tuesday May 13 onwards:** daily rhythm. 30 min Workstream A, 30 min Workstream B. Total 60 min/day. Sustainable through end of May. By June 1 you have 100+ outreach touches across both tracks, 5 SWS discovery-call writeups, 2-3 job offers in negotiation.
 
-That's it. That's the whole thing. There is no other secret.
-
-You're way ahead of where you think you are. The package is built. The breakdowns are done. The receipts are real. Tonight you rest.
+That's the whole thing. The package is built. The patent strategy is correct. The breakdowns are real. Other Claudes are working in parallel. You are not behind. You are early.
 
 ---
 
 ## When in doubt
 
-Open MASTER_LIST.md (this file). Find what day it is. Do the thing for that day. Skip the rest.
+Open MASTER_LIST.md. Find what day it is. Do the thing for that day. Skip the rest.
 
-If you're confused, message me with: *"It's [day], what am I doing?"* and I'll tell you.
+If you're confused, tell me: *"It's [day], what am I doing?"* and I'll tell you.
 
-Goodnight.
+If a Claude in another session reports a milestone, tell me: *"[Claude name] just finished [thing]"* and I'll update the plan.
+
+If you book a discovery call: *"Booked call with [name] at [company] on [date]"* and I prepare the briefing.
+
+Goodnight Stephen. Real progress happened today. Sleep.
