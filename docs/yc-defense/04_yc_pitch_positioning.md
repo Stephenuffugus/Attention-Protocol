@@ -54,7 +54,7 @@ This is the macro narrative. Lean into it.
 | Objection | Pre-empt |
 |---|---|
 | **Privacy/regulatory** (BIPA, GDPR, FTC May-2023 biometric warning) | "Signals are hashed, not stored raw. Receipt contains no PII. Tamper-evident hash chain, not biometric template storage." |
-| **Accuracy under distribution shift** ("FPR on tired/drunk/older/no-mouse users?") | "20-signal gated composite degrades gracefully. Device-aware scoring. Published FPR by device class." |
+| **Accuracy under distribution shift** ("FPR on tired/drunk/older/no-mouse users?") | "23-signal gated composite degrades gracefully (19 active on mobile, 23 on desktop — auto-reweighted per device class). Published FPR by device class." |
 | **"Why not BioCatch?"** ($160M ARR, 280 banks) | "BioCatch sells scores to banks. We sell receipts to regulated buyers — orthogonal product, orthogonal buyer." |
 | **Adversarial robustness** ("$20 bot service can replay signals?") | "0.273 effective gap post-hardening across all tested bot profiles. Adversarial harness shipped — DMTG, ReMouse, BeCAPTCHA-Mouse class included." |
 | **Evidentiary admissibility** ("courts haven't ruled on SHA-256 behavioral receipts") | "Patent filed (SWS-PROV-001). Tamper-evident hash chain, deterministic verifier. Legal frame is digital signature (Federal Rules of Evidence 901, 902(13)(14)) — not biometric identification." |

@@ -531,7 +531,7 @@ This is a tier-2 procurement pre-fill. It maps the most-asked CSA CAIQ / CAIQ-Li
 
 ### TVM-04 — Bot and automation defense
 - **Status:** IMPLEMENTED
-- **Answer:** Six-signal behavioral composite (timing CV, Fitts, Hick, scroll-saccade, micro-pause, touch-area variance) plus FingerprintJS BotD gate plus composition-integrity plus honeypot canary plus server-side wall (composite recompute on Cloud Functions). Round-2 adversarial agent estimated post-wall bypass cost at $5–20K/mo plus 200–400 engineering hours, a 100–400× cost increase over pre-wall. Bots are classified to background tier, making automation economically unattractive.
+- **Answer:** 23-signal behavioral composite (illustrative subset: timing CV, Fitts, Hick, scroll-saccade, micro-pause, touch-area variance, plus 17 others including motor-statistics, focus-event coupling, and reading-speed coherence — full list in `src/sdk/attention-protocol.js`) plus FingerprintJS BotD gate plus composition-integrity plus honeypot canary plus server-side wall (composite recompute on Cloud Functions). Round-2 adversarial agent estimated post-wall bypass cost at $5–20K/mo plus 200–400 engineering hours, a 100–400× cost increase over pre-wall. Bots are classified to background tier, making automation economically unattractive.
 - **Evidence:** `docs/SECURITY_ARCHITECTURE.md` §5, `docs/technical-faq.md` §A2.
 
 ### TVM-05 — Bug bounty / responsible disclosure

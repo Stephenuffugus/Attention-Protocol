@@ -109,7 +109,7 @@ service cloud.firestore {
 
 ### Threat: Bot/Automation Attacks
 - **Risk:** Automated scripts generating fake attention hashes to inflate engagement metrics
-- **Mitigation:** 6-signal behavioral analysis composite score
+- **Mitigation:** 23-signal behavioral analysis composite score (illustrative subset below; full list in `src/sdk/attention-protocol.js`)
   - Timing entropy (CV): Bots produce CV < 0.25, humans produce CV 0.4-1.5
   - Fitts' Law compliance: Bots fail motor pattern correlation (r < 0.15)
   - Hick's Law compliance: Bots show constant decision time regardless of options

@@ -17,7 +17,7 @@ Credly is the largest Open Badges issuer globally, owned by Pearson. Their produ
 
 ## Pitch hook
 
-> "Credly issues the badge. You don't measure the learner's behavioral engagement during the activity — that's the LMS's job, and most LMSs don't do it. SWS issues the layer underneath: a signed W3C Verifiable Credential bundling a 15-signal behavioral composite, environmental check, composition integrity signal, Ed25519 signature, and OpenTimestamps Bitcoin anchor, cleanly emitting as an OpenBadges 3.0 AchievementCredential. A Credly badge backed by a SWS attention receipt is the first credential in your catalog cryptographically verifiable all the way down. Receipt, not classifier."
+> "Credly issues the badge. You don't measure the learner's behavioral engagement during the activity — that's the LMS's job, and most LMSs don't do it. SWS issues the layer underneath: a signed W3C Verifiable Credential bundling a 23-signal behavioral composite, environmental check, composition integrity signal, Ed25519 signature, and OpenTimestamps Bitcoin anchor, cleanly emitting as an OpenBadges 3.0 AchievementCredential. A Credly badge backed by a SWS attention receipt is the first credential in your catalog cryptographically verifiable all the way down. Receipt, not classifier."
 
 ## Procurement cycle
 

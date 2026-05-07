@@ -82,7 +82,7 @@ Same stack, different commercial shape. The product doesn't change.
 **Every tier includes:**
 - SWS SDK (`src/sdk/attention-protocol.js`, `src/sdk/receipt-composite.js`, `src/sdk/attention-signer.js`, `src/sdk/verifiable-credentials.js`, `src/sdk/xapi-adapter.js`, `src/sdk/open-badge.js`)
 - Published JWK (`/.well-known/attention-pubkey.json`) and signing-authority DID
-- Ed25519-signed receipts with seven-layer attestation bundle (env gate, 20-signal behavioral composite, composition integrity, honeypot, consent, signature, OpenTimestamps + RFC 3161 timestamp)
+- Ed25519-signed receipts with seven-layer attestation bundle (env gate, 23-signal behavioral composite, composition integrity, honeypot, consent, signature, OpenTimestamps + RFC 3161 timestamp)
 - xAPI 1.0.3 adapter, OpenBadges 3.0 AchievementCredential emission, W3C VC Data Model 2.0
 - Evidence kit (`dist/evidence-kit.zip`) with sample receipts, verification walkthroughs, compliance matrix, security architecture doc
 - Offline verification via `verify.html` browser utility — no vendor involvement at verification time

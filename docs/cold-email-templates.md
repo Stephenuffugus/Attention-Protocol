@@ -130,7 +130,7 @@ behavioral attention during the activity — because that's not your job;
 it's the LMS's job, and most LMSs don't do it.
 
 I built the layer underneath. SWS Proof of Attention issues a signed
-W3C Verifiable Credential that bundles (a) 15-signal behavioral
+W3C Verifiable Credential that bundles (a) 23-signal behavioral
 composite, (b) BotD environmental check, (c) LLM-cheating integrity
 signal, (d) Ed25519 signature, (e) OpenTimestamps Bitcoin anchor,
 with full 1EdTech OpenBadges 3.0 compatibility. Every SWS receipt
