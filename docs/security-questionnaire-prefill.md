@@ -26,7 +26,7 @@ This is a tier-2 procurement pre-fill. It maps the most-asked CSA CAIQ / CAIQ-Li
 
 ### AAC-03 — Penetration testing
 - **Status:** PARTIAL
-- **Answer:** No paid third-party penetration test. Internal adversarial review is documented: seven hostile-review rounds between 2026-04-21 and 2026-04-28 produced approximately 93 findings, all closed in tracked commits. Round 2 adversarial bot-builder agent estimated post-wall bypass cost at $5–20K/mo plus 200–400 engineering hours. Paid pen-test planned post-pilot-#1.
+- **Answer:** No paid third-party penetration test. Internal adversarial review is documented: seven hostile-review rounds between 2026-04-21 and 2026-04-28 plus a 2026-05-07 production-tightening pass (R8) produced approximately 90 findings, all closed in tracked commits. Round 2 adversarial bot-builder agent estimated post-wall bypass cost at $5–20K/mo plus 200–400 engineering hours. Paid pen-test planned post-pilot-#1.
 - **Evidence:** Repo commit log `bba04db..7c8c025`; `docs/technical-faq.md` §D4.
 
 ### AAC-04 — Compliance roadmap and timeline

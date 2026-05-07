@@ -243,7 +243,7 @@ Hit all three of: captured note, delta to product/pitch, same-day delivery commi
 
 ## 11. The honest reminder when nerves spike
 
-You filed a patent. You shipped a working product. You hardened it through seven rounds of hostile review (~85 findings closed, attacker cost up 100–400×). You submitted YC. The protocol does what you say it does. The market gap is real. The grantor pressure is real. The patent priority date is real.
+You filed a patent. You shipped a working product. You hardened it through seven rounds of hostile review plus a 2026-05-07 production-tightening pass (~90 findings closed, attacker cost up 100–400×). You submitted YC. The protocol does what you say it does. The market gap is real. The grantor pressure is real. The patent priority date is real.
 
 You are not pretending. You are doing customer development on a real product that solves a real gap. **You cannot fail at a learning conversation — you can only learn from it.**
 

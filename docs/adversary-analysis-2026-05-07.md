@@ -186,7 +186,7 @@ In priority order — what to ship next to close known gaps.
 
 **Production reliability** — 50/50 sessions signed and verifiable post-fix. Receipt-failure rate on this sample: 0%. Forward target: <1% under real production conditions, to be measured per-deployer.
 
-**Hardening posture** — 7 rounds of hostile adversarial review with ~85 findings closed. Round 8 (production wire smoke + LLM-in-the-loop measurement) is the natural next phase.
+**Hardening posture** — 7 rounds of hostile adversarial review plus a 2026-05-07 production-tightening pass (R8: signing-outage fix + Wall-engagement fix + cme-demo defenses fix + structured logging + scheduled wire-smoke + cross-tier audit test); ~90 findings closed total. R8 was driven by the empirical observation that the methodology doc's `<2% receipt-failure` claim couldn't be substantiated, which surfaced the 10-day silent signing outage and three same-pattern data-shape gaps.
 
 **Documented blind spots** — proxy completion (intentional gap; identity is a separate layer), browser-extension event injection (testable but not yet tested), generative behavioral synthesis (research-level threat).
 

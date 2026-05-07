@@ -203,7 +203,7 @@ Every claim in this document is independently checkable:
 - **Cryptographic primitives** — Ed25519 signatures, JWT format, JWKS publication: verifiable via `scripts/verify-receipt.js` against any receipt SWS issues. No SWS infrastructure required after the public key is cached.
 - **Behavioral signal validity** — each of the 23 signals is unit-tested in `tests/signals-7-20.test.js` and others, with citations to the underlying peer-reviewed literature in source comments.
 - **Adversarial robustness** — the bot harness at `tests/bot-harness.test.js` is published; deployers can run it against their own deployment.
-- **Hardening discipline** — 7 rounds of hostile adversarial review with ~85 findings closed, fully version-controlled in the public repository.
+- **Hardening discipline** — 7 rounds of hostile adversarial review plus a 2026-05-07 production-tightening pass (R8); ~90 findings closed, fully version-controlled in the public repository.
 - **Calibration methodology** — this document.
 
 The deployer does not have to trust SWS Strategic Media. The deployer has to verify the math, run the harness, and calibrate to their population. The math, the harness, and the methodology are all public.

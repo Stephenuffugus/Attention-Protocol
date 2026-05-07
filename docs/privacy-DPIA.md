@@ -154,7 +154,7 @@ Default Firestore region: US multi-region. Customers requiring EU-residency can 
 - **No content storage:** removes copyright / IP-leakage concerns and reduces breach blast-radius to "no PII anyway."
 - **Receipt hash anchored to public infrastructure** (optional Bitcoin / RFC 3161): tamper-evident over decades without ongoing SWS involvement.
 - **Open-source SDK:** customer's privacy team can audit the actual data flow, not just trust documentation.
-- **Hostile-review hardening:** seven rounds of adversarial agent review (security, statistics, business, code, competitive, legal, SRE, UX, crypto, adversarial bot designer) closed approximately 85 findings before any customer onboarding. Round 7 declared the engineering hardening cycle converged.
+- **Hostile-review hardening:** seven rounds of adversarial agent review (security, statistics, business, code, competitive, legal, SRE, UX, crypto, adversarial bot designer) plus a 2026-05-07 production-tightening pass (R8) closed approximately 90 findings before any customer onboarding. Round 7 declared the engineering hardening cycle converged; R8 closed five same-day production-correctness findings surfaced while empirically substantiating the methodology doc's reliability claim.
 - **Server-side composite recompute** (the "wall"): re-derives the composite server-side from the raw event log, preventing client-side score forgery. Bypass cost ~$5–20K/mo + 200–400 engineering hours per Round-2 adversarial-bot-builder estimate.
 
 ---
