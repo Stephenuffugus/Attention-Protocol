@@ -360,7 +360,15 @@ exports.onSessionWritten = onDocumentCreated(
         hashes_earned: session.hashes_earned,
         composition_integrity: session.composition_integrity,
         environmental: session.environmental,
-        event_log: session.event_log,
+        // R8-NEW-3 (2026-05-07): production demo ships event_log nested at
+        // receipt_payload.event_log via the SDK's signed canonical payload.
+        // Original trigger read only top-level event_log, so trace-novelty
+        // + server-recompute were silently inactive on real users since the
+        // Wall shipped. Fall back to nested path so the Wall engages on
+        // prod traffic.
+        event_log: session.event_log
+          || (session.receipt_payload && session.receipt_payload.event_log)
+          || null,
         uid: session.uid
       };
       const sessionMeta = scorer.extractSessionMetrics(sessionForExtract);
@@ -394,7 +402,11 @@ exports.onSessionWritten = onDocumentCreated(
         composition_integrity: session.composition_integrity,
         consent: session.consent,
         uid: session.uid,
+        // R8-NEW-3 fallback for nested event_log (see comment in
+        // sessionForExtract above)
         event_log: session.event_log
+          || (session.receipt_payload && session.receipt_payload.event_log)
+          || null
       });
       const { jwt, credential } = await signSessionReceipt(
         clean, SIGNING_KEY.value(), SIGNING_KID.value() || 'sws-attention-2026-04',
