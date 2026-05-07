@@ -45,6 +45,7 @@
 // source-hash-based deploy skip.
 const { onRequest } = require('firebase-functions/v2/https');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
 const { setGlobalOptions } = require('firebase-functions/v2');
 const admin = require('firebase-admin');
@@ -66,6 +67,23 @@ const PKCS8_ED25519_PREFIX = Buffer.from('302e020100300506032b657004220420', 'he
 function b64url(bytes) {
   const b64 = Buffer.from(bytes).toString('base64');
   return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// R8-NEW-1 (2026-05-07): structured error classifier for signing failures.
+// Replaces the generic 'signing_failed' string with a small finite set of
+// diagnostic classes preserved to Firestore. Closes the May-7 silent-outage
+// failure mode (10 days of bad_signing_key surfacing only as 'signing_failed'
+// in the Firestore document, with the actual class buried in Functions logs).
+function classifySigningError(e) {
+  if (!e) return 'unknown';
+  const m = (e.message || '').toLowerCase();
+  if (m.indexOf('bad_signing_key') >= 0) return 'bad_signing_key';
+  if (m.indexOf('createprivatekey') >= 0 || m.indexOf('private key') >= 0) return 'createPrivateKey_failed';
+  if (m.indexOf('crypto.sign') >= 0 || m.indexOf('signature') >= 0) return 'sign_threw';
+  if (m.indexOf('sanitize') >= 0 || m.indexOf('invalid_session') >= 0) return 'sanitize_failed';
+  if (m.indexOf('jwt') >= 0 || m.indexOf('payload') >= 0) return 'payload_build_failed';
+  if (m.indexOf('credential') >= 0) return 'credential_build_failed';
+  return 'unknown';
 }
 
 async function signPayload(payload, keyHex, kid) {
@@ -293,7 +311,8 @@ exports.signReceipt = onRequest(
     } catch (e) {
       // NEVER leak key material into logs
       const msg = (e && e.message) ? e.message.replace(/[0-9a-f]{32,}/g, '<REDACTED>') : 'unknown';
-      res.status(500).json({ error: 'signing_failed: ' + msg });
+      const errClass = classifySigningError(e);
+      res.status(500).json({ error: 'signing_failed', class: errClass, detail: msg });
     }
   }
 );
@@ -400,12 +419,71 @@ exports.onSessionWritten = onDocumentCreated(
       });
     } catch (e) {
       // Log the error without key material
-      console.error('Signing failed for session', event.params.sessionId, ':',
-        (e && e.message) ? e.message.replace(/[0-9a-f]{32,}/g, '<REDACTED>') : 'unknown');
+      const rawMsg = (e && e.message) ? e.message.replace(/[0-9a-f]{32,}/g, '<REDACTED>') : 'unknown';
+      console.error('Signing failed for session', event.params.sessionId, ':', rawMsg);
+      // R8-NEW-1 (2026-05-07): preserve the actual error class to Firestore
+      // so future outages are diagnosable from `signing_error.class` alone
+      // without requiring a Functions-log dive. Closes the May-7 silent-
+      // outage failure mode where 17 sessions wrote literal "signing_failed"
+      // and the actual cause (bad_signing_key) only surfaced in logs.
+      const errClass = classifySigningError(e);
       await snap.ref.update({
-        signing_error: 'signing_failed',
+        signing_error: { class: errClass, detail: rawMsg, at_iso: new Date().toISOString() },
         signed_at: admin.firestore.FieldValue.serverTimestamp()
       }).catch(() => {});
     }
   }
 );
+
+
+// ============================================================
+// SCHEDULED — production wire smoke test
+// ============================================================
+//
+// R8-NEW-2 (2026-05-07): runs every 6 hours. Writes a synthetic
+// session, waits 20s for the onSessionWritten trigger to sign it,
+// reads back, logs structured success/failure. Cloud Logging alerts
+// can be wired to fire on `severity=ERROR` from this function.
+// Closes the silent-outage failure mode that hid the 10-day signing
+// outage discovered 2026-05-07.
+
+exports.wireSmokeTest = onSchedule(
+  { schedule: "every 6 hours", timeZone: "UTC", timeoutSeconds: 120 },
+  async () => {
+    const db = admin.firestore();
+    const sessionId = "wire_smoke_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8);
+    const synthetic = {
+      session_id: sessionId,
+      timestamp: Date.now(),
+      composite: 0.6,
+      signals: { composite: 0.6, timing: 0.5, hicks: 0.5, fitts: 0.5, scroll: 0.5,
+        microPause: 0.5, touch: 0, keystroke: 0.5, readingSpeed: 0.5, hoverDwell: 0.5,
+        tabVisibility: 0.95, inactivity: 0.5, rtVariability: 0.5, scrollBacktrack: 0.5,
+        fractalScaling: 0.5, crossCorrelation: 0.5, curvatureIndex: 0.5, cursorJerk: 0.5,
+        velocityProfile: 0.5, twoThirdsPower: 0.5, deviceMotion: 0, signalActive: 19 },
+      duration_sec: 60, hashes_earned: 3, quality_tier: "active",
+      user_agent: "WireSmoke/1.0",
+      source_type: "wire_smoke_scheduled",
+      consent: { accepted: true, version: "2026-04" },
+      composition_integrity: { mechanical: false, pasted: false, paste_count: 0 },
+      environmental: { headless: false, automation_flags: [] },
+      uid: "wire-smoke"
+    };
+    await db.collection("demos").doc(sessionId).set(synthetic);
+    await new Promise(function(r){ setTimeout(r, 20000); });
+    const doc = await db.collection("demos").doc(sessionId).get();
+    const d = doc.data() || {};
+    if (d.signed_jwt) {
+      console.log("WIRE_SMOKE_OK session=" + sessionId + " kid=" + (d.signing_kid || "unknown") +
+        " trust_tier=" + (d.trust_tier || "unknown"));
+    } else {
+      const errClass = (d.signing_error && d.signing_error.class) || "no_response";
+      const detail = (d.signing_error && d.signing_error.detail) || "no signed_jwt and no signing_error after 20s";
+      console.error("WIRE_SMOKE_FAIL session=" + sessionId +
+        " class=" + errClass + " detail=" + detail);
+    }
+    // Cleanup the test record so the demos collection stays clean
+    await db.collection("demos").doc(sessionId).delete().catch(function(){});
+  }
+);
+
