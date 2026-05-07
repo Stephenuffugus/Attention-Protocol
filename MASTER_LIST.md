@@ -72,7 +72,7 @@ The mandatory item this week is one: ship Pi to App Studio by Thursday night. Su
 - SnapBinder (working, deployed PWA, 4-layer ECDSA-signed pipeline)
 - Trackfit (live PWA, 19k LOC monorepo, knapsack solver)
 - BarBrawl (partially working, 7k LOC + 338 tests, deterministic combat engine)
-- Blink (prototype, AR staring contest, patent-worthy protocol — Blink Claude is filing)
+- Blink (prototype, AR staring contest, patent-worthy protocol. Blink Claude is filing)
 - stevieweedseed.com (live revenue site)
 - Sport bet machine (stealth, $1k profit in 2 months, selective mention)
 
@@ -87,9 +87,9 @@ That's a lot of leverage already in the can.
 ## WORKSTREAM A: Career Pivot
 
 ### What you study (in order, ~60 min total reading)
-1. APPLICATIONS_READY.md — the actual emails and DMs you'll send
-2. CAREER_PIVOT_PLAN.md Top 10 Companies section — the table
-3. PROJECTS_TRIAGE_AND_CARDS.md — the resume cards (so you can talk to them in interviews)
+1. APPLICATIONS_READY.md. the actual emails and DMs you'll send
+2. CAREER_PIVOT_PLAN.md Top 10 Companies section. the table
+3. PROJECTS_TRIAGE_AND_CARDS.md. the resume cards (so you can talk to them in interviews)
 
 ### What you send (timing)
 - **Thursday May 8 (optional):** In The Loop email + Brainscape application
@@ -112,15 +112,15 @@ The career pivot pays the bills. SWS is the long-term thing. By June 1 you want 
 
 These five things are the minimum to hold a credible 20-minute conversation with a Director of Accreditation or VP Outcomes at a CME provider. Read each on your phone over the next week.
 
-**1. ACCME basics (10 min)** — accme.org has a clear "About Accreditation" page. Memorize: ACCME accredits CME providers; providers issue credit; the new pressure is the December 2025 ACCME AI guidance about learner-integrity in AI-augmented assessments. **Reference: accme.org/accreditation**
+**1. ACCME basics (10 min)**. accme.org has a clear "About Accreditation" page. Memorize: ACCME accredits CME providers; providers issue credit; the new pressure is the December 2025 ACCME AI guidance about learner-integrity in AI-augmented assessments. **Reference: accme.org/accreditation**
 
-**2. The IME grant cycle (15 min)** — Independent Medical Education grants are how pharma funds CE without controlling content. Pfizer/Merck/Genentech write RFPs; MECs (Medical Education Companies) write proposals. The "measurement of learner progression" rubric is the line that explicitly opens the door for SWS. **Reference: search "Pfizer IME RFP measurement of learner progression" for the public sample.**
+**2. The IME grant cycle (15 min)**. Independent Medical Education grants are how pharma funds CE without controlling content. Pfizer/Merck/Genentech write RFPs; MECs (Medical Education Companies) write proposals. The "measurement of learner progression" rubric is the line that explicitly opens the door for SWS. **Reference: search "Pfizer IME RFP measurement of learner progression" for the public sample.**
 
-**3. The MEC ecosystem (10 min)** — read OUTREACH_PLAY.md sections 1 and 2 in this repo. It already has the Top 10 + financial case. That's enough to talk to any of them.
+**3. The MEC ecosystem (10 min)**. read OUTREACH_PLAY.md sections 1 and 2 in this repo. It already has the Top 10 + financial case. That's enough to talk to any of them.
 
-**4. The 12 questions they will ask (20 min)** — OUTREACH_PLAY.md section 5. Read the honest / wrong / bridge-phrase format three times. These are the questions every Director will ask in the first 20 minutes. Knowing the bridge phrases is the difference between sounding green and sounding seasoned.
+**4. The 12 questions they will ask (20 min)**. OUTREACH_PLAY.md section 5. Read the honest / wrong / bridge-phrase format three times. These are the questions every Director will ask in the first 20 minutes. Knowing the bridge phrases is the difference between sounding green and sounding seasoned.
 
-**5. Competitive landscape (10 min)** — your existing memory has it: BioCatch (best-in-class behavioral fraud detection, ~2000 features, classifier not receipt), Roundtable (YC-backed proof-of-humanness), Imperium (panel-fraud incumbent). When asked "how is this different from BioCatch?" the honest answer is in OUTREACH_PLAY.md Q1.
+**5. Competitive landscape (10 min)**. your existing memory has it: BioCatch (best-in-class behavioral fraud detection, ~2000 features, classifier not receipt), Roundtable (YC-backed proof-of-humanness), Imperium (panel-fraud incumbent). When asked "how is this different from BioCatch?" the honest answer is in OUTREACH_PLAY.md Q1.
 
 That's 65 minutes of reading. Spread across Sunday and Monday it's nothing. Read once, refer back during calls.
 
@@ -204,15 +204,15 @@ You don't need to copy anything to Google Docs. The repo IS your master file sys
 **Read first:** MASTER_LIST.md (this file)
 
 **During job-search outreach:**
-- APPLICATIONS_READY.md — copy/paste emails and DMs
-- CAREER_PIVOT_PLAN.md — Top 10 companies + cold email template
-- PROJECTS_TRIAGE_AND_CARDS.md — the resume cards
+- APPLICATIONS_READY.md. copy/paste emails and DMs
+- CAREER_PIVOT_PLAN.md. Top 10 companies + cold email template
+- PROJECTS_TRIAGE_AND_CARDS.md. the resume cards
 
 **During SWS customer-development calls:**
-- OUTREACH_PLAY.md — Top 10 prospects + 12 expected questions + mock call
-- PROSPECTS_2026-05-06.md — extended 70+ list for after Top 10
-- outreach-drafts/01-ppp-SEND-THIS.md — PPP cold email
-- (CME 101 cheat sheet, glossary, competitive landscape — coming Tuesday)
+- OUTREACH_PLAY.md. Top 10 prospects + 12 expected questions + mock call
+- PROSPECTS_2026-05-06.md. extended 70+ list for after Top 10
+- outreach-drafts/01-ppp-SEND-THIS.md. PPP cold email
+- (CME 101 cheat sheet, glossary, competitive landscape. coming Tuesday)
 
 **For portfolio weekend (deferred to next weekend at earliest):**
 - PORTFOLIO_DRAFTS.md
