@@ -13,15 +13,15 @@ This is the one file. It tells you what's done, what's left, when each piece hap
 |---|---|---|
 | **Wed May 7 (tonight)** | REST. Nothing must happen. | 0 minutes |
 | **Thu May 8** | Pi App Studio submission. Optional: In The Loop email. | 2-4 hours |
-| **Fri May 9** | Birthday plans with Jessie. No work. | 0 |
-| **Sat May 10** | Birthday plans with Jessie. No work. | 0 |
-| **Sun May 11** | Recharge day. No work. | 0 |
-| **Mon May 12** | YOUR BIRTHDAY. Celebrate. No work. | 0 |
-| **Tue May 13** | Phase 2 begins: cover letters, LinkedIn, Blink provisional outline | 2-3 hours |
+| **Fri May 9** | Birthday plans with Jessie. Off. | 0 |
+| **Sat May 10** | Birthday plans with Jessie. Off. | 0 |
+| **Sun May 11** | Light work day. Catch-up. | 1-3 hours if you want |
+| **Mon May 12 (birthday, home alone)** | Heavy work day if you want it. Blink provisional draft + filing. LinkedIn. GitHub README. Brainscape + Form AI applications. | 4-6 hours if you want |
+| **Tue May 13** | Phase 2 outreach launches: Web3 cover letters + founder DMs. | 2-3 hours |
 | **Wed May 14** | Daily 30-90 min outreach rhythm starts | 30-90 min/day |
 | **Onwards** | Same daily rhythm through end of May | 30-90 min/day |
 
-The actually-mandatory item this week is one: ship Pi to App Studio by Thursday night. Everything else is optional, deferrable, or already drafted.
+The actually-mandatory item this week is one: ship Pi to App Studio by Thursday night. Friday-Saturday is fully off. Sunday and Monday are work-if-you-want days, not work-if-you-must days; treat them like productive recovery, not crunch.
 
 ---
 
@@ -82,11 +82,38 @@ That's a lot of leverage already in the can.
 
 That's it. Nothing else has to happen Thursday. The In The Loop email lands fine if sent Tuesday May 13 instead.
 
-### Friday-Sunday May 9-11: NO WORK. Birthday plans.
+### Friday May 9 - Saturday May 10: Birthday plans with Jessie. Off the clock.
 
-### Monday May 12: YOUR BIRTHDAY. NO WORK.
+### Sunday May 11: Light catch-up day if you want.
 
-### Tuesday May 13: Phase 2 begins.
+If you have energy, this is a good day for the things that don't need a fresh brain:
+- Send the Brainscape application (5-min copy-paste from APPLICATIONS_READY.md ASSET 3)
+- Send the In The Loop email if you didn't on Thursday (5-min copy-paste from ASSET 1)
+- Read through the project breakdowns once more on your phone
+
+If you don't have energy, do nothing. Both are fine.
+
+### Monday May 12 (your birthday, home alone, said you want to work hard): the heavy day
+
+This is when the bulk of the prep work happens, since you have the day to yourself and the focus.
+
+**Morning (60-90 min):**
+- Review the Blink provisional spec the other Claude drafted for you. Edit, finalize, file via USPTO.gov EFS-Web. $65 microentity fee. Should take 30-45 minutes once spec is reviewed.
+
+**Afternoon (90-120 min):**
+- Make the public GitHub repo `Stephenuffugus/Stephenuffugus`.
+- Drop the GitHub Profile README in. Template is APPLICATIONS_READY.md ASSET 5.
+- Replace `[handle]` placeholders. Drop in the project cards from PROJECTS_TRIAGE_AND_CARDS.md.
+- Now that Blink is patent-pending, include it on the README as Card 6.
+- Push, verify it renders.
+
+**Evening (60-90 min):**
+- LinkedIn profile. Use the bio from PARTTIME_KIT.md ASSET 1B. Add the project cards. Connect 5-10 people you know.
+- Send Form AI cover letter (deadline May 18, comfortable buffer).
+
+That's a real day's work but it ALL pays off Tuesday morning when outreach launches.
+
+### Tuesday May 13: Phase 2 outreach launches.
 
 **The morning (60-90 min):**
 1. Make a public GitHub repo named `Stephenuffugus/Stephenuffugus`.
