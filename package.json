@@ -39,7 +39,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "firebase": "^12.12.0",
+    "firebase": "^12.12.1",
     "javascript-opentimestamps": "^0.4.5",
     "merkletreejs": "^0.6.0",
     "uuid": "^13.0.0"
