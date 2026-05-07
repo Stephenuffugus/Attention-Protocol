@@ -1,41 +1,59 @@
-# PPP Email, Final, Send-Ready
+# PPP Email — Locked, Send-Ready (May 7 final)
 
-**To:** [find on LinkedIn: Director of Accreditation, Director of CME Outcomes, VP of Education, or President at Physicians Postgraduate Press / psychiatrist.com]
+This is the version to send. Splices the May-5 short-form structure with the May-7 ABPN/ACCME regulatory hook. Personalize in **two** places: the recipient first name and (optionally) which IME-grantor names you cite.
 
-**Subject:** Psychiatry CME measurement, customer development not a pitch
+Full reasoning, alternative subject lines, and the reply-decision-tree live in `01-ppp.md`. Persona, market context, discovery questions, and locked answers live in `BRIEFING_PPP_v2.md` — read that before sending.
 
-**Body (paste verbatim, replace [Name] with the recipient's first name):**
+---
 
-Hi [Name],
+## Subject (locked)
 
-I'm Stephen Furpahs, solo founder of SWS Strategic Media LLC. I'll be straight: this is a customer-development conversation, not a pitch.
+```
+Customer development — psychiatry-CME measurement question
+```
 
-I'm reaching out specifically to PPP because psychiatry is the one specialty where "did the learner actually engage" is a clinically meaningful question, not just a compliance one. ABPN audits and the December 2025 ACCME guidance on AI-augmented assessments both push hardest in this direction. Your next ADHD or MDD IME proposal will need a more specific answer to it than the rubric language most MECs are writing.
+## Body (locked, paste verbatim — only edit `[FIRST NAME]`)
 
-What I built: the SWS Attention Protocol (USPTO SWS-PROV-001 filed March 2026). A cryptographically-signed receipt that proves a real human paid attention to a screen, verifiable offline against my published JWK. No PII. No content collected. No URLs logged. Just behavioral metrics and a signature. Production verifier is live at https://sws-attention-proofs.web.app/demo.html. YC Summer 2026 applicant.
+```
+[FIRST NAME],
 
-I'd rather not pitch you on it. I'd rather learn from you whether the problem I built it for matches what's actually keeping you up at night, or whether I'm targeting the wrong shape entirely.
+This is customer development, not a pitch.
 
-Specifically I'd love to know: how do you currently fill the "measurement of learner progression" section of an Otsuka or AbbVie psychiatry IME proposal, and what would have to be true for you to test a receipt on one accredited activity?
+I built a cryptographically-signed receipt that proves a real human engaged with a CME activity — auditor-verifiable offline against my published JWK. No PII collected, no content stored, no URLs tracked. Patent filed 2026-03-17. Solo founder, YC Summer 2026 applicant.
 
-I'd be happy to jump on a 20-minute call.
+Reaching out to PPP because psychiatry is the one specialty where "did the learner actually engage" is clinically meaningful, not just compliance. The December 2025 ACCME guidance on AI-augmented assessments and the way Otsuka and AbbVie are scoring "measurement of learner progression" are pushing harder on this than they were two years ago. I'd value your read on what's actually credible there.
 
-Stephen Furpahs
-SWS Strategic Media LLC
-Live demo: https://sws-attention-proofs.web.app/demo.html
+20 minutes. You teach me what grantors are pushing on. I'm not selling. If my product matches your problem we discuss what a free pilot looks like; if not, I leave with a sharper pitch.
+
+Live demo: https://sws-attention-proofs.web.app/cme-demo.html
+Public verifier: https://sws-attention-proofs.web.app/verify.html
+
+— Stephen Furpahs
+SWS Strategic Media LLC · Patent SWS-PROV-001
 stephenfurpahs@gmail.com
+```
 
 ---
 
 ## Pre-send checklist
 
-1. Find the actual recipient on LinkedIn first. Search "Physicians Postgraduate Press" or "psychiatrist.com" for current Director of Accreditation, Director of CME Outcomes, VP of Education, or President. Use first name in the greeting.
-2. If you can't find a specific person, address to "the PPP team" or use the President's name (PPP is small enough that the President is a viable contact).
-3. Read BRIEFING_PPP.md once before sending so you know the hardest expected questions.
-4. Do not modify the no-PII line; it is the strongest first-60-seconds anchor for a privacy-skeptical psychiatry audience.
+- [ ] Recipient verified (name, title, tenure ≥2y, active profile) — see `BRIEFING_PPP_v2.md` "Find the name"
+- [ ] Email address confirmed (test at `firstname.lastname@psychiatrist.com` or `flastname@psychiatrist.com` — verify pattern via Hunter.io free tier or by finding any other PPP email on the public site first)
+- [ ] `[FIRST NAME]` replaced in body
+- [ ] Subject copied exactly
+- [ ] Send window: ideally **10:00 AM – 12:00 PM ET** (= 9–11 AM CT, PPP's Memphis morning inbox window). If past noon ET, sending Thursday afternoon still beats Friday or weekend.
+- [ ] Day: Tuesday, Wednesday, **or Thursday only**. Today (May 7, Thu) qualifies. Friday/weekend = wait until Tuesday May 12 instead.
 
-## After sending
+## After you send (same day, 5 min)
 
-1. Capture the send in a tracker (date, recipient, subject).
-2. Set a follow-up reminder for 7 days from now if no reply.
-3. If they reply with a call request, message me with: "PPP call booked with [name] on [date]" and I'll prepare the per-call briefing one-pager.
+1. Add to tracker (paste into `outreach-drafts/SENT_LOG.md` or any durable file):
+   ```
+   2026-05-07 — PPP — [name] — sent: [time]
+                hardest expected question: "How does this look to ABPN?"
+                follow-up due: 2026-05-14
+                reply: pending
+   ```
+2. Calendar reminder for **Thu May 14** (7-day bump). Tell me when you've sent and I'll create the Google Calendar event.
+3. Walk away from the inbox. Refreshing changes nothing.
+
+**Status:** READY TO SEND as of 2026-05-07.
