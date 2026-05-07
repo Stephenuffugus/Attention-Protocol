@@ -615,7 +615,17 @@
     // they see the banner; when they accept/decline, we store it.
     // The banner is a non-blocking FYI — the demo still functions for the
     // researcher who explicitly landed here to test the protocol.
-    if (typeof SWSPrivacy !== 'undefined') {
+    //
+    // R8-NEW-6 (2026-05-07): match cme-demo's automation-aware gating so
+    // the Puppeteer-driven demo-e2e test isn't blocked by the consent
+    // modal intercepting clicks on Phase 1's "Done Reading" button.
+    // ap_test=1 is honored only on localhost / 127.0.0.1 / .local.
+    var apTestAllowed = /[?&]ap_test=1/.test(location.search)
+                     && (location.hostname === 'localhost'
+                         || location.hostname === '127.0.0.1'
+                         || location.hostname.endsWith('.local'));
+    var isAutomation = navigator.webdriver === true || apTestAllowed;
+    if (!isAutomation && typeof SWSPrivacy !== 'undefined') {
       try { SWSPrivacy.showConsentBanner({ theme: 'dark' }); } catch (e) { /* non-critical */ }
     }
 
