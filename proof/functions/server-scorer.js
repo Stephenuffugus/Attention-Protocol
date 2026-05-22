@@ -255,7 +255,16 @@ function computeServerComposite(signals, motionApplicable) {
   s += (signals.keystroke_coherence || 0) * weights.keystroke_coherence;
   s += (signals.duration_match || 0) * weights.duration_match;
   s += (signals.event_density || 0) * weights.event_density;
-  return Math.max(0, Math.min(1, s));
+  var raw = Math.max(0, Math.min(1, s));
+  // R9-STOPGAP-1 (tourniquet, not surgery): cap server_composite on the
+  // no-motion redistribution branch. Round 9 vec3 case F demonstrated
+  // that a 150-event synthetic-keyboard log (no human required) reaches
+  // server_composite=0.84 here via the 0.40/0.20/0.10 reweight. Hard
+  // cap so any "I have no motion" path is structurally barred from the
+  // server_attested tier (which post-STOPGAP-2 requires >=0.75).
+  // NOT a fix for the root cause: plausibility != provenance.
+  if (motionApplicable === false) raw = Math.min(raw, 0.65);
+  return raw;
 }
 
 /**
@@ -266,7 +275,8 @@ function computeServerComposite(signals, motionApplicable) {
  * session.signals.composite). `claimedDurationSec` is session.duration_sec.
  * `claimedCiVerdict` is session.composition_integrity.verdict.
  */
-function serverRecompute(eventLog, claimedComposite, claimedDurationSec, claimedCiVerdict) {
+function serverRecompute(eventLog, claimedComposite, claimedDurationSec, claimedCiVerdict, opts) {
+  opts = opts || {};
   var validation = validateEventLog(eventLog);
   if (!validation.valid) {
     return {
@@ -323,10 +333,23 @@ function serverRecompute(eventLog, claimedComposite, claimedDurationSec, claimed
   //       + ≥20 scroll events (e.g., long-form reading on a trackpad
   //       with momentum scroll, or a page where the user only scrolls).
   var scrollCount = events.filter(function(e) { return e.type === 'scroll'; }).length;
-  var motionApplicable = !(
+  var autoMotionApplicable = !(
     motion.reason === 'no_motion' &&
     (keystroke.n >= 10 || (keystroke.n === 0 && scrollCount >= 20))
   );
+  // R9-STOPGAP-3 (tourniquet): runWall passes opts.allowMotionFlip=false
+  // when the session document did not declare a device class authorising
+  // no-motion operation (mobile/touch/keyboard-only/no-pointer). Without
+  // an explicit declaration we refuse to redistribute the 0.30 motion
+  // weight, so motion=0 zeroes that slice of the score. Direct callers
+  // (the existing serverRecompute unit tests) omit opts and preserve the
+  // pre-stopgap auto-detect behaviour.
+  // Honest gap: an attacker can lie about the device class to flip this
+  // — STOPGAP-1's cap is the layered defense; STOPGAP-2's tier gate is
+  // the third layer. None of these closes the root cause.
+  var motionApplicable;
+  if (opts.allowMotionFlip === false) motionApplicable = true;
+  else motionApplicable = autoMotionApplicable;
   var serverComposite = computeServerComposite(signals, motionApplicable);
   // Round-5 R5-NEW-10b: divergent is ONE-SIDED — fires only when the
   // client OVER-claims relative to the server. The reverse case
@@ -497,9 +520,27 @@ async function runWall(sessionMeta, ctx) {
   var serverRecomputeResult = { ok: false, reason: 'event_log_absent' };
   var traceNovelty = { checked: false };
 
+  // R9-STOPGAP-3 (tourniquet): only allow the motionApplicable=false
+  // redistribution when the session explicitly declares a device class
+  // that justifies no-motion operation. SDK fields we accept as a
+  // declaration: environmental.device_class, environmental.touch_only,
+  // environmental.input_mode, environmental.pointer_type. If none of
+  // these is present, no auto-flip — motion=0 zeroes the motion weight
+  // and a synthetic-keyboard-only event log (round9 vec3 case F) can no
+  // longer recompute to a high score.
+  var deviceClassDeclared = !!(env && (
+    env.device_class ||
+    env.touch_only === true ||
+    env.input_mode === 'keyboard' ||
+    env.input_mode === 'touch' ||
+    env.pointer_type === 'none' ||
+    env.pointer_type === 'touch'
+  ));
+
   if (sessionMeta.eventLog) {
     serverRecomputeResult = serverRecompute(
-      sessionMeta.eventLog, composite, durationSec, ciVerdict);
+      sessionMeta.eventLog, composite, durationSec, ciVerdict,
+      { allowMotionFlip: deviceClassDeclared });
     if (!serverRecomputeResult.ok) {
       boundsViolations.push('server_recompute_failed:' + serverRecomputeResult.reason);
     } else if (serverRecomputeResult.divergent) {
@@ -570,8 +611,19 @@ async function runWall(sessionMeta, ctx) {
 
   // Trust-tier resolution — single source of truth, replaces the two
   // parallel if-else trees previously in HTTP + Firestore paths.
+  // R9-STOPGAP-2 (tourniquet): require server_composite >= 0.75 for the
+  // server_attested tier. Round 9 vec3 cases B/C/D produced clean
+  // bounds/non-divergent receipts at server_composite 0.54-0.70 (the
+  // 0.30 divergence threshold gave attackers a wide pad); raising the
+  // tier bar above that band shuts the easy logic-abuse path. Trade-off
+  // documented: legitimate desktop-pointer humans whose recompute lands
+  // in [0.65, 0.75] are demoted from server_attested to
+  // client_attested_bounds_clean — the receipt still mints, the tier
+  // label is honest about what we could actually prove server-side.
+  var SERVER_ATTESTED_FLOOR = 0.75;
   var trustTier;
   if (serverRecomputeResult.ok && !serverRecomputeResult.divergent
+      && serverRecomputeResult.server_composite >= SERVER_ATTESTED_FLOOR
       && boundsViolations.length === 0) {
     trustTier = 'server_attested';
   } else if (boundsViolations.length === 0) {
@@ -648,11 +700,20 @@ function extractSessionMetrics(session) {
   if (composite < 0) composite = 0;
   if (composite > 1) composite = 1;
 
+  // R9-STOPGAP-4: coerce duration_sec/duration_ms via Number() to match
+  // the composite + interactions paths above. Pre-stopgap, a string
+  // "120" silently dropped to 0 here while composite "0.84" coerced
+  // correctly (round9 vec3 case E1). The asymmetry was unsanitary and
+  // an easy footgun for downstream callers. Now Number() everywhere;
+  // unparseable values still resolve to 0 via the isFinite/positive
+  // guards below.
   var durationSec = 0;
-  if (typeof session.duration_sec === 'number' && session.duration_sec > 0) {
-    durationSec = session.duration_sec;
-  } else if (typeof session.duration_ms === 'number' && session.duration_ms > 0) {
-    durationSec = session.duration_ms / 1000;
+  var durSecNum = Number(session.duration_sec);
+  var durMsNum = Number(session.duration_ms);
+  if (Number.isFinite(durSecNum) && durSecNum > 0) {
+    durationSec = durSecNum;
+  } else if (Number.isFinite(durMsNum) && durMsNum > 0) {
+    durationSec = durMsNum / 1000;
   }
 
   // Interactions: HTTP path uses `interaction_count`, Firestore path
