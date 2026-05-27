@@ -117,6 +117,7 @@ function buildCredential(session, walledOutcome) {
   const validUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24h
   const subjectDid = 'did:sws:user:' + (session.uid_hash ||
     crypto.createHash('sha256').update(session.uid || 'anon').digest('hex').slice(0, 10));
+  const issuerId = 'did:web:sws-attention-proofs.web.app';
 
   const engagement = {
     contentId: session.content_id || 'demo_session',
@@ -128,10 +129,32 @@ function buildCredential(session, walledOutcome) {
     interactionCount: session.interaction_count || 0
   };
 
+  // Receipt-hash coverage fix (2026-05-27). Prior version hashed only
+  // {session_id, engagement, hv, at} — an audit found this produced an
+  // identical receiptHash for receipts whose subject/environmental/
+  // composition/consent fields differed. Computed once here, used in
+  // both the credentialSubject (visible to verifiers) and the
+  // receiptHash input (so the hash is a content fingerprint of every
+  // signed layer, matching the buyer-facing "tamper-evident" claim).
+  const env = session.environmental || null;
+  const compositionIntegrity = session.composition_integrity || null;
+  const consentAttestation = session.consent ? {
+    granted: session.consent.granted,
+    categories: session.consent.categories,
+    grantedAt: session.consent.timestamp,
+    version: session.consent.version
+  } : null;
+
   const hv = {
     verdict: session.verdict || 'verified_human_active_engagement',
     compositeScore: session.composite || null,
-    signals: session.signals || {}
+    signals: session.signals || {},
+    // Wall-outcome distinguishability fix (2026-05-27). Prior version
+    // used truthy-guards on walledOutcome fields only, so an empty-
+    // shape walledOutcome (all-null) produced identical hash to
+    // walledOutcome=undefined. This boolean forces the empty-vs-absent
+    // distinction into the hash input.
+    wallOutcomePresent: !!walledOutcome
   };
   // Wall outcome plumbed into humanVerification (alongside the other
   // round-2/3 attestation flags like compositeScoreFinal + gatesApplied).
@@ -157,7 +180,14 @@ function buildCredential(session, walledOutcome) {
 
   const receiptHash = crypto.createHash('sha256')
     .update(JSON.stringify({
-      session_id: session.session_id, engagement, hv,
+      session_id: session.session_id,
+      engagement,
+      hv,
+      subject_did: subjectDid,
+      environmental: env,
+      composition_integrity: compositionIntegrity,
+      consent_attestation: consentAttestation,
+      issuer_id: issuerId,
       at: now.toISOString()
     }))
     .digest('hex');
@@ -170,7 +200,7 @@ function buildCredential(session, walledOutcome) {
     id: 'urn:sws:receipt:' + session.session_id,
     type: ['VerifiableCredential', 'AttentionVerificationCredential'],
     issuer: {
-      id: 'did:web:sws-attention-proofs.web.app',
+      id: issuerId,
       name: 'SWS Strategic Media LLC',
       patent: 'SWS-PROV-001'
     },
@@ -182,14 +212,9 @@ function buildCredential(session, walledOutcome) {
       type: 'AttentionSession',
       engagement: engagement,
       humanVerification: hv,
-      environmental: session.environmental || null,
-      compositionIntegrity: session.composition_integrity || null,
-      consentAttestation: session.consent ? {
-        granted: session.consent.granted,
-        categories: session.consent.categories,
-        grantedAt: session.consent.timestamp,
-        version: session.consent.version
-      } : null
+      environmental: env,
+      compositionIntegrity: compositionIntegrity,
+      consentAttestation: consentAttestation
     },
     proof: {
       type: 'Sha256ReceiptIntegrity2026',

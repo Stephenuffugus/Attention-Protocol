@@ -215,6 +215,132 @@ describe('xapi-adapter — fromSignedJwt', () => {
 });
 
 // ============================================================
+// VERIFIED JWT (Class 14 fix — 2026-05-27 hostile crypto audit)
+// ============================================================
+// fromSignedJwt does NOT verify the signature; an attacker hand-crafting
+// a JWT with alg:none or an arbitrary signature can produce a syntactically
+// valid Statement. fromVerifiedJwt closes the gap by requiring a JWKS and
+// verifying first.
+
+describe('xapi-adapter — fromVerifiedJwt (Class 14 fix)', () => {
+  test('accepts a properly signed JWT against the matching JWKS', async () => {
+    const receipt = plausibleReceipt();
+    const cred = VC.fromReceipt(receipt);
+    const kp = await signer.generateKeypair({ kid: 'xapi-verify-test' });
+    const s = await signer.createSigner(kp.privateKeyHex, { kid: 'xapi-verify-test' });
+    const jwt = await VC.toSignedJwt(cred, s);
+
+    const jwks = { keys: [kp.publicKeyJwk] };
+    const stmt = await xapi.fromVerifiedJwt(jwt, jwks);
+
+    const v = xapi.validate(stmt);
+    expect(v.valid).toBe(true);
+    expect(stmt.result.extensions[xapi.EXT_SIGNED_JWT]).toBe(jwt);
+  });
+
+  test('accepts a single JWK (not an array)', async () => {
+    const receipt = plausibleReceipt();
+    const cred = VC.fromReceipt(receipt);
+    const kp = await signer.generateKeypair({ kid: 'xapi-verify-test' });
+    const s = await signer.createSigner(kp.privateKeyHex, { kid: 'xapi-verify-test' });
+    const jwt = await VC.toSignedJwt(cred, s);
+
+    const stmt = await xapi.fromVerifiedJwt(jwt, kp.publicKeyJwk);
+    expect(xapi.validate(stmt).valid).toBe(true);
+  });
+
+  test('accepts a bare array of JWKs', async () => {
+    const receipt = plausibleReceipt();
+    const cred = VC.fromReceipt(receipt);
+    const kp = await signer.generateKeypair({ kid: 'xapi-verify-test' });
+    const s = await signer.createSigner(kp.privateKeyHex, { kid: 'xapi-verify-test' });
+    const jwt = await VC.toSignedJwt(cred, s);
+
+    const stmt = await xapi.fromVerifiedJwt(jwt, [kp.publicKeyJwk]);
+    expect(xapi.validate(stmt).valid).toBe(true);
+  });
+
+  test('rejects an unsigned JWT (alg:none attack)', async () => {
+    const fakeHeader = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT', kid: 'xapi-verify-test' })).toString('base64url');
+    const fakePayload = Buffer.from(JSON.stringify({ vc: { credentialSubject: { id: 'mallory' } } })).toString('base64url');
+    const fake = fakeHeader + '.' + fakePayload + '.';
+
+    const kp = await signer.generateKeypair({ kid: 'xapi-verify-test' });
+    const jwks = { keys: [kp.publicKeyJwk] };
+    await expect(xapi.fromVerifiedJwt(fake, jwks)).rejects.toThrow(/jwt_invalid/);
+  });
+
+  test('rejects a JWT signed with a key not in the JWKS', async () => {
+    const receipt = plausibleReceipt();
+    const cred = VC.fromReceipt(receipt);
+    const attackerKp = await signer.generateKeypair({ kid: 'attacker-key' });
+    const attackerSigner = await signer.createSigner(attackerKp.privateKeyHex, { kid: 'attacker-key' });
+    const jwt = await VC.toSignedJwt(cred, attackerSigner);
+
+    // Legitimate JWKS does NOT contain the attacker's key
+    const legitKp = await signer.generateKeypair({ kid: 'legit-key' });
+    const jwks = { keys: [legitKp.publicKeyJwk] };
+
+    await expect(xapi.fromVerifiedJwt(jwt, jwks)).rejects.toThrow(/kid_not_in_jwks/);
+  });
+
+  test('rejects when JWKS is missing', async () => {
+    const receipt = plausibleReceipt();
+    const cred = VC.fromReceipt(receipt);
+    const kp = await signer.generateKeypair({ kid: 'xapi-verify-test' });
+    const s = await signer.createSigner(kp.privateKeyHex, { kid: 'xapi-verify-test' });
+    const jwt = await VC.toSignedJwt(cred, s);
+
+    await expect(xapi.fromVerifiedJwt(jwt, null)).rejects.toThrow(/missing_jwks/);
+    await expect(xapi.fromVerifiedJwt(jwt, undefined)).rejects.toThrow(/missing_jwks/);
+  });
+
+  test('rejects a JWT with no kid in header', async () => {
+    // Header without kid
+    const noKidHeader = Buffer.from(JSON.stringify({ alg: 'EdDSA', typ: 'JWT' })).toString('base64url');
+    const fakePayload = Buffer.from(JSON.stringify({ vc: { credentialSubject: {} } })).toString('base64url');
+    const noKidJwt = noKidHeader + '.' + fakePayload + '.sig';
+
+    const kp = await signer.generateKeypair({ kid: 'any-key' });
+    await expect(xapi.fromVerifiedJwt(noKidJwt, kp.publicKeyJwk)).rejects.toThrow(/missing_kid/);
+  });
+
+  test('rejects malformed jwt input', async () => {
+    const kp = await signer.generateKeypair({ kid: 'xapi-verify-test' });
+    await expect(xapi.fromVerifiedJwt('not a jwt', kp.publicKeyJwk)).rejects.toThrow(/invalid_jwt/);
+    await expect(xapi.fromVerifiedJwt(null, kp.publicKeyJwk)).rejects.toThrow(/invalid_jwt/);
+  });
+
+  test('PoC: the attack pattern fromSignedJwt allows is now refused', async () => {
+    // The audit PoC: an attacker hand-crafts an unsigned JWT claiming
+    // `actor.account.name = 'mallory'`. fromSignedJwt happily decoded it
+    // and produced a Statement. fromVerifiedJwt refuses.
+    const attackerHeader = Buffer.from(JSON.stringify({ alg: 'EdDSA', typ: 'JWT', kid: 'xapi-verify-test' })).toString('base64url');
+    const attackerPayload = Buffer.from(JSON.stringify({
+      iss: 'did:web:sws-attention-proofs.web.app',
+      sub: 'did:sws:user:mallory',
+      vc: {
+        credentialSubject: {
+          id: 'did:sws:user:mallory',
+          humanVerification: { verdict: 'verified_human_active_engagement', compositeScore: 0.99 }
+        }
+      }
+    })).toString('base64url');
+    const attackerJwt = attackerHeader + '.' + attackerPayload + '.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+
+    const legitKp = await signer.generateKeypair({ kid: 'xapi-verify-test' });
+    const jwks = { keys: [legitKp.publicKeyJwk] };
+
+    // fromSignedJwt (legacy path): would happily decode this
+    const stmtUnverified = xapi.fromSignedJwt(attackerJwt);
+    expect(stmtUnverified.actor.account.name).toContain('mallory'); // proves the gap
+
+    // fromVerifiedJwt (Class 14 fix): refuses
+    await expect(xapi.fromVerifiedJwt(attackerJwt, jwks)).rejects.toThrow(/jwt_invalid/);
+  });
+});
+
+// ============================================================
 // STRUCTURAL VALIDATION
 // ============================================================
 

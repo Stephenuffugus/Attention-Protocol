@@ -55,6 +55,13 @@ function isoDateStamp() {
   return new Date().toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
 }
 
+// Class 11 fix (2026-05-27): per-kid validity windows must be present
+// AND short enough that a leaked key has a bounded forward-mint window.
+// 90 days matches industry practice (Let's Encrypt cert lifetime, Google
+// service-account key lifetime). Old key keeps its existing window; new
+// key gets 90 days from issuance.
+const NEW_KEY_VALIDITY_DAYS = 90;
+
 async function main() {
   if (!fs.existsSync(STAGING_DIR)) fs.mkdirSync(STAGING_DIR, { recursive: true });
 
@@ -70,11 +77,22 @@ async function main() {
     liveJwks = JSON.parse(fs.readFileSync(LIVE_JWKS_PATH, 'utf8'));
   }
 
-  // Build multi-key JWKS: keep all existing keys, add the new one
+  // Pre-fix the staging output had NO validity fields on the new key,
+  // which would have caused live verifiers to fail with
+  // `jwk_validUntil_unparseable` at cutover (per verify-offline.js:171).
+  const nowIso = new Date().toISOString();
+  const expiryIso = new Date(Date.now() + NEW_KEY_VALIDITY_DAYS * 86400 * 1000).toISOString();
+  const newKeyWithValidity = Object.assign({}, kp.publicKeyJwk, {
+    sws_validFrom: nowIso,
+    sws_validUntil: expiryIso
+  });
+
+  // Build multi-key JWKS: keep all existing keys, add the new one (with
+  // its 90-day window). The old key retains its existing window verbatim.
   const mergedJwks = {
     keys: [
       ...liveJwks.keys.map(k => ({ ...k })), // preserve old keys verbatim
-      kp.publicKeyJwk
+      newKeyWithValidity
     ]
   };
 
@@ -105,6 +123,16 @@ async function main() {
     `New kid:   ${newKid}`,
     `Old keys in JWKS: ${liveJwks.keys.length} (retained for backward compatibility)`,
     `New keys in JWKS: ${mergedJwks.keys.length} (old + 1 new)`,
+    `New key validity window: ${nowIso} → ${expiryIso} (${NEW_KEY_VALIDITY_DAYS} days)`,
+    '',
+    '## 90-day rotation discipline (Class 11 fix, 2026-05-27)',
+    '',
+    `New keys get a ${NEW_KEY_VALIDITY_DAYS}-day validity window (sws_validUntil =`,
+    `issuance + ${NEW_KEY_VALIDITY_DAYS}d). After expiry, receipts signed under this`,
+    'kid will fail verification with `iat_after_kid_validUntil`. Plan the NEXT',
+    `rotation BEFORE ${expiryIso.slice(0,10)} to avoid an outage.`,
+    '',
+    'Set a calendar reminder NOW for that date.',
     '',
     '## Files staged',
     '',
@@ -142,13 +170,19 @@ async function main() {
     '   npx jest tests/canonical-fixtures.test.js',
     '   ```',
     '',
-    '6. **Grace period + revoke old key (7 days later):**',
-    '   After ~7 days, remove the old key from the JWKS and redeploy:',
+    '6. **Grace period + revoke old key (7 days later — calendar this NOW):**',
+    '   After ~7 days, remove the old key from the JWKS and redeploy.',
+    '   This step is the one operators forget. Set the reminder before',
+    '   you start the cutover, not after.',
     '   ```bash',
     `   jq '{ keys: [.keys[] | select(.kid != "${oldKid}")] }' proof/.well-known/attention-pubkey.json > /tmp/jwks-new.json`,
     '   mv /tmp/jwks-new.json proof/.well-known/attention-pubkey.json',
     '   firebase deploy --only hosting --project sws-attention-proofs',
     '   ```',
+    '',
+    `7. **Next rotation reminder (calendar it NOW): ${expiryIso.slice(0,10)}**`,
+    `   The new key expires after ${NEW_KEY_VALIDITY_DAYS} days. Rotate again`,
+    '   before then or all new receipts fail verification on the iat window.',
     '',
     '## Rollback',
     '',

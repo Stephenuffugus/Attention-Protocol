@@ -123,3 +123,118 @@ describe('buildCredential — walledOutcome embedding', () => {
     expect(credPlain.proof.receiptHash).not.toBe(credWalled.proof.receiptHash);
   });
 });
+
+/**
+ * Gate-0 hash-coverage tests (Class 5 + Class 10 from 2026-05-27 audit).
+ *
+ * Prior to the fix, the receiptHash input was {session_id, engagement, hv,
+ * at}. That excluded subject, environmental, composition_integrity, consent,
+ * and issuer — fields that appear in the signed credentialSubject and that
+ * the buyer-facing story treats as "tamper-evident." An external audit
+ * produced a working PoC showing two receipts with swapped uid + flipped
+ * bot + flipped verdict + revoked consent producing IDENTICAL receiptHash.
+ *
+ * Additionally, walledOutcome used truthy-guards inside hv, so an empty-
+ * shape walledOutcome ({trust_tier:null, server_recompute:null,
+ * bounds_violations:[], trace_novelty:null}) collided with walledOutcome=
+ * undefined — a "we ran the wall and it was clean" claim was hash-
+ * indistinguishable from "we never ran the wall."
+ *
+ * Both classes fixed by extending the receiptHash JSON input to cover every
+ * credentialSubject layer plus an explicit wallOutcomePresent boolean inside
+ * hv. Tests below pin the fix.
+ */
+describe('buildCredential — receipt-hash content coverage (Class 5 + 10 fix)', () => {
+  test('Class 10: empty-shape walledOutcome produces different hash than absent walledOutcome', () => {
+    const credAbsent = buildCredential(baseSession);
+    const credEmpty = buildCredential(baseSession, {
+      trust_tier: null,
+      server_recompute: null,
+      bounds_violations: [],
+      trace_novelty: null
+    });
+    expect(credAbsent.proof.receiptHash).not.toBe(credEmpty.proof.receiptHash);
+  });
+
+  test('Class 5: different uid (different subjectDid) produces different hash', () => {
+    const credA = buildCredential({ ...baseSession, uid: 'alice' });
+    const credB = buildCredential({ ...baseSession, uid: 'bob' });
+    expect(credA.credentialSubject.id).not.toBe(credB.credentialSubject.id);
+    expect(credA.proof.receiptHash).not.toBe(credB.proof.receiptHash);
+  });
+
+  test('Class 5: flipping environmental.bot produces different hash', () => {
+    const credClean = buildCredential({
+      ...baseSession,
+      environmental: { loaded: true, bot: false }
+    });
+    const credBot = buildCredential({
+      ...baseSession,
+      environmental: { loaded: true, bot: true }
+    });
+    expect(credClean.proof.receiptHash).not.toBe(credBot.proof.receiptHash);
+  });
+
+  test('Class 5: flipping composition_integrity.verdict produces different hash', () => {
+    const credAuthored = buildCredential({
+      ...baseSession,
+      composition_integrity: { verdict: 'authored', score: 0.85 }
+    });
+    const credPasted = buildCredential({
+      ...baseSession,
+      composition_integrity: { verdict: 'pasted', score: 0.20 }
+    });
+    expect(credAuthored.proof.receiptHash).not.toBe(credPasted.proof.receiptHash);
+  });
+
+  test('Class 5: adding consent produces different hash than no consent', () => {
+    const credNoConsent = buildCredential(baseSession);
+    const credWithConsent = buildCredential({
+      ...baseSession,
+      consent: {
+        granted: true,
+        categories: ['behavioral'],
+        timestamp: '2026-05-27T00:00:00Z',
+        version: 'v1'
+      }
+    });
+    expect(credNoConsent.proof.receiptHash).not.toBe(credWithConsent.proof.receiptHash);
+  });
+
+  test('Full-tamper PoC (uid + bot + verdict + consent all flipped): hashes differ', () => {
+    // This is the audit PoC. Before the fix, both produced identical
+    // receiptHash 36a8806…1f31398.
+    const credClean = buildCredential({
+      ...baseSession,
+      uid: 'alice',
+      environmental: { loaded: true, bot: false },
+      composition_integrity: { verdict: 'authored', score: 0.85 },
+      consent: {
+        granted: true,
+        categories: ['behavioral'],
+        timestamp: '2026-05-27T00:00:00Z',
+        version: 'v1'
+      }
+    });
+    const credTampered = buildCredential({
+      ...baseSession,
+      uid: 'mallory',
+      environmental: { loaded: true, bot: true },
+      composition_integrity: { verdict: 'pasted', score: 0.10 },
+      consent: null
+    });
+    expect(credClean.proof.receiptHash).not.toBe(credTampered.proof.receiptHash);
+  });
+
+  test('hv.wallOutcomePresent flag tracks whether walledOutcome was passed', () => {
+    const credAbsent = buildCredential(baseSession);
+    const credEmpty = buildCredential(baseSession, {});
+    const credFull = buildCredential(baseSession, {
+      trust_tier: 'server_attested',
+      server_recompute: { server_composite: 0.62, divergent: false }
+    });
+    expect(credAbsent.credentialSubject.humanVerification.wallOutcomePresent).toBe(false);
+    expect(credEmpty.credentialSubject.humanVerification.wallOutcomePresent).toBe(true);
+    expect(credFull.credentialSubject.humanVerification.wallOutcomePresent).toBe(true);
+  });
+});

@@ -236,15 +236,37 @@
       ? s.normalize('NFC') : s;
   }
   function _canonicalJSON(obj) {
-    if (obj === null || obj === undefined) return 'null';
-    if (typeof obj === 'number') return Number.isFinite(obj) ? String(obj) : 'null';
+    // Strict input validation (2026-05-27 fix). Prior version silently
+    // coerced undefined / NaN / Infinity / BigInt / Symbol / Function
+    // all to 'null', producing hash collisions across semantically
+    // different inputs. RFC 8785 (JCS) §3.2 disallows non-finite
+    // numbers; this implementation now throws on every input type
+    // that cannot round-trip through JSON deterministically.
+    if (obj === null) return 'null';
+    if (obj === undefined) throw new Error('canonical_json:undefined_input');
+    if (typeof obj === 'number') {
+      if (!Number.isFinite(obj)) throw new Error('canonical_json:non_finite_number');
+      return String(obj);
+    }
+    if (typeof obj === 'bigint') throw new Error('canonical_json:bigint_input');
+    if (typeof obj === 'symbol') throw new Error('canonical_json:symbol_input');
+    if (typeof obj === 'function') throw new Error('canonical_json:function_input');
     if (typeof obj === 'boolean') return obj ? 'true' : 'false';
     if (typeof obj === 'string') return JSON.stringify(_nfc(obj));
-    if (Array.isArray(obj)) return '[' + obj.map(_canonicalJSON).join(',') + ']';
+    if (Array.isArray(obj)) {
+      return '[' + obj.map(function(e) {
+        if (e === undefined) throw new Error('canonical_json:undefined_in_array');
+        return _canonicalJSON(e);
+      }).join(',') + ']';
+    }
     if (typeof obj === 'object') {
+      // RFC 8785 §3.2.4: omit object members whose value is undefined.
+      // Pre-fix this was 'key:null', which collided with explicit-null
+      // values — closes the second half of the Class-4 collision class.
       var entries = [];
       var origKeys = Object.keys(obj);
       for (var i = 0; i < origKeys.length; i++) {
+        if (obj[origKeys[i]] === undefined) continue;
         entries.push([_nfc(origKeys[i]), obj[origKeys[i]]]);
       }
       entries.sort(function(a, b) { return a[0] < b[0] ? -1 : (a[0] > b[0] ? 1 : 0); });
@@ -252,7 +274,7 @@
         return JSON.stringify(e[0]) + ':' + _canonicalJSON(e[1]);
       }).join(',') + '}';
     }
-    return 'null';
+    throw new Error('canonical_json:unknown_type:' + typeof obj);
   }
 
   // Minimal JS SHA-256 fallback

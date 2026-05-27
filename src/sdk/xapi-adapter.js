@@ -121,13 +121,20 @@ function fromReceipt(receipt, opts) {
 }
 
 /**
- * Build an xAPI Statement from a signed VC-JWT.
- * Decodes the JWT (without verifying — caller should verify separately
- * via attention-signer.verifyJwt if they care) and maps the embedded
- * W3C VC credentialSubject to xAPI fields.
+ * Build an xAPI Statement from a signed VC-JWT WITHOUT verifying the
+ * signature. Decodes the JWT and maps the embedded W3C VC credentialSubject
+ * to xAPI fields, then embeds the original JWT as an extension.
  *
- * Also automatically sets the signed-JWT extension so the LRS record
- * carries the full cryptographic artifact.
+ * **Security note (2026-05-27 audit):** an attacker who hand-crafts a JWT
+ * with `alg:none` (or an arbitrary signature) can produce a syntactically
+ * valid xAPI Statement here. The Statement's `actor.account.name` and
+ * `result.score` will reflect attacker-controlled claims unless the LRS
+ * (or some other downstream consumer) re-verifies the embedded JWT.
+ *
+ * **Use `fromVerifiedJwt` instead** for any production ingestion path.
+ * This function is retained for cases where verification is unambiguously
+ * performed elsewhere in the pipeline (e.g., a gateway that has already
+ * validated the JWT before this adapter is invoked).
  *
  * @param {string} jwt - compact JWT (header.payload.signature)
  * @param {Object} [opts] - same shape as fromReceipt, but signedJwt is auto-set
@@ -153,6 +160,84 @@ function fromSignedJwt(jwt, opts) {
   for (var k in opts) if (opts.hasOwnProperty(k)) merged[k] = opts[k];
   merged.signedJwt = jwt;
   return fromReceipt(receipt, merged);
+}
+
+/**
+ * Build an xAPI Statement from a signed VC-JWT, verifying the signature
+ * against the supplied JWKS first. RECOMMENDED entry point for any
+ * production LRS ingestion — refuses to map a JWT whose signature cannot
+ * be verified.
+ *
+ * Added 2026-05-27 in response to a hostile crypto audit (Class 14):
+ * `fromSignedJwt` previously did no verification and could be fed an
+ * unsigned JWT to produce a syntactically valid Statement.
+ *
+ * @param {string} jwt - compact JWT (header.payload.signature)
+ * @param {Object|Array} jwks - a JWK, an array of JWKs, or a JWKS-style
+ *        `{keys:[...]}` object. The right key is selected by `header.kid`.
+ * @param {Object} [opts] - same shape as fromReceipt; signedJwt auto-set
+ * @returns {Promise<Object>} xAPI 1.0.3 Statement
+ * @throws if header is malformed, kid is missing, kid is not in jwks,
+ *         or signature verification fails.
+ */
+async function fromVerifiedJwt(jwt, jwks, opts) {
+  if (typeof jwt !== 'string' || jwt.split('.').length !== 3) {
+    throw new Error('xapi_adapter_invalid_jwt');
+  }
+  if (!jwks) {
+    throw new Error('xapi_adapter_missing_jwks');
+  }
+  var parts = jwt.split('.');
+  var header;
+  try {
+    header = JSON.parse(_b64urlDecode(parts[0]));
+  } catch (e) {
+    throw new Error('xapi_adapter_header_not_json');
+  }
+  if (!header.kid) {
+    throw new Error('xapi_adapter_jwt_missing_kid');
+  }
+  var jwk = _selectJwk(jwks, header.kid);
+  if (!jwk) {
+    throw new Error('xapi_adapter_kid_not_in_jwks:' + header.kid);
+  }
+  if (typeof require !== 'function') {
+    throw new Error('xapi_adapter_verify_requires_node');
+  }
+  var signer = require('./attention-signer');
+  var result = await signer.verifyJwt(jwt, jwk);
+  if (!result.valid) {
+    throw new Error('xapi_adapter_jwt_invalid:' + (result.error || 'unknown'));
+  }
+  // Signature verified — safe to map. Delegates to fromSignedJwt now that
+  // the JWT's authenticity is established.
+  return fromSignedJwt(jwt, opts);
+}
+
+/**
+ * Locate the JWK matching `kid` inside a flexible JWKS-shaped input.
+ * Accepts a single JWK, an array of JWKs, or a {keys:[...]} envelope.
+ *
+ * @param {Object|Array} jwks
+ * @param {string} kid
+ * @returns {Object|null}
+ */
+function _selectJwk(jwks, kid) {
+  if (!jwks || !kid) return null;
+  if (Array.isArray(jwks)) {
+    for (var i = 0; i < jwks.length; i++) {
+      if (jwks[i] && jwks[i].kid === kid) return jwks[i];
+    }
+    return null;
+  }
+  if (jwks.keys && Array.isArray(jwks.keys)) {
+    for (var j = 0; j < jwks.keys.length; j++) {
+      if (jwks.keys[j] && jwks.keys[j].kid === kid) return jwks.keys[j];
+    }
+    return null;
+  }
+  if (jwks.kid === kid) return jwks;
+  return null;
 }
 
 // ============================================================
@@ -376,6 +461,7 @@ function _b64urlDecode(s) {
 module.exports = {
   fromReceipt: fromReceipt,
   fromSignedJwt: fromSignedJwt,
+  fromVerifiedJwt: fromVerifiedJwt,
   validate: validate,
   VERB_COMPLETED: VERB_COMPLETED,
   VERB_EXPERIENCED: VERB_EXPERIENCED,

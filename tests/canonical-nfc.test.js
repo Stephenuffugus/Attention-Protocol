@@ -98,3 +98,83 @@ describe('canonical JSON — NFC normalization (R2-NEW-10)', () => {
     expect(canonicalJSON(a)).toBe(canonicalJSON(b));
   });
 });
+
+/**
+ * Class-4 strict-rejection tests (2026-05-27 hostile crypto audit).
+ *
+ * Pre-fix, _canonicalJSON silently coerced these to 'null':
+ *   - undefined (anywhere)
+ *   - NaN, Infinity, -Infinity
+ *   - BigInt (via the fallthrough)
+ *   - Symbol, function
+ *
+ * That produced hash collisions across semantically different inputs.
+ * Two receipts {a:1, b:null} and {a:1, b:NaN} hashed identically.
+ * In an attacker-controlled-field context this is a forgery primitive.
+ *
+ * Fix: throw on every input type that cannot round-trip through JSON
+ * deterministically. For object values that are undefined, skip the
+ * key entirely per RFC 8785 section 3.2.4 — this distinguishes
+ * {a:1, b:undefined} from {a:1, b:null}, which previously collided.
+ */
+describe('canonical JSON — strict input validation (Class 4 fix)', () => {
+  test('throws on top-level undefined', () => {
+    expect(() => canonicalJSON(undefined)).toThrow(/undefined_input/);
+  });
+
+  test('throws on NaN', () => {
+    expect(() => canonicalJSON(NaN)).toThrow(/non_finite_number/);
+  });
+
+  test('throws on Infinity and -Infinity', () => {
+    expect(() => canonicalJSON(Infinity)).toThrow(/non_finite_number/);
+    expect(() => canonicalJSON(-Infinity)).toThrow(/non_finite_number/);
+  });
+
+  test('throws on BigInt', () => {
+    expect(() => canonicalJSON(BigInt(1))).toThrow(/bigint_input/);
+  });
+
+  test('throws on Symbol', () => {
+    expect(() => canonicalJSON(Symbol('x'))).toThrow(/symbol_input/);
+  });
+
+  test('throws on function', () => {
+    expect(() => canonicalJSON(function() {})).toThrow(/function_input/);
+  });
+
+  test('throws on undefined in array (no silent null coercion)', () => {
+    expect(() => canonicalJSON([1, undefined, 3])).toThrow(/undefined_in_array/);
+  });
+
+  test('throws when an object value recurses into a non-finite number', () => {
+    expect(() => canonicalJSON({ a: 1, b: NaN })).toThrow(/non_finite_number/);
+  });
+
+  test('throws when an object value recurses into a BigInt', () => {
+    expect(() => canonicalJSON({ a: 1, b: BigInt(2) })).toThrow(/bigint_input/);
+  });
+
+  test('Class 4 PoC: undefined object value no longer collides with null', () => {
+    // Pre-fix this produced identical 'null' bytes for both. Now:
+    //  - {a:1, b:undefined} -> '{"a":1}' (b skipped per RFC 8785)
+    //  - {a:1, b:null}      -> '{"a":1,"b":null}' (b explicit)
+    const withUndef = canonicalJSON({ a: 1, b: undefined });
+    const withNull = canonicalJSON({ a: 1, b: null });
+    expect(withUndef).not.toBe(withNull);
+    expect(withUndef).toBe('{"a":1}');
+    expect(withNull).toBe('{"a":1,"b":null}');
+  });
+
+  test('Class 4 PoC: omitted key matches explicit-undefined-value (both skipped)', () => {
+    // {a:1, b:undefined} and {a:1} produce the same bytes — which is
+    // what JSON.stringify also does and what JCS demands.
+    expect(canonicalJSON({ a: 1, b: undefined })).toBe(canonicalJSON({ a: 1 }));
+  });
+
+  test('null object values are still emitted explicitly (not skipped)', () => {
+    // null is a legitimate JSON value and MUST round-trip. Only undefined
+    // is RFC-8785-skippable.
+    expect(canonicalJSON({ a: 1, b: null })).toBe('{"a":1,"b":null}');
+  });
+});
